@@ -19,6 +19,11 @@ class LoadNodal:
         obj.addProperty("App::PropertyForce", "NodalLoading", "Nodal", "Nodal loading").NodalLoading = 10000000
         obj.addProperty("App::PropertyFloat", "ScaleDraw", "Load", "Scale from drawing").ScaleDraw = 1
         
+        # Load Type Properties
+        obj.addProperty("App::PropertyEnumeration", "LoadType", "Load", "Type of load")
+        obj.LoadType = ['DL', 'LL', 'H', 'F', 'W', 'E']
+        obj.LoadType = 'DL'
+        
         obj.addProperty("App::PropertyEnumeration", "GlobalDirection","Load","Global direction load")
         obj.GlobalDirection = ['+X','-X', '+Y','-Y', '+Z','-Z']
         obj.GlobalDirection = '-Z'
@@ -53,7 +58,13 @@ class LoadNodal:
         return Part.makeCompound([cone, cylinder])
     
     
-    def execute(self, obj):        
+    def execute(self, obj):
+        # Safety check for ObjectBase
+        if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
+            return
+        if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 2 or not obj.ObjectBase[0][1]:
+            return
+            
         subelement = self.getSubelement(obj, obj.ObjectBase[0][1][0])
         if 'Vertex' in obj.ObjectBase[0][1][0]:
             # Desenha carregamento pontual 
@@ -76,7 +87,10 @@ class LoadNodal:
             
             shape.translate(subelement.Point)
             obj.ViewObject.ShapeAppearance = (FreeCAD.Material(DiffuseColor=(1.00,0.00,0.00),AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
-            obj.Label = 'nodal load'
+            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                obj.Label = f'{obj.LoadType} nodal load ({obj.GlobalDirection})'
+            else:
+                obj.Label = 'nodal load'
 
         obj.Placement = shape.Placement
         obj.Shape = shape
@@ -89,6 +103,14 @@ class LoadNodal:
     def onChanged(self,obj,Parameter):
         if Parameter == 'edgeLength':
             self.execute(obj)
+        elif Parameter == 'LoadType':
+            # Update label when load type changes
+            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                obj.Label = f'{obj.LoadType} nodal load ({obj.GlobalDirection})'
+        elif Parameter == 'GlobalDirection':
+            # Re-execute when direction changes
+            if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+                self.execute(obj)
     
 
 class ViewProviderLoadNodal:
