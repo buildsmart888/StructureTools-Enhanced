@@ -20,12 +20,10 @@ class LoadDistributed:
         obj.addProperty("App::PropertyForce", "FinalLoading", "Distributed", "Final loading (load per unit length)").FinalLoading = 10000000
         obj.addProperty("App::PropertyFloat", "ScaleDraw", "Load", "Scale from drawing").ScaleDraw = 1
 
-        # obj.addProperty("App::PropertyFloat", "InitialLoadingInmm", "Distributed", "Initial loading (load per unit length)")
-        # obj.addProperty("App::PropertyFloat", "FinalLoadingInmm", "Distributed", "Final loading (load per unit length)")
-        # obj.setEditorMode("InitialLoadingInmm", 2)
-        # obj.setEditorMode("FinalLoadingInmm", 2)
-        # obj.FinalLoadingInmm.Hidden = True
-        # obj.InitialLoadingInmm.Hidden = True
+        # Load Type Properties
+        obj.addProperty("App::PropertyEnumeration", "LoadType", "Load", "Type of load")
+        obj.LoadType = ['DL', 'LL', 'H', 'F', 'W', 'E']
+        obj.LoadType = 'DL'
 
         obj.addProperty("App::PropertyEnumeration", "GlobalDirection","Load","Global direction load")
         obj.GlobalDirection = ['+X','-X', '+Y','-Y', '+Z','-Z']
@@ -62,7 +60,12 @@ class LoadDistributed:
     
     
     def execute(self, obj):
-
+        # Safety check for ObjectBase
+        if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
+            return
+        if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 2 or not obj.ObjectBase[0][1]:
+            return
+            
         subelement = self.getSubelement(obj, obj.ObjectBase[0][1][0])
         if 'Edge' in obj.ObjectBase[0][1][0]:
             k = 1000000
@@ -114,7 +117,10 @@ class LoadDistributed:
             shape = Part.makeCompound(listArrow)
             shape.translate(subelement.Vertexes[0].Point)
             obj.ViewObject.ShapeAppearance = (FreeCAD.Material(DiffuseColor=(0.00,0.00,1.00),AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
-            obj.Label = 'distributed load'
+            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection})'
+            else:
+                obj.Label = 'distributed load'
 
 
         obj.Placement = shape.Placement
@@ -124,6 +130,14 @@ class LoadDistributed:
     def onChanged(self,obj,Parameter):
         if Parameter == 'edgeLength':
             self.execute(obj)
+        elif Parameter == 'LoadType':
+            # Update label when load type changes
+            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection})'
+        elif Parameter == 'GlobalDirection':
+            # Re-execute when direction changes
+            if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+                self.execute(obj)
     
 
 class ViewProviderLoadDistributed:

@@ -28,6 +28,36 @@ class Calc:
 		obj.addProperty("App::PropertyString", "LengthUnit", "Calc", "set the length unit for calculation").LengthUnit = 'm'
 		obj.addProperty("App::PropertyString", "ForceUnit", "Calc", "set the length unit for calculation").ForceUnit = 'kN'
 
+		# Load Case Properties (Basic load types)
+		obj.addProperty("App::PropertyEnumeration", "LoadCase", "Load Cases", "Select primary load case type")
+		obj.LoadCase = ['DL', 'LL', 'H', 'F', 'W', 'E']
+		obj.LoadCase = 'DL'
+		
+		# Load Combination Properties (Both Allowable Stress and Strength Design)
+		obj.addProperty("App::PropertyEnumeration", "LoadCombination", "Load Combinations", "Select load combination for analysis")
+		obj.LoadCombination = [
+			# Allowable Stress Design (100 series)
+			'100_DL', '101_DL+LL', '102_DL+0.75(LL+W(X+))', '103_DL+0.75(LL+W(x-))',
+			'104_DL+0.75(LL+W(y+))', '105_DL+0.75(LL+W(y-))', '106_0.6DL+W(X+)', '107_0.6DL+W(x-)',
+			'108_0.6DL+W(y+)', '109_0.6DL+W(y-)', '110_DL+0.7E(X+)', '111_DL+0.7E(x-)',
+			'112_DL+0.7E(y+)', '113_DL+0.7E(y-)', '114_DL+0.525E(X+)+0.75LL', '115_DL+0.525E(x-)+0.75LL',
+			'116_DL+0.525E(Z+)+0.75LL', '117_DL+0.525E(z-)+0.75LL', '118_0.6DL+0.7E(X+)', '119_0.6DL+0.7E(x-)',
+			'120_0.6DL+0.7E(y+)', '121_0.6DL+0.7E(y-)', '122_DL+LL+H+F',
+			# Strength Design (1000 series)
+			'1000_1.4DL', '1001_1.4DL+1.7LL', '1002_1.05DL+1.275LL+1.6W(x+)', '1003_1.05DL+1.275LL+1.6W(x-)',
+			'1004_1.05DL+1.275LL+1.6W(y+)', '1005_1.05DL+1.275LL+1.6W(y-)', '1006_0.9DL+1.6W(X+)', '1007_0.9DL+1.6W(x-)',
+			'1008_0.9DL+1.6W(y+)', '1009_0.9DL+1.6W(y-)', '1010_1.05DL+1.275LL+E(x+)', '1011_1.05DL+1.275LL+E(x-)',
+			'1012_1.05DL+1.275LL+E(y+)', '1013_1.05DL+1.275LL+E(y-)', '1014_0.9DL+E(X+)', '1015_0.9DL+E(x-)',
+			'1016_0.9DL+E(y+)', '1017_0.9DL+E(y-)', '1018_1.4DL+1.7LL+1.7H', '1019_0.9DL+1.7H',
+			'1020_1.4DL+1.7LL+1.4F', '1021_0.9DL+1.4F'
+		]
+		obj.LoadCombination = '100_DL'
+
+		# Analysis Summary Properties
+		obj.addProperty("App::PropertyString", "AnalysisType", "Analysis Summary", "Current analysis type")
+		obj.addProperty("App::PropertyStringList", "LoadSummary", "Analysis Summary", "Summary of loads applied")
+		obj.addProperty("App::PropertyInteger", "TotalLoads", "Analysis Summary", "Total number of loads applied")
+		
 		obj.addProperty("App::PropertyStringList", "NameMembers", "Calc", "name of structure members")
 		obj.addProperty("App::PropertyVectorList", "Nodes", "Calc", "nós")
 		obj.addProperty("App::PropertyBool", "selfWeight", "Calc", "Considerar peso proprio.").selfWeight = False
@@ -125,9 +155,100 @@ class Calc:
 		
 		return model
 
+	# Get load factors based on load case or combination
+	def getLoadFactors(self, load_case_or_combination, load_type):
+		"""Returns load factor for given load case/combination and load type"""
+		# Load combinations (Both Allowable stress design and Strength design)
+		load_combinations = {
+			# Allowable Stress Design (100 series)
+			'100_DL': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'101_DL+LL': {'DL': 1.0, 'LL': 1.0, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'102_DL+0.75(LL+W(X+))': {'DL': 1.0, 'LL': 0.75, 'W': 0.75, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'103_DL+0.75(LL+W(x-))': {'DL': 1.0, 'LL': 0.75, 'W': 0.75, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'104_DL+0.75(LL+W(y+))': {'DL': 1.0, 'LL': 0.75, 'W': 0.75, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'105_DL+0.75(LL+W(y-))': {'DL': 1.0, 'LL': 0.75, 'W': 0.75, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'106_0.6DL+W(X+)': {'DL': 0.6, 'LL': 0.0, 'W': 1.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'107_0.6DL+W(x-)': {'DL': 0.6, 'LL': 0.0, 'W': 1.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'108_0.6DL+W(y+)': {'DL': 0.6, 'LL': 0.0, 'W': 1.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'109_0.6DL+W(y-)': {'DL': 0.6, 'LL': 0.0, 'W': 1.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'110_DL+0.7E(X+)': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
+			'111_DL+0.7E(x-)': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
+			'112_DL+0.7E(y+)': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
+			'113_DL+0.7E(y-)': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
+			'114_DL+0.525E(X+)+0.75LL': {'DL': 1.0, 'LL': 0.75, 'W': 0.0, 'E': 0.525, 'H': 0.0, 'F': 0.0},
+			'115_DL+0.525E(x-)+0.75LL': {'DL': 1.0, 'LL': 0.75, 'W': 0.0, 'E': 0.525, 'H': 0.0, 'F': 0.0},
+			'116_DL+0.525E(Z+)+0.75LL': {'DL': 1.0, 'LL': 0.75, 'W': 0.0, 'E': 0.525, 'H': 0.0, 'F': 0.0},
+			'117_DL+0.525E(z-)+0.75LL': {'DL': 1.0, 'LL': 0.75, 'W': 0.0, 'E': 0.525, 'H': 0.0, 'F': 0.0},
+			'118_0.6DL+0.7E(X+)': {'DL': 0.6, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
+			'119_0.6DL+0.7E(x-)': {'DL': 0.6, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
+			'120_0.6DL+0.7E(y+)': {'DL': 0.6, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
+			'121_0.6DL+0.7E(y-)': {'DL': 0.6, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
+			'122_DL+LL+H+F': {'DL': 1.0, 'LL': 1.0, 'W': 0.0, 'E': 0.0, 'H': 1.0, 'F': 1.0},
+			# Strength Design (1000 series)
+			'1000_1.4DL': {'DL': 1.4, 'LL': 0.0, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1001_1.4DL+1.7LL': {'DL': 1.4, 'LL': 1.7, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1002_1.05DL+1.275LL+1.6W(x+)': {'DL': 1.05, 'LL': 1.275, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1003_1.05DL+1.275LL+1.6W(x-)': {'DL': 1.05, 'LL': 1.275, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1004_1.05DL+1.275LL+1.6W(y+)': {'DL': 1.05, 'LL': 1.275, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1005_1.05DL+1.275LL+1.6W(y-)': {'DL': 1.05, 'LL': 1.275, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1006_0.9DL+1.6W(X+)': {'DL': 0.9, 'LL': 0.0, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1007_0.9DL+1.6W(x-)': {'DL': 0.9, 'LL': 0.0, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1008_0.9DL+1.6W(y+)': {'DL': 0.9, 'LL': 0.0, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1009_0.9DL+1.6W(y-)': {'DL': 0.9, 'LL': 0.0, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
+			'1010_1.05DL+1.275LL+E(x+)': {'DL': 1.05, 'LL': 1.275, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
+			'1011_1.05DL+1.275LL+E(x-)': {'DL': 1.05, 'LL': 1.275, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
+			'1012_1.05DL+1.275LL+E(y+)': {'DL': 1.05, 'LL': 1.275, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
+			'1013_1.05DL+1.275LL+E(y-)': {'DL': 1.05, 'LL': 1.275, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
+			'1014_0.9DL+E(X+)': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
+			'1015_0.9DL+E(x-)': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
+			'1016_0.9DL+E(y+)': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
+			'1017_0.9DL+E(y-)': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
+			'1018_1.4DL+1.7LL+1.7H': {'DL': 1.4, 'LL': 1.7, 'W': 0.0, 'E': 0.0, 'H': 1.7, 'F': 0.0},
+			'1019_0.9DL+1.7H': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 0.0, 'H': 1.7, 'F': 0.0},
+			'1020_1.4DL+1.7LL+1.4F': {'DL': 1.4, 'LL': 1.7, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 1.4},
+			'1021_0.9DL+1.4F': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 1.4}
+		}
+		
+		# Return load factor
+		if load_case_or_combination in load_combinations:
+			return load_combinations[load_case_or_combination].get(load_type, 0.0)
+		else:
+			return 1.0  # Default factor
+
+	# Organize loads by type and check compatibility with selected load combination
+	def organizeLoadsByType(self, loads, load_combination):
+		"""Organizes loads by type and validates compatibility with load case"""
+		load_types = {'DL': [], 'LL': [], 'H': [], 'F': [], 'W': [], 'E': [], 'FACTOR': []}
+		
+		for load in loads:
+			load_type = getattr(load, 'LoadType', 'DL')
+			if load_type in load_types:
+				load_types[load_type].append(load)
+				
+		# Check if the selected load combination requires load types that are not present
+		required_factors = self.getLoadFactors(load_combination, 'DL')  # Get all factors for this combination
+		
+		return load_types
+
+	# Check wind/earthquake direction compatibility
+	def checkDirectionCompatibility(self, load_combination, load_direction):
+		"""Check if load direction is compatible with load combination direction requirements"""
+		direction_mapping = {
+			'+X': ['X+', 'x+'], '-X': ['X-', 'x-'],
+			'+Y': ['Y+', 'y+'], '-Y': ['Y-', 'y-'],
+			'+Z': ['Z+', 'z+'], '-Z': ['Z-', 'z-']
+		}
+		
+		# Extract direction from load combination name if it contains directional info
+		for direction, patterns in direction_mapping.items():
+			for pattern in patterns:
+				if pattern in load_combination:
+					return direction == load_direction
+					
+		return True  # No specific direction requirement
+
 	# Cria os carregamentos
-	def setLoads(self, model, loads, nodes_map, unitForce, unitLength):
-		pass
+	def setLoads(self, model, loads, nodes_map, unitForce, unitLength, load_combination):
 		for load in loads:
 
 			match load.GlobalDirection:
@@ -155,14 +276,27 @@ class Calc:
 					axis = 'FY'
 					direction = -1
 
+			# Check if load has LoadType property, if not default to 'DL'
+			load_type = getattr(load, 'LoadType', 'DL')
+			
+			# Check direction compatibility for wind and earthquake loads
+			if load_type in ['W', 'E']:
+				if not self.checkDirectionCompatibility(load_combination, load.GlobalDirection):
+					continue  # Skip loads that don't match the required direction
+			
 			# Valida se o carregamento é distribuido
 			if 'Edge' in load.ObjectBase[0][1][0]:
 				initial = float(load.InitialLoading.getValueAs(unitForce))
 				final = float(load.FinalLoading.getValueAs(unitForce))
 
+				# Apply load factor based on load combination and load type
+				load_factor = self.getLoadFactors(load_combination, load_type)
+				factored_initial = initial * direction * load_factor
+				factored_final = final * direction * load_factor
+				
 				subname = int(load.ObjectBase[0][1][0].split('Edge')[1]) - 1
 				name = load.ObjectBase[0][0].Name + '_' + str(subname)
-				model.add_member_dist_load(name, axis, initial * direction, final * direction)
+				model.add_member_dist_load(name, axis, factored_initial, factored_final)
 
 			# Valida se o carregamento é nodal
 			elif 'Vertex' in load.ObjectBase[0][1][0]:
@@ -172,9 +306,12 @@ class Calc:
 				node = list(filter(lambda element: element == [round(float(FreeCAD.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(FreeCAD.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(FreeCAD.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)], nodes_map))[0]
 				indexNode = nodes_map.index(node)
 
-				# subname = int(load.ObjectBase[0][1][0].split('Vertex')[1]) - 1
+				# Apply load factor based on load combination and load type
+				load_factor = self.getLoadFactors(load_combination, load_type)
+				factored_load = float(load.NodalLoading.getValueAs(unitForce)) * direction * load_factor
+				
 				name = str(indexNode)
-				model.add_node_load(name, axis, float(load.NodalLoading.getValueAs(unitForce)) * direction)
+				model.add_node_load(name, axis, factored_load)
 			
 
 					
@@ -242,10 +379,34 @@ class Calc:
 		model = self.setMaterialAndSections(model, lines, obj.LengthUnit, obj.ForceUnit)
 		model = self.setNodes(model, nodes_map)
 		model = self.setMembers(model, members_map, obj.selfWeight)
-		model = self.setLoads(model, loads, nodes_map, obj.ForceUnit, obj.LengthUnit)
+		
+		# Use the selected load combination
+		active_load_combination = obj.LoadCombination if hasattr(obj, 'LoadCombination') else '100_DL'
+		
+		# Filter and organize loads by type for current load combination
+		organized_loads = self.organizeLoadsByType(loads, active_load_combination)
+		
+		model = self.setLoads(model, loads, nodes_map, obj.ForceUnit, obj.LengthUnit, active_load_combination)
 		model = self.setSuports(model, suports, nodes_map, obj.LengthUnit)
 
 		model.analyze()
+
+		# Update analysis summary
+		analysis_type = "Allowable Stress Design" if active_load_combination.startswith('1') and not active_load_combination.startswith('10') else "Strength Design" if active_load_combination.startswith('10') else "Allowable Stress Design"
+		obj.AnalysisType = f"{analysis_type}: {active_load_combination}"
+		
+		# Create load summary
+		load_summary = []
+		total_loads = 0
+		for load in loads:
+			load_type = getattr(load, 'LoadType', 'DL')
+			load_factor = self.getLoadFactors(active_load_combination, load_type)
+			if load_factor > 0:
+				load_summary.append(f"{load_type} (Factor: {load_factor}) - {load.Label}")
+				total_loads += 1
+				
+		obj.LoadSummary = load_summary
+		obj.TotalLoads = total_loads
 
 		# Gera os resultados
 		momentz = []
