@@ -1,1 +1,103 @@
+# StructureTools Development .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 *.pyc
+
+# FreeCAD
+*.FCStd1
+*.FCStd2
+*.FCBak
+*.backup
+*.recovery
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Documentation
+docs/_build/
+docs/build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Logs
+*.log
+logs/
+
+# Analysis results
+results/
+output/
+exports/
+
+# User-specific files
+user_config.py
+local_settings.py
+
+# IDE files
+.vscode/settings.json
+.idea/workspace.xml
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Development artifacts
+prototype/
+sandbox/
+experiments/
+
+# Large test files
+test_models/large/
+benchmarks/data/
