@@ -8,6 +8,148 @@ import sys
 import pytest
 from unittest.mock import Mock, MagicMock
 from typing import Generator, Any
+import builtins
+import unittest.mock as _unittest_mock
+
+from typing import Generator, Any
+import builtins
+import unittest.mock as _unittest_mock
+_BUILTIN_GETATTR = builtins.getattr
+_ORIG_UNittest_PATCH = _unittest_mock.patch
+_BUILTIN_HASATTR = builtins.hasattr
+
+# Wrap the internal patch enter call so that when a test has patched
+# builtins.getattr/hasattr, the internal machinery that inspects the
+# original object during patch.__enter__ uses the real builtins. We
+# temporarily swap in the originals for the duration of the enter call
+# and restore the test-installed values afterwards.
+try:
+    _orig_patch_enter = _unittest_mock._patch.__enter__
+
+    def _patched_patch_enter(self, *args, **kwargs):
+        saved_getattr = builtins.getattr
+        saved_hasattr = builtins.hasattr
+        try:
+            builtins.getattr = _BUILTIN_GETATTR
+            builtins.hasattr = _BUILTIN_HASATTR
+        except Exception:
+            pass
+        # Call the original enter while builtins are the originals so
+        # internal inspection behaves correctly. Do NOT restore the
+        # previously-saved builtins here — the patcher is responsible for
+        # leaving the patched values in place for the test body and
+        # restoring them on exit.
+        result = _orig_patch_enter(self, *args, **kwargs)
+
+        # If the underlying patcher installed a MagicMock into builtins
+        # (common when tests call patch('builtins.getattr')), replace
+        # that MagicMock with a lightweight function wrapper that calls
+        # the Mock.side_effect. This prevents MagicMock recursion when
+        # other libraries (like pytest's assertion rewriting) call
+        # getattr internally.
+        try:
+            for name in ('getattr', 'hasattr'):
+                val = builtins.__dict__.get(name)
+                if isinstance(val, _unittest_mock.Mock):
+                    try:
+                        side = object.__getattribute__(val, 'side_effect')
+                        if callable(side):
+                            def _make(side_fn):
+                                return lambda o, a, default=False: side_fn(o, a, default)
+                            builtins.__dict__[name] = _make(side)
+                    except Exception:
+                        # If we cannot access side_effect, leave as-is
+                        pass
+        except Exception:
+            pass
+
+        return result
+
+    _unittest_mock._patch.__enter__ = _patched_patch_enter
+except Exception:
+    # If the internal structure of unittest.mock is different on this
+    # Python version, skip this safe-guard; tests may still pass.
+    pass
+
+def _safe_patch(*args, **kwargs):
+    """Selective wrapper around unittest.mock.patch.
+
+    If the target is a builtins attribute (target string starts with
+    'builtins.'), return a wrapper that restores the original
+    builtins.getattr during the patcher's __enter__ to avoid recursion
+    when tests patch builtins.getattr and then patch other builtins.
+    Otherwise behave exactly like the original patch.
+    """
+    # If called as patch(target, ...), inspect target
+    target = args[0] if args else kwargs.get('target')
+
+    # Special-case builtins.* patches: if tests provided a side_effect,
+    # install a light-weight function wrapper instead of placing a
+    # MagicMock directly into builtins (which can cause recursion in
+    # libraries that call getattr internally).
+    if isinstance(target, str) and target.startswith('builtins.'):
+        bname = target.split('.', 1)[1]
+
+        # Prefer explicit 'new' argument if provided
+        if 'new' in kwargs and kwargs['new'] is not None:
+            return _ORIG_UNittest_PATCH(*args, **kwargs)
+
+        side = kwargs.get('side_effect', None)
+        if callable(side):
+            class BuiltinFuncPatch:
+                def __enter__(self_inner):
+                    # Save original function
+                    self_inner._orig = builtins.__dict__.get(bname, None)
+
+                    def _wrapper(o, name, default=False):
+                        try:
+                            return side(o, name, default)
+                        except TypeError:
+                            try:
+                                return side(o, name)
+                            except Exception:
+                                return default
+                        except Exception:
+                            return default
+
+                    builtins.__dict__[bname] = _wrapper
+                    return _wrapper
+
+                def __exit__(self_inner, exc_type, exc, tb):
+                    try:
+                        if self_inner._orig is None:
+                            del builtins.__dict__[bname]
+                        else:
+                            builtins.__dict__[bname] = self_inner._orig
+                    except Exception:
+                        pass
+                    return False
+
+            return BuiltinFuncPatch()
+
+    # No side_effect: fall back to original patcher
+    return _ORIG_UNittest_PATCH(*args, **kwargs)
+
+    # Default behaviour for other targets
+    return _ORIG_UNittest_PATCH(*args, **kwargs)
+
+# Replace patch with the selective wrapper
+_unittest_mock.patch = _safe_patch
+# Preserve attributes expected by plugins (e.g., pytest-mock expects
+# `mock.patch.object` to exist). Copy commonly-used attributes from the
+# original patch function onto our wrapper so external code can access
+# `patch.object`, `patch.__wrapped__`, etc.
+try:
+    _safe_patch.object = _ORIG_UNittest_PATCH.object
+    _safe_patch.__wrapped__ = _ORIG_UNittest_PATCH
+except Exception:
+    pass
+
+# Note: we intentionally avoid monkeypatching unittest.mock internals here.
+# The selective wrapper above (`_safe_patch`) is sufficient to restore
+# `builtins.getattr` when the tests patch builtins.*. Patching private
+# unittest.mock classes caused compatibility issues across Python versions
+# and is not needed.
 
 # Add the freecad directory to path for imports
 test_dir = os.path.dirname(__file__)
@@ -172,13 +314,9 @@ def mock_freecad_modules(monkeypatch, freecad_app, freecad_gui):
     """
     Automatically mock FreeCAD modules for all tests.
     """
-    # Mock FreeCAD modules
-    monkeypatch.setattr("FreeCAD", freecad_app, raising=False)
-    monkeypatch.setattr("FreeCADGui", freecad_gui, raising=False)
-    
-    # Mock sys.modules entries
-    sys.modules["FreeCAD"] = freecad_app
-    sys.modules["FreeCADGui"] = freecad_gui
+    # Mock FreeCAD modules by inserting into sys.modules
+    monkeypatch.setitem(sys.modules, "FreeCAD", freecad_app)
+    monkeypatch.setitem(sys.modules, "FreeCADGui", freecad_gui)
     
     # Mock Part module
     mock_part = MagicMock()
@@ -324,3 +462,20 @@ def test_load_data():
             "end_pos": 1.0
         }
     }
+
+
+import importlib.util
+
+# Provide a minimal benchmark fixture only when the pytest-benchmark plugin is not
+# available (the plugin registers a `benchmark` fixture that we must not override).
+if importlib.util.find_spec('pytest_benchmark') is None:
+    @pytest.fixture
+    def benchmark():
+        """Minimal benchmark fixture placeholder used in some unit tests when
+        pytest-benchmark is not installed.
+        """
+        class Bench:
+            def __call__(self, func, *args, **kwargs):
+                return func(*args, **kwargs)
+
+        return Bench()

@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="8" skipped="0" tests="19" time="5.134" timestamp="2025-08-22T09:53:02.738882+07:00" hostname="hp"><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_node_initialization" time="0.281" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_restraint_code_generation" time="0.006" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_fixed_support_restraint_code" time="0.005"><failure message="AssertionError: assert '000000' == '111111'&#10;  &#10;  #x1B[0m#x1B[91m- 111111#x1B[39;49;00m#x1B[90m#x1B[39;49;00m&#10;  #x1B[92m+ 000000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x000002B766504D60&gt;
+
+    def test_fixed_support_restraint_code(self):
+        """Test restraint code for fixed support."""
+        # All restraints active
+        restraint_values = {
+            'RestraintX': True, 'RestraintY': True, 'RestraintZ': True,
+            'RestraintRX': True, 'RestraintRY': True, 'RestraintRZ': True
+        }
+    
+        def mock_getattr(obj, attr, default=False):
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            restraint_code = self.node.get_restraint_code()
+&gt;           assert restraint_code == "111111"  # Fixed support
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: assert '000000' == '111111'
+E             
+E             #x1B[0m#x1B[91m- 111111#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
+E             #x1B[92m+ 000000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
+
+tests\unit\objects\test_structural_node.py:77: AssertionError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_roller_support_restraint_code" time="0.010"><failure message="AssertionError: assert '000000' == '001000'&#10;  &#10;  #x1B[0m#x1B[91m- 001000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m&#10;  #x1B[92m+ 000000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x000002B766504FC0&gt;
+
+    def test_roller_support_restraint_code(self):
+        """Test restraint code for roller support."""
+        # Only vertical restraint
+        restraint_values = {
+            'RestraintX': False, 'RestraintY': False, 'RestraintZ': True,
+            'RestraintRX': False, 'RestraintRY': False, 'RestraintRZ': False
+        }
+    
+        def mock_getattr(obj, attr, default=False):
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            restraint_code = self.node.get_restraint_code()
+&gt;           assert restraint_code == "001000"  # Roller support
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: assert '000000' == '001000'
+E             
+E             #x1B[0m#x1B[91m- 001000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
+E             #x1B[92m+ 000000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
+
+tests\unit\objects\test_structural_node.py:92: AssertionError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_free_node_restraint_code" time="0.007" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_is_restrained_check" time="0.029"><failure message="assert False == True&#10; +  where False = is_restrained()&#10; +    where is_restrained = &lt;StructureTools.objects.StructuralNode.StructuralNode object at 0x000002B766604830&gt;.is_restrained&#10; +      where &lt;StructureTools.objects.StructuralNode.StructuralNode object at 0x000002B766604830&gt; = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x000002B7653E7CE0&gt;.node">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x000002B7653E7CE0&gt;
+
+    def test_is_restrained_check(self):
+        """Test restraint detection."""
+        # Test with restraints
+        restraint_values = {
+            'RestraintX': True, 'RestraintY': False, 'RestraintZ': False,
+            'RestraintRX': False, 'RestraintRY': False, 'RestraintRZ': False
+        }
+    
+        def mock_getattr(obj, attr, default=False):
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+&gt;           assert self.node.is_restrained() == True
+E           assert False == True
+E            +  where False = is_restrained()
+E            +    where is_restrained = &lt;StructureTools.objects.StructuralNode.StructuralNode object at 0x000002B766604830&gt;.is_restrained
+E            +      where &lt;StructureTools.objects.StructuralNode.StructuralNode object at 0x000002B766604830&gt; = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x000002B7653E7CE0&gt;.node
+
+tests\unit\objects\test_structural_node.py:121: AssertionError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_degrees_of_freedom_calculation" time="0.004"><failure message="assert 6 == 0&#10; +  where 6 = get_degrees_of_freedom()&#10; +    where get_degrees_of_freedom = &lt;StructureTools.objects.StructuralNode.StructuralNode object at 0x000002B76649D040&gt;.get_degrees_of_freedom&#10; +      where &lt;StructureTools.objects.StructuralNode.StructuralNode object at 0x000002B76649D040&gt; = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x000002B7653E7F00&gt;.node">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x000002B7653E7F00&gt;
+
+    def test_degrees_of_freedom_calculation(self):
+        """Test DOF calculation."""
+        # Fixed support (0 DOF)
+        restraint_values_fixed = {
+            'RestraintX': True, 'RestraintY': True, 'RestraintZ': True,
+            'RestraintRX': True, 'RestraintRY': True, 'RestraintRZ': True
+        }
+    
+        def mock_getattr_fixed(obj, attr, default=False):
+            return restraint_values_fixed.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr_fixed):
+&gt;           assert self.node.get_degrees_of_freedom() == 0
+E           assert 6 == 0
+E            +  where 6 = get_degrees_of_freedom()
+E            +    where get_degrees_of_freedom = &lt;StructureTools.objects.StructuralNode.StructuralNode object at 0x000002B76649D040&gt;.get_degrees_of_freedom
+E            +      where &lt;StructureTools.objects.StructuralNode.StructuralNode object at 0x000002B76649D040&gt; = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x000002B7653E7F00&gt;.node
+
+tests\unit\objects\test_structural_node.py:147: AssertionError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_position_update_triggers_visual_update" time="0.015" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_restraint_change_triggers_visual_update" time="0.014" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_connection_type_update" time="0.016" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_nodal_load_validation" time="0.010" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_consistent_nodal_loads_no_warning" time="0.012" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation" name="test_restraint_symbol_creation_fixed" time="0.027"><failure message="AttributeError: module 'Part' has no attribute '__func__'. Did you mean: '__doc__'?">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation object at 0x000002B76546FB10&gt;
+mock_vector = &lt;class 'tests.conftest.MockVector'&gt;
+
+    def test_restraint_symbol_creation_fixed(self, mock_vector):
+        """Test restraint symbol creation for fixed support."""
+        # Set up fixed support
+        self.mock_obj.Position = mock_vector(0, 0, 0)
+        self.mock_obj.RestraintX = True
+        self.mock_obj.RestraintY = True
+        self.mock_obj.RestraintZ = True
+    
+        def mock_getattr(obj, attr, default=False):
+            if attr == 'RestraintX' or attr == 'RestraintY' or attr == 'RestraintZ':
+                return True
+            return default
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            with patch('builtins.hasattr', return_value=True):
+&gt;               with patch('StructureTools.objects.StructuralNode.Part') as mock_part:
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\objects\test_structural_node.py:247: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\conftest.py:97: in _patched_patch_enter
+    return _orig_patch_enter(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1524: in __enter__
+    elif spec is None and _is_async_obj(original):
+                          ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+obj = &lt;module 'Part' from 'C:\\Users\\thani\\AppData\\Roaming\\FreeCAD\\Mod\\StructureTools\\freecad\\Part.py'&gt;
+
+    def _is_async_obj(obj):
+        if _is_instance_mock(obj) and not isinstance(obj, AsyncMock):
+            return False
+        if hasattr(obj, '__func__'):
+&gt;           obj = getattr(obj, '__func__')
+                  ^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'Part' has no attribute '__func__'. Did you mean: '__doc__'?
+
+C:\Python313\Lib\unittest\mock.py:59: AttributeError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation" name="test_restraint_symbol_creation_pinned" time="0.020"><failure message="AttributeError: module 'Part' has no attribute '__func__'. Did you mean: '__doc__'?">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation object at 0x000002B76546FD90&gt;
+mock_vector = &lt;class 'tests.conftest.MockVector'&gt;
+
+    def test_restraint_symbol_creation_pinned(self, mock_vector):
+        """Test restraint symbol creation for pinned support."""
+        # Set up pinned support
+        self.mock_obj.Position = mock_vector(0, 0, 0)
+    
+        def mock_getattr(obj, attr, default=False):
+            restraint_values = {
+                'RestraintX': True, 'RestraintY': True, 'RestraintZ': True,
+                'RestraintRX': False, 'RestraintRY': False, 'RestraintRZ': False
+            }
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            with patch('builtins.hasattr', return_value=True):
+&gt;               with patch('StructureTools.objects.StructuralNode.Part') as mock_part:
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\objects\test_structural_node.py:266: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\conftest.py:97: in _patched_patch_enter
+    return _orig_patch_enter(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1524: in __enter__
+    elif spec is None and _is_async_obj(original):
+                          ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+obj = &lt;module 'Part' from 'C:\\Users\\thani\\AppData\\Roaming\\FreeCAD\\Mod\\StructureTools\\freecad\\Part.py'&gt;
+
+    def _is_async_obj(obj):
+        if _is_instance_mock(obj) and not isinstance(obj, AsyncMock):
+            return False
+        if hasattr(obj, '__func__'):
+&gt;           obj = getattr(obj, '__func__')
+                  ^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'Part' has no attribute '__func__'. Did you mean: '__doc__'?
+
+C:\Python313\Lib\unittest\mock.py:59: AttributeError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation" name="test_restraint_symbol_creation_roller" time="0.013"><failure message="AttributeError: module 'Part' has no attribute '__func__'. Did you mean: '__doc__'?">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation object at 0x000002B766504E90&gt;
+mock_vector = &lt;class 'tests.conftest.MockVector'&gt;
+
+    def test_restraint_symbol_creation_roller(self, mock_vector):
+        """Test restraint symbol creation for roller support."""
+        # Set up roller support
+        self.mock_obj.Position = mock_vector(0, 0, 0)
+    
+        def mock_getattr(obj, attr, default=False):
+            if attr == 'RestraintZ':
+                return True
+            return default
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            with patch('builtins.hasattr', return_value=True):
+&gt;               with patch('StructureTools.objects.StructuralNode.Part') as mock_part:
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\objects\test_structural_node.py:283: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\conftest.py:97: in _patched_patch_enter
+    return _orig_patch_enter(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1524: in __enter__
+    elif spec is None and _is_async_obj(original):
+                          ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+obj = &lt;module 'Part' from 'C:\\Users\\thani\\AppData\\Roaming\\FreeCAD\\Mod\\StructureTools\\freecad\\Part.py'&gt;
+
+    def _is_async_obj(obj):
+        if _is_instance_mock(obj) and not isinstance(obj, AsyncMock):
+            return False
+        if hasattr(obj, '__func__'):
+&gt;           obj = getattr(obj, '__func__')
+                  ^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'Part' has no attribute '__func__'. Did you mean: '__doc__'?
+
+C:\Python313\Lib\unittest\mock.py:59: AttributeError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeConnections" name="test_connection_type_pinned_releases" time="0.012" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeConnections" name="test_connection_type_semi_rigid_stiffness" time="0.011" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodePerformance" name="test_node_creation_performance" time="2.180" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodePerformance" name="test_restraint_code_performance" time="0.613"><failure message="AssertionError: assert '000000' == '111000'&#10;  &#10;  #x1B[0m#x1B[91m- 111000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m&#10;  #x1B[92m+ 000000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNodePerformance object at 0x000002B7664BC2D0&gt;
+benchmark = &lt;pytest_benchmark.fixture.BenchmarkFixture object at 0x000002B7664BD6D0&gt;
+
+    def test_restraint_code_performance(self, benchmark):
+        """Benchmark restraint code generation performance."""
+        mock_obj = Mock()
+        mock_obj.addProperty = Mock()
+        node = StructuralNode(mock_obj)
+    
+        def mock_getattr(obj, attr, default=False):
+            # Simulate mixed restraints
+            restraint_values = {
+                'RestraintX': True, 'RestraintY': True, 'RestraintZ': True,
+                'RestraintRX': False, 'RestraintRY': False, 'RestraintRZ': False
+            }
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            def generate_code():
+                return node.get_restraint_code()
+    
+            result = benchmark(generate_code)
+&gt;           assert result == "111000"
+E           AssertionError: assert '000000' == '111000'
+E             
+E             #x1B[0m#x1B[91m- 111000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
+E             #x1B[92m+ 000000#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
+
+tests\unit\objects\test_structural_node.py:355: AssertionError</failure></testcase></testsuite></testsuites>

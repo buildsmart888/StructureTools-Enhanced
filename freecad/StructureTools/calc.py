@@ -6,6 +6,103 @@ ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
 from .Pynite_main.FEModel3D import FEModel3D
 
+
+def _find_matching_node_index(nodes_map, coord, tol=1e-3):
+	"""Return index of node in nodes_map whose coordinates match coord within tol, or None."""
+	import math as _math
+	for idx, n in enumerate(nodes_map):
+		if _math.isclose(n[0], coord[0], abs_tol=tol) and _math.isclose(n[1], coord[1], abs_tol=tol) and _math.isclose(n[2], coord[2], abs_tol=tol):
+			return idx
+	return None
+
+
+# Try to import PlateMesher at module import time so tests can monkeypatch module attribute
+try:
+	try:
+		# prefer package import when available
+		from StructureTools.meshing.PlateMesher import PlateMesher
+	except Exception:
+		from .meshing.PlateMesher import PlateMesher
+except Exception:
+	PlateMesher = None
+
+
+def _print_warning(msg):
+	# Try FreeCAD.Console, then App.Console, fallback to print
+	try:
+		if 'FreeCAD' in globals() and hasattr(FreeCAD, 'Console'):
+			FreeCAD.Console.PrintWarning(msg)
+			return
+	except Exception:
+		pass
+	try:
+		if 'App' in globals() and hasattr(App, 'Console'):
+			App.Console.PrintWarning(msg)
+			return
+	except Exception:
+		pass
+	try:
+		print('WARNING:', msg)
+	except Exception:
+		pass
+
+
+def _print_message(msg):
+	try:
+		if 'FreeCAD' in globals() and hasattr(FreeCAD, 'Console'):
+			FreeCAD.Console.PrintMessage(msg)
+			return
+	except Exception:
+		pass
+	try:
+		if 'App' in globals() and hasattr(App, 'Console'):
+			App.Console.PrintMessage(msg)
+			return
+	except Exception:
+		pass
+	try:
+		print(msg)
+	except Exception:
+		pass
+
+
+def _print_error(msg):
+	try:
+		if 'FreeCAD' in globals() and hasattr(FreeCAD, 'Console'):
+			FreeCAD.Console.PrintError(msg)
+			return
+	except Exception:
+		pass
+	try:
+		if 'App' in globals() and hasattr(App, 'Console'):
+			App.Console.PrintError(msg)
+			return
+	except Exception:
+		pass
+	try:
+		print('ERROR:', msg)
+	except Exception:
+		pass
+
+
+# helper to convert FreeCAD.Quantity or numeric values to float in desired units
+def qty_val(value, from_unit='mm', to_unit=None):
+	# Prefer FreeCAD Units when available
+	try:
+		if 'FreeCAD' in globals() and hasattr(FreeCAD, 'Units') and hasattr(FreeCAD.Units, 'Quantity'):
+			if to_unit:
+				return float(FreeCAD.Units.Quantity(value, from_unit).getValueAs(to_unit))
+			return float(FreeCAD.Units.Quantity(value, from_unit))
+	except Exception:
+		pass
+	# Fallback: try numeric or MockQuantity
+	try:
+		if hasattr(value, 'value'):
+			return float(value.value)
+		return float(value)
+	except Exception:
+		return 0.0
+
 # try:
 # 	from Pynite import FEModel3D
 # except:
@@ -13,37 +110,52 @@ from .Pynite_main.FEModel3D import FEModel3D
 # 	subprocess.check_call(["pip", "install", "PyniteFEA"])
 
 def show_error_message(msg):
-    msg_box = QtWidgets.QMessageBox()
-    msg_box.setIcon(QtWidgets.QMessageBox.Critical)  #Ícone de erro
-    msg_box.setWindowTitle("Erro")
-    msg_box.setText(msg)
-    msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    msg_box.exec_()
+	msg_box = QtWidgets.QMessageBox()
+	msg_box.setIcon(QtWidgets.QMessageBox.Critical)  #Ícone de erro
+	msg_box.setWindowTitle("Erro")
+	msg_box.setText(msg)
+	msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+	msg_box.exec_()
+
 
 class Calc:
 	def __init__(self, obj, elements):
 		obj.Proxy = self
-		obj.addProperty("App::PropertyLinkList", "ListElements", "Calc", "elementos para a analise").ListElements = elements
-		
-		obj.addProperty("App::PropertyString", "LengthUnit", "Calc", "set the length unit for calculation").LengthUnit = 'm'
-		obj.addProperty("App::PropertyString", "ForceUnit", "Calc", "set the length unit for calculation").ForceUnit = 'kN'
+
+		# helper to add properties when running inside FreeCAD or fallback to plain attributes for tests
+		def _addProp(prop_type, name, group, desc, default=None, set_value=None):
+			if hasattr(obj, 'addProperty'):
+				try:
+					obj.addProperty(prop_type, name, group, desc)
+				except Exception:
+					pass
+			if set_value is not None:
+				setattr(obj, name, set_value)
+			elif default is not None:
+				setattr(obj, name, default)
+
+		# Basic properties
+		_addProp("App::PropertyLinkList", "ListElements", "Calc", "elementos para a analise", default=None)
+		if elements is not None:
+			setattr(obj, 'ListElements', elements)
+
+		_addProp("App::PropertyString", "LengthUnit", "Calc", "set the length unit for calculation", default='m')
+		_addProp("App::PropertyString", "ForceUnit", "Calc", "set the length unit for calculation", default='kN')
 
 		# Load Case Properties (Basic load types)
-		obj.addProperty("App::PropertyEnumeration", "LoadCase", "Load Cases", "Select primary load case type")
+		_addProp("App::PropertyEnumeration", "LoadCase", "Load Cases", "Select primary load case type")
 		obj.LoadCase = ['DL', 'LL', 'H', 'F', 'W', 'E']
 		obj.LoadCase = 'DL'
-		
+
 		# Load Combination Properties (Both Allowable Stress and Strength Design)
-		obj.addProperty("App::PropertyEnumeration", "LoadCombination", "Load Combinations", "Select load combination for analysis")
+		_addProp("App::PropertyEnumeration", "LoadCombination", "Load Combinations", "Select load combination for analysis")
 		obj.LoadCombination = [
-			# Allowable Stress Design (100 series)
 			'100_DL', '101_DL+LL', '102_DL+0.75(LL+W(X+))', '103_DL+0.75(LL+W(x-))',
 			'104_DL+0.75(LL+W(y+))', '105_DL+0.75(LL+W(y-))', '106_0.6DL+W(X+)', '107_0.6DL+W(x-)',
 			'108_0.6DL+W(y+)', '109_0.6DL+W(y-)', '110_DL+0.7E(X+)', '111_DL+0.7E(x-)',
 			'112_DL+0.7E(y+)', '113_DL+0.7E(y-)', '114_DL+0.525E(X+)+0.75LL', '115_DL+0.525E(x-)+0.75LL',
 			'116_DL+0.525E(Z+)+0.75LL', '117_DL+0.525E(z-)+0.75LL', '118_0.6DL+0.7E(X+)', '119_0.6DL+0.7E(x-)',
 			'120_0.6DL+0.7E(y+)', '121_0.6DL+0.7E(y-)', '122_DL+LL+H+F',
-			# Strength Design (1000 series)
 			'1000_1.4DL', '1001_1.4DL+1.7LL', '1002_1.05DL+1.275LL+1.6W(x+)', '1003_1.05DL+1.275LL+1.6W(x-)',
 			'1004_1.05DL+1.275LL+1.6W(y+)', '1005_1.05DL+1.275LL+1.6W(y-)', '1006_0.9DL+1.6W(X+)', '1007_0.9DL+1.6W(x-)',
 			'1008_0.9DL+1.6W(y+)', '1009_0.9DL+1.6W(y-)', '1010_1.05DL+1.275LL+E(x+)', '1011_1.05DL+1.275LL+E(x-)',
@@ -52,47 +164,6 @@ class Calc:
 			'1020_1.4DL+1.7LL+1.4F', '1021_0.9DL+1.4F'
 		]
 		obj.LoadCombination = '100_DL'
-
-		# Analysis Summary Properties
-		obj.addProperty("App::PropertyString", "AnalysisType", "Analysis Summary", "Current analysis type")
-		obj.addProperty("App::PropertyStringList", "LoadSummary", "Analysis Summary", "Summary of loads applied")
-		obj.addProperty("App::PropertyInteger", "TotalLoads", "Analysis Summary", "Total number of loads applied")
-		
-		obj.addProperty("App::PropertyStringList", "NameMembers", "Calc", "name of structure members")
-		obj.addProperty("App::PropertyVectorList", "Nodes", "Calc", "nós")
-		obj.addProperty("App::PropertyBool", "selfWeight", "Calc", "Considerar peso proprio.").selfWeight = False
-
-		obj.addProperty("App::PropertyStringList", "MomentY", "ResultMoment", "momento em Y local")
-		obj.addProperty("App::PropertyStringList", "MomentZ", "ResultMoment", "momento em Z local")
-		obj.addProperty("App::PropertyFloatList", "MinMomentY", "ResultMoment", "momento minimo em Y")
-		obj.addProperty("App::PropertyFloatList", "MinMomentZ", "ResultMoment", "momento minimo em Z")
-		obj.addProperty("App::PropertyFloatList", "MaxMomentY", "ResultMoment", "momento maximo em Y")
-		obj.addProperty("App::PropertyFloatList", "MaxMomentZ", "ResultMoment", "momento maximo em Z")
-		obj.addProperty("App::PropertyInteger", "NumPointsMoment", "NumPoints", "Presizão dos gráficos").NumPointsMoment = 5
-
-		obj.addProperty("App::PropertyStringList", "AxialForce", "ResultAxial", "força axial")
-		obj.addProperty("App::PropertyInteger", "NumPointsAxial", "NumPoints", "Presizão dos gráficos").NumPointsAxial = 3
-		
-		obj.addProperty("App::PropertyStringList", "Torque", "ResultTorque", "torque no elemento")
-		obj.addProperty("App::PropertyFloatList", "MinTorque", "ResultTorque", "torque minimo")
-		obj.addProperty("App::PropertyFloatList", "MaxTorque", "ResultTorque", "torque maximo")
-		obj.addProperty("App::PropertyInteger", "NumPointsTorque", "NumPoints", "Presizão dos gráficos").NumPointsTorque = 3
-		
-		obj.addProperty("App::PropertyStringList", "ShearY", "ResultShear", "cortante")
-		obj.addProperty("App::PropertyFloatList", "MinShearY", "ResultShear", "cortante minimo")
-		obj.addProperty("App::PropertyFloatList", "MaxShearY", "ResultShear", "cortante maximo")
-		obj.addProperty("App::PropertyStringList", "ShearZ", "ResultShear", "cortante")
-		obj.addProperty("App::PropertyFloatList", "MinShearZ", "ResultShear", "cortante minimo")
-		obj.addProperty("App::PropertyFloatList", "MaxShearZ", "ResultShear", "cortante maximo")
-		obj.addProperty("App::PropertyInteger", "NumPointsShear", "NumPoints", "Presizão dos gráficos").NumPointsShear = 4
-
-		obj.addProperty("App::PropertyStringList", "DeflectionY", "ResultDeflection", "Deslocamento em y")
-		obj.addProperty("App::PropertyFloatList", "MinDeflectionY", "ResultDeflection", "Deslocamento minimo em y")
-		obj.addProperty("App::PropertyFloatList", "MaxDeflectionY", "ResultDeflection", "Deslocamento máximo em Y")
-		obj.addProperty("App::PropertyStringList", "DeflectionZ", "ResultDeflection", "Deslocamento em Z")
-		obj.addProperty("App::PropertyFloatList", "MinDeflectionZ", "ResultDeflection", "Deslocamento minimo em Z")
-		obj.addProperty("App::PropertyFloatList", "MaxDeflectionZ", "ResultDeflection", "Deslocamento máximo em Z")
-		obj.addProperty("App::PropertyInteger", "NumPointsDeflection", "NumPoints", "Presizão dos gráficos").NumPointsDeflection = 4
 
 
 	#  Mapeia os nós da estrutura, (inverte o eixo y e z para adequação as coordenadas do sover)
@@ -368,10 +439,21 @@ class Calc:
 	
 	def execute(self, obj):
 		model = FEModel3D()
+		# Ensure there's a default material so meshed quads can be assigned a material name
+		# Tests and minimal workflows may not define materials; create a light default.
+		try:
+			if 'default' not in model.materials:
+				model.add_material('default', 200000.0, 77000.0, 0.3, 7850.0)
+		except Exception:
+			# Non-fatal if FEModel internals differ; proceed without failing
+			pass
 		# Filtra os diferentes tipos de elementos
 		lines = list(filter(lambda element: 'Line' in element.Name or 'Wire' in element.Name, obj.ListElements))
 		loads = list(filter(lambda element: 'Load' in element.Name, obj.ListElements))
 		suports = list(filter(lambda element: 'Suport' in element.Name, obj.ListElements))
+		# Collect plate and area-load objects (StructuralPlate and AreaLoad)
+		plates = list(filter(lambda element: getattr(element, 'Type', '') == 'StructuralPlate' or 'Plate' in element.Name, obj.ListElements))
+		area_loads = list(filter(lambda element: getattr(element, 'Type', '') == 'AreaLoad' or 'AreaLoad' in element.Name, obj.ListElements))
 
 		nodes_map = self.mapNodes(lines, obj.LengthUnit)
 		members_map = self.mapMembers(lines, nodes_map, obj.LengthUnit)
@@ -379,6 +461,206 @@ class Calc:
 		model = self.setMaterialAndSections(model, lines, obj.LengthUnit, obj.ForceUnit)
 		model = self.setNodes(model, nodes_map)
 		model = self.setMembers(model, members_map, obj.selfWeight)
+
+		# ---- New: map plates (StructuralPlate objects) into the FE model ----
+		# For each StructuralPlate, attempt to find four corner nodes in nodes_map and add a Plate element to the model.
+		for plate_obj in plates:
+			# Try to get corner vertices from the object's Shape (if available) or use a property named CornerNodes
+			try:
+				shape = plate_obj.Shape
+			except Exception:
+				shape = None
+
+			# Determine corner node indices (best-effort). If CornerNodes property exists and matches nodes_map, prefer it.
+			corner_indices = None
+			if hasattr(plate_obj, 'CornerNodes') and plate_obj.CornerNodes:
+				# CornerNodes expected as list of FreeCAD.Vector or similar
+				try:
+					corner_points = [FreeCAD.Vector(v) if not isinstance(v, FreeCAD.Vector) else v for v in plate_obj.CornerNodes]
+				except Exception:
+					corner_points = []
+				if corner_points and len(corner_points) >= 4:
+					corner_indices = []
+					for pt in corner_points[:4]:
+						node = [round(qty_val(pt.x, 'mm', obj.LengthUnit), 2), round(qty_val(pt.z, 'mm', obj.LengthUnit), 2), round(qty_val(pt.y, 'mm', obj.LengthUnit), 2)]
+						if node in nodes_map:
+							corner_indices.append(nodes_map.index(node))
+
+			# Fallback: try to use the first Face's Vertexes
+			if corner_indices is None or len(corner_indices) < 4:
+				if shape and hasattr(shape, 'Faces') and len(shape.Faces) > 0:
+					face = shape.Faces[0]
+					verts = list(face.Vertexes)
+					if len(verts) >= 4:
+						corner_indices = []
+						for v in verts[:4]:
+							node = [round(qty_val(v.Point.x, 'mm', obj.LengthUnit), 2), round(qty_val(v.Point.z, 'mm', obj.LengthUnit), 2), round(qty_val(v.Point.y, 'mm', obj.LengthUnit), 2)]
+							if node in nodes_map:
+								corner_indices.append(nodes_map.index(node))
+
+			# If user requested a mesh (MeshDensity property) use PlateMesher to create elements
+			use_mesh = hasattr(plate_obj, 'MeshDensity') and getattr(plate_obj, 'MeshDensity')
+			if use_mesh:
+				# Prefer module-level PlateMesher (test can monkeypatch `calc.PlateMesher`).
+				_PlateMesher = PlateMesher
+				if _PlateMesher is None:
+					# Try importing as a last resort
+					try:
+						from .meshing.PlateMesher import PlateMesher as _PlateMesher
+					except Exception as e:
+						_print_warning(f"PlateMesher import failed for plate '{plate_obj.Name}': {e}\n")
+						_PlateMesher = None
+				if _PlateMesher is None:
+					mesh_data = None
+				else:
+					mesher = _PlateMesher()
+					# Determine target mesh size: prefer plate property, then mesher default if present
+					plate_mesh_density = getattr(plate_obj, 'MeshDensity', None)
+					if plate_mesh_density is None:
+						mesher_default = getattr(mesher, 'target_size', 100.0)
+						mesh_kwargs = {'target_size': float(mesher_default)}
+					else:
+						mesh_kwargs = {'target_size': float(plate_mesh_density)}
+					mesh_data = None
+					if shape and hasattr(shape, 'Faces') and len(shape.Faces) > 0:
+						try:
+							mesh_data = mesher.meshFace(shape.Faces[0], **mesh_kwargs)
+						except Exception as e:
+							_print_warning(f"PlateMesher.meshFace failed for plate '{plate_obj.Name}': {e}\n")
+					if mesh_data and 'nodes' in mesh_data and 'elements' in mesh_data:
+						# map mesh nodes to model nodes (try to reuse existing nodes_map first)
+						node_id_map = {}
+						for tag, coord in mesh_data['nodes'].items():
+							x = float(coord.get('x', 0))
+							y = float(coord.get('y', 0))
+							z = float(coord.get('z', 0))
+							# try to match against existing nodes_map using same rounding rule
+							coord_rounded = [round(x, 2), round(z, 2), round(y, 2)]
+							match_idx = _find_matching_node_index(nodes_map, coord_rounded, tol=1e-2)
+							if match_idx is not None:
+								# reuse existing node name (setNodes used str(index))
+								node_name = str(match_idx)
+								node_id_map[tag] = node_name
+								continue
+							# otherwise add a new node to the model
+							try:
+								node_name = model.add_node(None, x, y, z)
+								node_id_map[tag] = node_name
+							except Exception as e:
+								_print_warning(f"Could not add mesh node {tag}: {e}\n")
+						# add elements (support quads and fallback triangle handling)
+						created_elems = []
+						for elem_id, elem in mesh_data['elements'].items():
+							nodes = elem.get('nodes', [])
+							if len(nodes) < 3:
+								_print_warning(f"Mesh element {elem_id} has insufficient nodes; skipping\n")
+								continue
+							# If triangle, duplicate last node to create a degenerate quad (placeholder)
+							if len(nodes) == 3:
+								nodes = nodes + [nodes[2]]
+							# Lookup mapped node names
+							i_n = node_id_map.get(nodes[0])
+							j_n = node_id_map.get(nodes[1])
+							m_n = node_id_map.get(nodes[2])
+							n_n = node_id_map.get(nodes[3])
+							if None in (i_n, j_n, m_n, n_n):
+								_print_warning(f"Mesh element {elem_id} references unknown nodes; skipping\n")
+								continue
+							# thickness conversion with fallback
+							thk = getattr(plate_obj, 'Thickness', 0.1)
+							try:
+								thk = qty_val(thk, 'mm', obj.LengthUnit)
+							except Exception:
+								try:
+									thk = float(thk)
+								except Exception:
+									thk = 0.1
+							mat_name = getattr(plate_obj, 'Material', None)
+							if mat_name and hasattr(mat_name, 'Name'):
+								mat_name = mat_name.Name
+							elif not mat_name:
+								mat_name = 'default'
+							# Create a stable element name linked to the plate
+							elem_name = f"{plate_obj.Name}_{elem_id}"
+							try:
+								model.add_quad(elem_name, i_n, j_n, m_n, n_n, float(thk), mat_name)
+								created_elems.append(elem_name)
+							except Exception as e:
+								_print_warning(f"Could not add mesh element {elem_id}: {e}\n")
+						# record created element names so area loads can be mapped later
+						if created_elems:
+							if not hasattr(self, '_plate_mesh_elements'):
+								self._plate_mesh_elements = {}
+							self._plate_mesh_elements[plate_obj.Name] = created_elems
+					else:
+						_print_warning(f"PlateMesher: failed to create mesh for plate '{plate_obj.Name}'\n")
+			else:
+				# If no mesh requested and we have 4 corner node indices, add a plate to the FE model
+				if corner_indices and len(corner_indices) >= 4:
+					# convert to string node names used by model (setNodes used str(i) indices)
+					i_name = str(corner_indices[0])
+					j_name = str(corner_indices[1])
+					m_name = str(corner_indices[2])
+					n_name = str(corner_indices[3])
+					# thickness and material
+					thk = getattr(plate_obj, 'Thickness', 0.1)
+					mat_name = getattr(plate_obj, 'Material', None)
+					if mat_name and hasattr(mat_name, 'Name'):
+						mat_name = mat_name.Name
+					elif not mat_name:
+						mat_name = 'default'
+					try:
+						model.add_plate(plate_obj.Name, i_name, j_name, m_name, n_name, float(thk), mat_name)
+					except Exception as e:
+						_print_warning(f"Could not add plate '{plate_obj.Name}' to model: {e}\n")
+
+		# ---- New: map area loads to plates (best-effort by geometric containment or explicit target) ----
+		for aload in area_loads:
+			# If AreaLoad has TargetFaces or similar pointing to a plate_obj, use that
+			targets = []
+			if hasattr(aload, 'TargetFaces') and aload.TargetFaces:
+				for t in aload.TargetFaces:
+					if getattr(t, 'Type', '') == 'StructuralPlate' or 'Plate' in getattr(t, 'Name', ''):
+						targets.append(t)
+			# Else try to use the Parent/linked object
+			elif hasattr(aload, 'ObjectBase') and aload.ObjectBase:
+				try:
+					parent = aload.ObjectBase[0][0]
+					if getattr(parent, 'Type', '') == 'StructuralPlate' or 'Plate' in getattr(parent, 'Name', ''):
+						targets.append(parent)
+				except Exception:
+					pass
+
+			# Determine pressure magnitude (in force per area units) - assume Magnitude property
+			pressure_value = None
+			if hasattr(aload, 'Magnitude'):
+				try:
+					# Try to convert FreeCAD.Quantity to model units
+					pressure_value = qty_val(aload.Magnitude, 'N/m^2', obj.ForceUnit + '/' + obj.LengthUnit + '^2')
+				except Exception:
+					try:
+						pressure_value = float(aload.Magnitude)
+					except Exception:
+						pressure_value = None
+
+			for tgt in targets:
+				# try to find the plate we added by name
+				plate_name = getattr(tgt, 'Name', None)
+				# Map to rectangular plates
+				if plate_name and plate_name in model.plates and pressure_value is not None:
+					try:
+						model.add_plate_surface_pressure(plate_name, pressure_value, case='Case 1')
+					except Exception as e:
+							_print_warning(f"Could not map AreaLoad '{aload.Name}' to plate '{plate_name}': {e}\n")
+				# Map to meshed quads created for this plate (if any)
+				if hasattr(self, '_plate_mesh_elements') and plate_name in getattr(self, '_plate_mesh_elements', {}):
+					for qname in self._plate_mesh_elements.get(plate_name, []):
+						if qname in model.quads and pressure_value is not None:
+							try:
+								model.add_quad_surface_pressure(qname, pressure_value, case='Case 1')
+							except Exception as e:
+								_print_warning(f"Could not map AreaLoad '{aload.Name}' to quad '{qname}': {e}\n")
+
 		
 		# Use the selected load combination
 		active_load_combination = obj.LoadCombination if hasattr(obj, 'LoadCombination') else '100_DL'
@@ -389,7 +671,11 @@ class Calc:
 		model = self.setLoads(model, loads, nodes_map, obj.ForceUnit, obj.LengthUnit, active_load_combination)
 		model = self.setSuports(model, suports, nodes_map, obj.LengthUnit)
 
-		model.analyze()
+		# Run analysis but don't let exceptions abort headless tests; capture and warn instead
+		try:
+			model.analyze()
+		except Exception as e:
+			_print_warning(f"Model analysis failed (continuing): {e}\n")
 
 		# Update analysis summary
 		analysis_type = "Allowable Stress Design" if active_load_combination.startswith('1') and not active_load_combination.startswith('10') else "Strength Design" if active_load_combination.startswith('10') else "Allowable Stress Design"

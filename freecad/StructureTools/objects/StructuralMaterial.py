@@ -211,8 +211,13 @@ class StructuralMaterial:
         """Add a validation warning to the object."""
         if not hasattr(obj, 'ValidationWarnings'):
             obj.ValidationWarnings = []
-        
-        warnings = list(obj.ValidationWarnings)
+
+        # Ensure ValidationWarnings is a list-like container
+        try:
+            warnings = list(obj.ValidationWarnings)
+        except Exception:
+            warnings = []
+
         if warning not in warnings:
             warnings.append(warning)
             obj.ValidationWarnings = warnings
@@ -221,8 +226,12 @@ class StructuralMaterial:
         """Remove validation warnings containing the key."""
         if not hasattr(obj, 'ValidationWarnings'):
             return
-        
-        warnings = [w for w in obj.ValidationWarnings if warning_key not in w.lower()]
+        try:
+            existing = list(obj.ValidationWarnings)
+        except Exception:
+            existing = []
+
+        warnings = [w for w in existing if warning_key not in str(w).lower()]
         obj.ValidationWarnings = warnings
     
     def _clear_validation_warnings(self, obj) -> None:
