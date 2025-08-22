@@ -1,0 +1,539 @@
+<?xml version="1.0" encoding="UTF-8"?>
+      <mxfile host="codeviz.app" modified="2025-08-16T03:34:36.994Z" agent="CodeViz Exporter" version="14.6.5" type="device">
+        <diagram id="codeviz-diagram" name="System Diagram">
+          <mxGraphModel dx="1000" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+            <root>
+              <mxCell id="0"/>
+              <mxCell id="1" parent="0"/>
+              <mxCell id="13" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="12">
+                <mxGeometry x="200" y="90" width="1590" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="13_label" value="Model Components&lt;br&gt;Python / Pynite" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="12">
+                <mxGeometry x="208" y="98" width="1514" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="82" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="81">
+                <mxGeometry x="200" y="90" width="1590" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="82_label" value="Model Components&lt;br&gt;Python / Pynite" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="81">
+                <mxGeometry x="208" y="98" width="1514" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="10" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="8">
+                <mxGeometry x="2010" y="90" width="390" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="10_label" value="Loading and Reactions&lt;br&gt;Python / Pynite" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="8">
+                <mxGeometry x="2018" y="98" width="314" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="11" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="8">
+                <mxGeometry x="2390" y="90" width="390" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="11_label" value="Material and Section Properties&lt;br&gt;Python / Pynite" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="8">
+                <mxGeometry x="2398" y="98" width="314" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="12" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="8">
+                <mxGeometry x="50" y="90" width="1970" height="330" as="geometry"/>
+              </mxCell>
+              <mxCell id="12_label" value="Core Analysis Engine&lt;br&gt;Python / Pynite" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="8">
+                <mxGeometry x="58" y="98" width="1894" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="15" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="14">
+                <mxGeometry x="50" y="90" width="1440" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="15_label" value="Core Structural Tools&lt;br&gt;Python / FreeCAD API" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="14">
+                <mxGeometry x="58" y="98" width="1364" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="16" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="14">
+                <mxGeometry x="1480" y="90" width="390" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="16_label" value="Module Initialization &amp;amp; GUI&lt;br&gt;Python / FreeCAD API" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="14">
+                <mxGeometry x="1488" y="98" width="314" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="2" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="580" y="90" width="690" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="2_label" value="Development Tooling Configuration&lt;br&gt;YAML / TOML" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="588" y="98" width="614" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="3" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="1260" y="90" width="840" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="3_label" value="Build and Packaging Configuration&lt;br&gt;CMake / Python / TOML / XML" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="1268" y="98" width="764" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="4" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="50" y="90" width="540" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="4_label" value="Project Documentation&lt;br&gt;Markdown" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="58" y="98" width="464" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="6" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="5">
+                <mxGeometry x="50" y="90" width="390" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="6_label" value="Translations&lt;br&gt;TS / Shell" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="5">
+                <mxGeometry x="58" y="98" width="314" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="7" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="5">
+                <mxGeometry x="730" y="90" width="540" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="7_label" value="Icons and Images&lt;br&gt;SVG / XPM / PNG" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="5">
+                <mxGeometry x="738" y="98" width="464" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="71" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="70">
+                <mxGeometry x="1030" y="90" width="690" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="71_label" value="Development Tooling Configuration&lt;br&gt;YAML / TOML" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="70">
+                <mxGeometry x="1038" y="98" width="614" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="72" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="70">
+                <mxGeometry x="50" y="90" width="840" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="72_label" value="Build and Packaging Configuration&lt;br&gt;CMake / Python / TOML / XML" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="70">
+                <mxGeometry x="58" y="98" width="764" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="73" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="70">
+                <mxGeometry x="1710" y="90" width="540" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="73_label" value="Project Documentation&lt;br&gt;Markdown" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="70">
+                <mxGeometry x="1718" y="98" width="464" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="75" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="74">
+                <mxGeometry x="50" y="90" width="390" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="75_label" value="Translations&lt;br&gt;TS / Shell" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="74">
+                <mxGeometry x="58" y="98" width="314" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="76" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="74">
+                <mxGeometry x="730" y="90" width="540" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="76_label" value="Icons and Images&lt;br&gt;SVG / XPM / PNG" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="74">
+                <mxGeometry x="738" y="98" width="464" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="78" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="77">
+                <mxGeometry x="430" y="90" width="840" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="78_label" value="Visualization and Reporting&lt;br&gt;Python / HTML / CSS" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="77">
+                <mxGeometry x="438" y="98" width="764" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="79" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="77">
+                <mxGeometry x="1260" y="90" width="390" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="79_label" value="Loading and Reactions&lt;br&gt;Python / Pynite" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="77">
+                <mxGeometry x="1268" y="98" width="314" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="80" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="77">
+                <mxGeometry x="50" y="90" width="390" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="80_label" value="Material and Section Properties&lt;br&gt;Python / Pynite" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="77">
+                <mxGeometry x="58" y="98" width="314" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="81" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="77">
+                <mxGeometry x="1640" y="90" width="1970" height="330" as="geometry"/>
+              </mxCell>
+              <mxCell id="81_label" value="Core Analysis Engine&lt;br&gt;Python / Pynite" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="77">
+                <mxGeometry x="1648" y="98" width="1894" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="84" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="83">
+                <mxGeometry x="50" y="90" width="1440" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="84_label" value="Core Structural Tools&lt;br&gt;Python / FreeCAD API" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="83">
+                <mxGeometry x="58" y="98" width="1364" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="85" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="83">
+                <mxGeometry x="1480" y="90" width="390" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="85_label" value="Module Initialization &amp;amp; GUI&lt;br&gt;Python / FreeCAD API" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="83">
+                <mxGeometry x="1488" y="98" width="314" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="9" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="8">
+                <mxGeometry x="2770" y="90" width="840" height="220" as="geometry"/>
+              </mxCell>
+              <mxCell id="9_label" value="Visualization and Reporting&lt;br&gt;Python / HTML / CSS" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="8">
+                <mxGeometry x="2778" y="98" width="764" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="1" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="32" y="22" width="2270" height="330" as="geometry"/>
+              </mxCell>
+              <mxCell id="1_label" value="Documentation &amp;amp; Build System&lt;br&gt;Various" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="40" y="30" width="2194" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="14" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="1442" y="432" width="1880" height="320" as="geometry"/>
+              </mxCell>
+              <mxCell id="14_label" value="FreeCAD Integration &amp;amp; Core Tools&lt;br&gt;Python / FreeCAD API" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="1450" y="440" width="1804" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="5" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="507" y="822" width="1280" height="330" as="geometry"/>
+              </mxCell>
+              <mxCell id="5_label" value="Resources &amp;amp; UI Assets&lt;br&gt;Various" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="515" y="830" width="1204" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="70" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="3722" y="22" width="2260" height="330" as="geometry"/>
+              </mxCell>
+              <mxCell id="70_label" value="Documentation &amp;amp; Build System&lt;br&gt;Various" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="3730" y="30" width="2184" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="74" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="5447" y="822" width="1280" height="330" as="geometry"/>
+              </mxCell>
+              <mxCell id="74_label" value="Resources &amp;amp; UI Assets&lt;br&gt;Various" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="5455" y="830" width="1204" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="77" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="6747" y="832" width="10187" height="1242" as="geometry"/>
+              </mxCell>
+              <mxCell id="77_label" value="Pynite Structural Analysis Library&lt;br&gt;Python" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="6755" y="840" width="10111" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="8" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="1807" y="832" width="3657" height="1242" as="geometry"/>
+              </mxCell>
+              <mxCell id="8_label" value="Pynite Structural Analysis Library&lt;br&gt;Python" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="1815" y="840" width="3581" height="24" as="geometry"/>
+              </mxCell>
+<mxCell id="83" value="" style="html=1;whiteSpace=wrap;container=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fillOpacity=20;strokeWidth=2;containerType=none;recursiveResize=0;movable=1;resizable=1;autosize=0;dropTarget=0" vertex="1" parent="1">
+                <mxGeometry x="6382" y="432" width="1880" height="320" as="geometry"/>
+              </mxCell>
+              <mxCell id="83_label" value="FreeCAD Integration &amp;amp; Core Tools&lt;br&gt;Python / FreeCAD API" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=white;spacing=5" vertex="1" parent="1">
+                <mxGeometry x="6390" y="440" width="1804" height="24" as="geometry"/>
+              </mxCell>
+              <mxCell id="17" value="User&lt;br&gt;External Actor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="1">
+                    <mxGeometry x="2292" y="252" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="86" value="User&lt;br&gt;External Actor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="1">
+                    <mxGeometry x="7232" y="252" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="122" value="Fonts&lt;br&gt;TTF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="74">
+                    <mxGeometry x="420" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="123" value="Screenshots&lt;br&gt;PNG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="74">
+                    <mxGeometry x="570" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="138" value="Licensing&lt;br&gt;Text" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="70">
+                    <mxGeometry x="870" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="53" value="Fonts&lt;br&gt;TTF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="5">
+                    <mxGeometry x="420" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="54" value="Screenshots&lt;br&gt;PNG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="5">
+                    <mxGeometry x="570" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="69" value="Licensing&lt;br&gt;Text" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="1">
+                    <mxGeometry x="2080" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="110" value="Material Properties&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="80">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="111" value="Section Properties&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="80">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="112" value="Load Combinations&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="79">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="113" value="Fixed-End Reactions&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="79">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="114" value="Rendering Logic&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="78">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="115" value="Visualization Tools&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="78">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="116" value="Report Generation&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="78">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="117" value="Report Template&lt;br&gt;HTML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="78">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="118" value="Main Stylesheet&lt;br&gt;CSS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="78">
+                    <mxGeometry x="640" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="119" value="Icons Directory&lt;br&gt;Various" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="76">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="120" value="Module Icon&lt;br&gt;SVG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="76">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="121" value="UI Image&lt;br&gt;PNG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="76">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="124" value="Translations Directory&lt;br&gt;TS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="75">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="125" value="Translation Update Script&lt;br&gt;Shell" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="75">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="126" value="Main README&lt;br&gt;Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="73">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="127" value="Commands Documentation&lt;br&gt;Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="73">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="128" value="Historical README&lt;br&gt;Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="73">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="129" value="CMake Build Config&lt;br&gt;CMake" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="72">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="130" value="Python Setup Script&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="72">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="131" value="Python Project Config&lt;br&gt;TOML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="72">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="132" value="Manifest Inclusion&lt;br&gt;Text" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="72">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="133" value="Package Definition&lt;br&gt;XML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="72">
+                    <mxGeometry x="640" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="134" value="Git Ignore&lt;br&gt;Text" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="71">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="135" value="Pre-commit Hooks Config&lt;br&gt;YAML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="71">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="136" value="Ruff Linter Config&lt;br&gt;TOML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="71">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="137" value="Codespell Config&lt;br&gt;Text" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="71">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="18" value="Module Entry Point&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="16">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="19" value="GUI Initializer&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="16">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="20" value="Calculations Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="21" value="Diagram Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="640" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="22" value="Distributed Load Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="23" value="Nodal Load Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="940" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="24" value="Material Definition Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="1090" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="25" value="Member Definition Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="26" value="Section Definition Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="27" value="Support Definition Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="790" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="28" value="Version Information&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="15">
+                    <mxGeometry x="1240" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="29" value="Analysis Routines&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="12">
+                    <mxGeometry x="1770" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="30" value="3D FE Model Structure&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="12">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="41" value="Material Properties&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="11">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="42" value="Section Properties&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="11">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="43" value="Load Combinations&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="10">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="44" value="Fixed-End Reactions&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="10">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="45" value="Rendering Logic&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="9">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="46" value="Visualization Tools&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="9">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="47" value="Report Generation&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="9">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="48" value="Report Template&lt;br&gt;HTML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="9">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="49" value="Main Stylesheet&lt;br&gt;CSS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="9">
+                    <mxGeometry x="640" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="50" value="Icons Directory&lt;br&gt;Various" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="7">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="51" value="Module Icon&lt;br&gt;SVG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="7">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="52" value="UI Image&lt;br&gt;PNG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="7">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="55" value="Translations Directory&lt;br&gt;TS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="6">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="56" value="Translation Update Script&lt;br&gt;Shell" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="6">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="57" value="Main README&lt;br&gt;Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="4">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="58" value="Commands Documentation&lt;br&gt;Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="4">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="59" value="Historical README&lt;br&gt;Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="4">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="60" value="CMake Build Config&lt;br&gt;CMake" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="3">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="61" value="Python Setup Script&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="3">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="62" value="Python Project Config&lt;br&gt;TOML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="3">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="63" value="Manifest Inclusion&lt;br&gt;Text" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="3">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="64" value="Package Definition&lt;br&gt;XML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="3">
+                    <mxGeometry x="640" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="65" value="Git Ignore&lt;br&gt;Text" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="2">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="66" value="Pre-commit Hooks Config&lt;br&gt;YAML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="2">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="67" value="Ruff Linter Config&lt;br&gt;TOML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="2">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="68" value="Codespell Config&lt;br&gt;Text" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="2">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="87" value="Module Entry Point&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="85">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="88" value="GUI Initializer&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="85">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="89" value="Calculations Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="90" value="Diagram Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="640" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="91" value="Distributed Load Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="92" value="Nodal Load Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="940" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="93" value="Material Definition Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="1090" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="94" value="Member Definition Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="95" value="Section Definition Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="96" value="Support Definition Tool&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="790" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="97" value="Version Information&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="84">
+                    <mxGeometry x="1240" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="98" value="Analysis Routines&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="81">
+                    <mxGeometry x="1770" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="99" value="3D FE Model Structure&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="81">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="100" value="3D Node Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="101" value="3D Member Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="640" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="102" value="Physical Member Abstraction&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="103" value="Beam Segment Y&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="1090" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="104" value="Beam Segment Z&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="1240" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="105" value="3D Plate Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="106" value="3D Quad Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="107" value="3D Tri Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="940" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="108" value="3D Spring Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="1390" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="109" value="Shear Wall Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="82">
+                    <mxGeometry x="790" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="31" value="3D Node Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="190" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="32" value="3D Member Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="640" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="33" value="Physical Member Abstraction&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="40" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="34" value="Beam Segment Y&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="1090" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="35" value="Beam Segment Z&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="1240" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="36" value="3D Plate Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="340" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="37" value="3D Quad Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="490" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="38" value="3D Tri Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="940" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="39" value="3D Spring Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="1390" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+<mxCell id="40" value="Shear Wall Element&lt;br&gt;Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5" vertex="1" parent="13">
+                    <mxGeometry x="790" y="120" width="120" height="60" as="geometry"/>
+                  </mxCell>
+              <mxCell id="edge-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#808080;strokeWidth=2;jumpStyle=arc;jumpSize=10;spacing=15;labelBackgroundColor=white;labelBorderColor=none" edge="1" parent="1" source="14" target="5">
+                  <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+<mxCell id="edge-2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#808080;strokeWidth=2;jumpStyle=arc;jumpSize=10;spacing=15;labelBackgroundColor=white;labelBorderColor=none" edge="1" parent="1" source="14" target="8">
+                  <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+<mxCell id="edge-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#808080;strokeWidth=2;jumpStyle=arc;jumpSize=10;spacing=15;labelBackgroundColor=white;labelBorderColor=none" edge="1" parent="1" source="17" target="14">
+                  <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+<mxCell id="edge-9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#808080;strokeWidth=2;jumpStyle=arc;jumpSize=10;spacing=15;labelBackgroundColor=white;labelBorderColor=none" edge="1" parent="1" source="83" target="74">
+                  <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+<mxCell id="edge-8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#808080;strokeWidth=2;jumpStyle=arc;jumpSize=10;spacing=15;labelBackgroundColor=white;labelBorderColor=none" edge="1" parent="1" source="83" target="77">
+                  <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+<mxCell id="edge-7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#808080;strokeWidth=2;jumpStyle=arc;jumpSize=10;spacing=15;labelBackgroundColor=white;labelBorderColor=none" edge="1" parent="1" source="86" target="83">
+                  <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+          </mxGraphModel>
+        </diagram>
+      </mxfile>

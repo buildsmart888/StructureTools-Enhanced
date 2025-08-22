@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="9" skipped="0" tests="54" time="3.940" timestamp="2025-08-22T10:39:47.420114+07:00" hostname="hp"><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_beam_initialization" time="0.010" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_geometry_calculation" time="0.013" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_local_coordinate_system" time="0.007" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_vertical_beam_coordinate_system" time="0.015" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_section_property_validation" time="0.010" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_section_property_mismatch_warning" time="0.008" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_end_condition_updates" time="0.006" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_material_property_update" time="0.010" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeam" name="test_load_consistency_validation" time="0.009" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamStiffness" name="test_stiffness_matrix_size" time="0.007" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamStiffness" name="test_stiffness_matrix_symmetry" time="0.022" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamStiffness" name="test_axial_stiffness" time="0.017" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamStiffness" name="test_bending_stiffness_strong_axis" time="0.006" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamStiffness" name="test_zero_length_beam" time="0.009" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamLoads" name="test_distributed_load_conversion" time="0.004" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamLoads" name="test_empty_load_vector" time="0.007" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamPerformance" name="test_beam_creation_performance" time="0.006" /><testcase classname="tests.unit.objects.test_structural_beam.TestStructuralBeamPerformance" name="test_stiffness_matrix_performance" time="0.012" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_material_initialization" time="0.003" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_poisson_ratio_validation_valid_range" time="0.009" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_poisson_ratio_validation_invalid_range" time="0.004" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_material_standard_update" time="0.007" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_shear_modulus_calculation" time="0.008" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_strength_validation_valid_relationship" time="0.005" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_strength_validation_invalid_relationship" time="0.009" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_validation_warning_management" time="0.005" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_execute_method" time="0.006" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterial" name="test_freecad_material_integration" time="0.005" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterialProperties" name="test_elastic_modulus_ranges" time="0.005" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterialProperties" name="test_density_validation" time="0.005" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterialProperties" name="test_thermal_expansion_validation" time="0.005" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterialPerformance" name="test_material_creation_performance" time="0.004" /><testcase classname="tests.unit.objects.test_structural_material.TestStructuralMaterialPerformance" name="test_property_validation_performance" time="0.002" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_node_initialization" time="0.005" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_restraint_code_generation" time="0.028"><failure message="RecursionError: maximum recursion depth exceeded">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x0000017A2F8DFD90&gt;
+
+    def test_restraint_code_generation(self):
+        """Test restraint code generation."""
+        # Set up specific restraint pattern (pinned support)
+        self.mock_obj.RestraintX = True
+        self.mock_obj.RestraintY = True
+        self.mock_obj.RestraintZ = True
+        self.mock_obj.RestraintRX = False
+        self.mock_obj.RestraintRY = False
+        self.mock_obj.RestraintRZ = False
+    
+        # Mock hasattr and getattr for the restraint properties
+        def mock_getattr(obj, attr, default=False):
+            restraint_values = {
+                'RestraintX': True,
+                'RestraintY': True,
+                'RestraintZ': True,
+                'RestraintRX': False,
+                'RestraintRY': False,
+                'RestraintRZ': False
+            }
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            restraint_code = self.node.get_restraint_code()
+&gt;           assert restraint_code == "111000"  # Pinned support
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\objects\test_structural_node.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\Python\Python313\site-packages\_pytest\assertion\rewrite.py:507: in _call_reprcompare
+    custom = util._reprcompare(ops[i], each_obj[i], each_obj[i + 1])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\assertion\__init__.py:167: in callbinrepr
+    hook_result = ihook.pytest_assertrepr_compare(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\config\compat.py:50: in __getattr__
+    hook: pluggy.HookCaller = getattr(self._hook_relay, key)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   RecursionError: maximum recursion depth exceeded
+!!! Recursion detected (same locals &amp; position)</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_fixed_support_restraint_code" time="0.016"><failure message="RecursionError: maximum recursion depth exceeded">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x0000017A2F8F22C0&gt;
+
+    def test_fixed_support_restraint_code(self):
+        """Test restraint code for fixed support."""
+        # All restraints active
+        restraint_values = {
+            'RestraintX': True, 'RestraintY': True, 'RestraintZ': True,
+            'RestraintRX': True, 'RestraintRY': True, 'RestraintRZ': True
+        }
+    
+        def mock_getattr(obj, attr, default=False):
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            restraint_code = self.node.get_restraint_code()
+&gt;           assert restraint_code == "111111"  # Fixed support
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\objects\test_structural_node.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\Python\Python313\site-packages\_pytest\assertion\rewrite.py:507: in _call_reprcompare
+    custom = util._reprcompare(ops[i], each_obj[i], each_obj[i + 1])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\assertion\__init__.py:167: in callbinrepr
+    hook_result = ihook.pytest_assertrepr_compare(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\config\compat.py:50: in __getattr__
+    hook: pluggy.HookCaller = getattr(self._hook_relay, key)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   RecursionError: maximum recursion depth exceeded
+!!! Recursion detected (same locals &amp; position)</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_roller_support_restraint_code" time="0.024"><failure message="RecursionError: maximum recursion depth exceeded">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x0000017A2F8F3100&gt;
+
+    def test_roller_support_restraint_code(self):
+        """Test restraint code for roller support."""
+        # Only vertical restraint
+        restraint_values = {
+            'RestraintX': False, 'RestraintY': False, 'RestraintZ': True,
+            'RestraintRX': False, 'RestraintRY': False, 'RestraintRZ': False
+        }
+    
+        def mock_getattr(obj, attr, default=False):
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            restraint_code = self.node.get_restraint_code()
+&gt;           assert restraint_code == "001000"  # Roller support
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\unit\objects\test_structural_node.py:92: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\Python\Python313\site-packages\_pytest\assertion\rewrite.py:507: in _call_reprcompare
+    custom = util._reprcompare(ops[i], each_obj[i], each_obj[i + 1])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\assertion\__init__.py:167: in callbinrepr
+    hook_result = ihook.pytest_assertrepr_compare(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\config\compat.py:50: in __getattr__
+    hook: pluggy.HookCaller = getattr(self._hook_relay, key)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   RecursionError: maximum recursion depth exceeded
+!!! Recursion detected (same locals &amp; position)</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_free_node_restraint_code" time="0.032" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_is_restrained_check" time="0.032"><failure message="RecursionError: maximum recursion depth exceeded">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x0000017A2F945150&gt;
+
+    def test_is_restrained_check(self):
+        """Test restraint detection."""
+        # Test with restraints
+        restraint_values = {
+            'RestraintX': True, 'RestraintY': False, 'RestraintZ': False,
+            'RestraintRX': False, 'RestraintRY': False, 'RestraintRZ': False
+        }
+    
+        def mock_getattr(obj, attr, default=False):
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+&gt;           assert self.node.is_restrained() == True
+
+tests\unit\objects\test_structural_node.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\Python\Python313\site-packages\_pytest\assertion\rewrite.py:507: in _call_reprcompare
+    custom = util._reprcompare(ops[i], each_obj[i], each_obj[i + 1])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\assertion\__init__.py:167: in callbinrepr
+    hook_result = ihook.pytest_assertrepr_compare(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\config\compat.py:50: in __getattr__
+    hook: pluggy.HookCaller = getattr(self._hook_relay, key)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   RecursionError: maximum recursion depth exceeded
+!!! Recursion detected (same locals &amp; position)</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_degrees_of_freedom_calculation" time="0.010"><failure message="RecursionError: maximum recursion depth exceeded">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNode object at 0x0000017A2F944D10&gt;
+
+    def test_degrees_of_freedom_calculation(self):
+        """Test DOF calculation."""
+        # Fixed support (0 DOF)
+        restraint_values_fixed = {
+            'RestraintX': True, 'RestraintY': True, 'RestraintZ': True,
+            'RestraintRX': True, 'RestraintRY': True, 'RestraintRZ': True
+        }
+    
+        def mock_getattr_fixed(obj, attr, default=False):
+            return restraint_values_fixed.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr_fixed):
+&gt;           assert self.node.get_degrees_of_freedom() == 0
+
+tests\unit\objects\test_structural_node.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\Python\Python313\site-packages\_pytest\assertion\rewrite.py:507: in _call_reprcompare
+    custom = util._reprcompare(ops[i], each_obj[i], each_obj[i + 1])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\assertion\__init__.py:167: in callbinrepr
+    hook_result = ihook.pytest_assertrepr_compare(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\config\compat.py:50: in __getattr__
+    hook: pluggy.HookCaller = getattr(self._hook_relay, key)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   RecursionError: maximum recursion depth exceeded
+!!! Recursion detected (same locals &amp; position)</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_position_update_triggers_visual_update" time="0.004" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_restraint_change_triggers_visual_update" time="0.002" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_connection_type_update" time="0.002" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_nodal_load_validation" time="0.003" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNode" name="test_consistent_nodal_loads_no_warning" time="0.003" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation" name="test_restraint_symbol_creation_fixed" time="0.003" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation" name="test_restraint_symbol_creation_pinned" time="0.005"><failure message="AssertionError: assert False&#10; +  where False = &lt;MagicMock name='Part.makeCylinder' id='1624557811232'&gt;.called&#10; +    where &lt;MagicMock name='Part.makeCylinder' id='1624557811232'&gt; = &lt;MagicMock name='Part' id='1624557799136'&gt;.makeCylinder">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation object at 0x0000017A2F8DFED0&gt;
+mock_vector = &lt;class 'tests.conftest.MockVector'&gt;
+
+    def test_restraint_symbol_creation_pinned(self, mock_vector):
+        """Test restraint symbol creation for pinned support."""
+        # Set up pinned support
+        self.mock_obj.Position = mock_vector(0, 0, 0)
+    
+        def mock_getattr(obj, attr, default=False):
+            restraint_values = {
+                'RestraintX': True, 'RestraintY': True, 'RestraintZ': True,
+                'RestraintRX': False, 'RestraintRY': False, 'RestraintRZ': False
+            }
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            with patch('builtins.hasattr', return_value=True):
+                with patch('StructureTools.objects.StructuralNode.Part') as mock_part:
+                    symbols = self.node._create_restraint_symbols(self.mock_obj)
+                    # Should create symbol for pinned support
+&gt;                   assert mock_part.makeCylinder.called
+E                   AssertionError: assert False
+E                    +  where False = &lt;MagicMock name='Part.makeCylinder' id='1624557811232'&gt;.called
+E                    +    where &lt;MagicMock name='Part.makeCylinder' id='1624557811232'&gt; = &lt;MagicMock name='Part' id='1624557799136'&gt;.makeCylinder
+
+tests\unit\objects\test_structural_node.py:269: AssertionError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation" name="test_restraint_symbol_creation_roller" time="0.003"><failure message="AssertionError: assert False&#10; +  where False = &lt;MagicMock name='Part.makeCylinder' id='1624557637984'&gt;.called&#10; +    where &lt;MagicMock name='Part.makeCylinder' id='1624557637984'&gt; = &lt;MagicMock name='Part' id='1624557634288'&gt;.makeCylinder">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNodeVisualRepresentation object at 0x0000017A2F8F3230&gt;
+mock_vector = &lt;class 'tests.conftest.MockVector'&gt;
+
+    def test_restraint_symbol_creation_roller(self, mock_vector):
+        """Test restraint symbol creation for roller support."""
+        # Set up roller support
+        self.mock_obj.Position = mock_vector(0, 0, 0)
+    
+        def mock_getattr(obj, attr, default=False):
+            if attr == 'RestraintZ':
+                return True
+            return default
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            with patch('builtins.hasattr', return_value=True):
+                with patch('StructureTools.objects.StructuralNode.Part') as mock_part:
+                    symbols = self.node._create_restraint_symbols(self.mock_obj)
+                    # Should create symbol for roller support
+&gt;                   assert mock_part.makeCylinder.called
+E                   AssertionError: assert False
+E                    +  where False = &lt;MagicMock name='Part.makeCylinder' id='1624557637984'&gt;.called
+E                    +    where &lt;MagicMock name='Part.makeCylinder' id='1624557637984'&gt; = &lt;MagicMock name='Part' id='1624557634288'&gt;.makeCylinder
+
+tests\unit\objects\test_structural_node.py:286: AssertionError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeConnections" name="test_connection_type_pinned_releases" time="0.003" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodeConnections" name="test_connection_type_semi_rigid_stiffness" time="0.004"><failure message="AssertionError: assert &lt;Mock name='mock.ConnectionStiffness' id='1624557642688'&gt; == 1000.0&#10; +  where &lt;Mock name='mock.ConnectionStiffness' id='1624557642688'&gt; = &lt;Mock id='1624557641008'&gt;.ConnectionStiffness&#10; +    where &lt;Mock id='1624557641008'&gt; = &lt;tests.unit.objects.test_structural_node.TestStructuralNodeConnections object at 0x0000017A2F9C8190&gt;.mock_obj">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNodeConnections object at 0x0000017A2F9C8190&gt;
+
+    def test_connection_type_semi_rigid_stiffness(self):
+        """Test that semi-rigid connection enables stiffness input."""
+        self.mock_obj.ConnectionType = "Semi-Rigid"
+    
+        with patch('builtins.hasattr', return_value=False):  # Property doesn't exist yet
+            self.node._update_connection_properties(self.mock_obj)
+            # Should set default stiffness
+&gt;           assert self.mock_obj.ConnectionStiffness == 1000.0
+E           AssertionError: assert &lt;Mock name='mock.ConnectionStiffness' id='1624557642688'&gt; == 1000.0
+E            +  where &lt;Mock name='mock.ConnectionStiffness' id='1624557642688'&gt; = &lt;Mock id='1624557641008'&gt;.ConnectionStiffness
+E            +    where &lt;Mock id='1624557641008'&gt; = &lt;tests.unit.objects.test_structural_node.TestStructuralNodeConnections object at 0x0000017A2F9C8190&gt;.mock_obj
+
+tests\unit\objects\test_structural_node.py:318: AssertionError</failure></testcase><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodePerformance" name="test_node_creation_performance" time="0.003" /><testcase classname="tests.unit.objects.test_structural_node.TestStructuralNodePerformance" name="test_restraint_code_performance" time="0.013"><failure message="RecursionError: maximum recursion depth exceeded">self = &lt;tests.unit.objects.test_structural_node.TestStructuralNodePerformance object at 0x0000017A2F9C8410&gt;
+benchmark = &lt;tests.conftest.benchmark.&lt;locals&gt;.Bench object at 0x0000017A3F30F620&gt;
+
+    def test_restraint_code_performance(self, benchmark):
+        """Benchmark restraint code generation performance."""
+        mock_obj = Mock()
+        mock_obj.addProperty = Mock()
+        node = StructuralNode(mock_obj)
+    
+        def mock_getattr(obj, attr, default=False):
+            # Simulate mixed restraints
+            restraint_values = {
+                'RestraintX': True, 'RestraintY': True, 'RestraintZ': True,
+                'RestraintRX': False, 'RestraintRY': False, 'RestraintRZ': False
+            }
+            return restraint_values.get(attr, default)
+    
+        with patch('builtins.getattr', side_effect=mock_getattr):
+            def generate_code():
+                return node.get_restraint_code()
+    
+            result = benchmark(generate_code)
+&gt;           assert result == "111000"
+
+tests\unit\objects\test_structural_node.py:355: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\Python\Python313\site-packages\_pytest\assertion\rewrite.py:507: in _call_reprcompare
+    custom = util._reprcompare(ops[i], each_obj[i], each_obj[i + 1])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\assertion\__init__.py:167: in callbinrepr
+    hook_result = ihook.pytest_assertrepr_compare(
+..\..\..\Python\Python313\site-packages\pluggy\_hooks.py:512: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\assertion\__init__.py:208: in pytest_assertrepr_compare
+    return util.assertrepr_compare(config=config, op=op, left=left, right=right)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\assertion\util.py:182: in assertrepr_compare
+    verbose = config.get_verbosity(Config.VERBOSITY_ASSERTIONS)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\config\__init__.py:1801: in get_verbosity
+    global_level = self.getoption("verbose", default=0)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\Python\Python313\site-packages\_pytest\config\__init__.py:1743: in getoption
+    val = getattr(self.option, name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:1168: in __call__
+    self._increment_mock_call(*args, **kwargs)
+C:\Python313\Lib\unittest\mock.py:1177: in _increment_mock_call
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+C:\Python313\Lib\unittest\mock.py:359: in _get
+    return getattr(self, _the_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   RecursionError: maximum recursion depth exceeded
+!!! Recursion detected (same locals &amp; position)</failure></testcase><testcase classname="tests.unit.test_plate_integration" name="test_calc_adds_plate_and_pressure" time="0.652" /><testcase classname="tests.unit.test_plate_mesh_integration" name="test_calc_mesh_path_creates_quads" time="0.020" /></testsuite></testsuites>
