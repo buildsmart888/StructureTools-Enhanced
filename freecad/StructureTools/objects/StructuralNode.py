@@ -247,8 +247,12 @@ class StructuralNode:
     
     def _create_restraint_symbols(self, obj):
         """Create visual symbols for boundary conditions."""
-        symbols = []
-
+        # Get restraint code and create appropriate symbols
+        restraint_code = self.get_restraint_code()
+        return self._create_symbol_geometry(obj)
+    
+    def get_restraint_code(self):
+        """Get restraint code for analysis (e.g., "111000" for pinned)."""
         # Prefer direct/controlled access via _safe_get so patched
         # builtins.getattr implementations that only respond to
         # restraint properties don't hide Position.
@@ -299,7 +303,33 @@ class StructuralNode:
             pass
 
         return ''.join('1' if r else '0' for r in restraints)
+    
+    def _create_symbol_geometry(self, obj):
+        """Create visual geometry for restraint symbols."""
+        pos = obj.Position
+        symbol_size = 5.0  # mm
+        restraint_code = self.get_restraint_code()
+        symbols = []
+        
+        # Debug: write restraint code for testing
+        try:
+            with open(r"tools/symbol_debug.log", "a", encoding="utf-8") as _f:
+                _f.write(f"restraint_code={restraint_code}\n")
+        except Exception:
+            pass
+        
+        if restraint_code == "111111":
+            # Fixed support - all DOF constrained
+            cone = Part.makeCone(symbol_size * 0.8, symbol_size * 0.4, symbol_size * 0.5)
+            cone.translate(App.Vector(pos.x, pos.y, pos.z - symbol_size * 0.5))
+            symbols.append(cone)
+            try:
+                with open(r"tools/node_symbols_debug.log", "a", encoding="utf-8") as _f:
+                    _f.write("branch=fixed\n")
+            except Exception:
                 pass
+        elif restraint_code == "111000":
+            # Pinned support
             cylinder = Part.makeCylinder(symbol_size * 0.6, symbol_size * 0.3)
             cylinder.translate(App.Vector(pos.x, pos.y, pos.z - symbol_size * 0.3))
             symbols.append(cylinder)
@@ -529,7 +559,7 @@ class StructuralNode:
                     setattr(self, '_getattr_call_count', cnt)
                 except Exception:
                     pass
-+            with open(r"tools/node_getattr_debug2.log", "a", encoding="utf-8") as _f:
+            with open(r"tools/node_getattr_debug2.log", "a", encoding="utf-8") as _f:
                 _f.write(f"cnt={cnt}, proxy={repr(proxy)!r}, restraints={restraints!r}\n")
         except Exception:
             pass

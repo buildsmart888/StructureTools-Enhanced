@@ -128,17 +128,68 @@ class StructuralMaterial:
         Handle property changes with validation and dependencies.
         
         Args:
-            obj: The DocumentObject being changed
-            prop: Name of the changed property
+            obj: Material DocumentObject
+            prop: Changed property name
         """
-        if prop == "PoissonRatio":
-            self._validate_poisson_ratio(obj)
-        elif prop == "MaterialStandard":
-            self._update_standard_properties(obj)
-        elif prop == "ModulusElasticity" or prop == "PoissonRatio":
-            self._calculate_shear_modulus(obj)
-        elif prop in ["YieldStrength", "UltimateStrength"]:
-            self._validate_strength_properties(obj)
+        try:
+            # Import validation after FreeCAD is available
+            from ..utils.validation import StructuralValidator
+            from ..utils.exceptions import ValidationError
+            
+            validator = StructuralValidator()
+            
+            # Validate changed property
+            if prop == 'PoissonRatio':
+                if hasattr(obj, 'PoissonRatio'):
+                    nu = obj.PoissonRatio
+                    if not (0.0 <= nu <= 0.5):
+                        App.Console.PrintError(
+                            f"Invalid Poisson ratio {nu:.3f}. Must be between 0.0 and 0.5\n"
+                        )
+                        obj.PoissonRatio = 0.3  # Reset to default
+            
+            elif prop == 'ModulusElasticity':
+                if hasattr(obj, 'ModulusElasticity'):
+                    try:
+                        E = validator.get_property_value(obj.ModulusElasticity, 'Pa')
+                        if E <= 0:
+                            App.Console.PrintError("Elastic modulus must be positive\n")
+                    except Exception as e:
+                        App.Console.PrintError(f"Invalid elastic modulus: {str(e)}\n")
+            
+            elif prop == 'Density':
+                if hasattr(obj, 'Density'):
+                    try:
+                        rho = validator.get_property_value(obj.Density, 'kg/m³')
+                        if rho <= 0:
+                            App.Console.PrintError("Density must be positive\n")
+                    except Exception as e:
+                        App.Console.PrintError(f"Invalid density: {str(e)}\n")
+            
+            # Full validation on critical changes
+            if prop in ['ModulusElasticity', 'PoissonRatio', 'YieldStrength', 'UltimateStrength']:
+                try:
+                    warnings = validator.validate_material_properties(obj)
+                    if warnings:
+                        obj.ValidationWarnings = warnings
+                        for warning in warnings:
+                            App.Console.PrintWarning(f"Material warning: {warning}\n")
+                    else:
+                        obj.ValidationWarnings = []
+                except ValidationError as e:
+                    App.Console.PrintError(f"Material validation error: {str(e)}\n")
+                except Exception as e:
+                    App.Console.PrintWarning(f"Error during material validation: {str(e)}\n")
+        
+        except ImportError:
+            # Fallback validation without utils
+            if prop == 'PoissonRatio' and hasattr(obj, 'PoissonRatio'):
+                nu = obj.PoissonRatio
+                if not (0.0 <= nu <= 0.5):
+                    App.Console.PrintError(f"Invalid Poisson ratio {nu:.3f}\n")
+                    obj.PoissonRatio = 0.3
+        except Exception as e:
+            App.Console.PrintWarning(f"Error in material property validation: {str(e)}\n")
     
     def _validate_poisson_ratio(self, obj) -> None:
         """Validate Poisson ratio is within physical bounds."""

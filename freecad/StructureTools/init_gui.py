@@ -50,6 +50,9 @@ class StructureTools(Gui.Workbench):
 		from freecad.StructureTools import member
 		from freecad.StructureTools import calc
 		from freecad.StructureTools import diagram
+		# New Phase 1 components
+		from freecad.StructureTools import command_plate
+		from freecad.StructureTools import command_area_load
 
 		
 		import DraftTools, SketcherGui
@@ -59,10 +62,10 @@ class StructureTools(Gui.Workbench):
 		self.appendToolbar('DraftSnap', ["Draft_Snap_Lock", "Draft_Snap_Endpoint", "Draft_Snap_Midpoint", "Draft_Snap_Center", "Draft_Snap_Angle", "Draft_Snap_Intersection", "Draft_Snap_Perpendicular", "Draft_Snap_Extension", "Draft_Snap_Parallel", "Draft_Snap_Special", "Draft_Snap_Near", "Draft_Snap_Ortho", "Draft_Snap_Grid", "Draft_Snap_WorkingPlane", "Draft_Snap_Dimensions", "Draft_ToggleGrid"])
 		self.appendToolbar('DraftTools', ["Draft_SelectPlane", "Draft_SetStyle"])
 
-		self.appendToolbar('StructureLoad', ["load_distributed","load_nodal"])
-		self.appendToolbar('StructureTools', ["member", "suport", "section", "material"])
+		self.appendToolbar('StructureLoad', ["load_distributed","load_nodal", "CreateAreaLoad"])
+		self.appendToolbar('StructureTools', ["member", "suport", "section", "material", "CreateStructuralPlate"])
 		self.appendToolbar('StructureResults', ["calc","diagram"])
-		self.appendMenu('StructureTools',["load_distributed", "load_nodal","member" ,"suport", "section", "material", "calc", "diagram"])
+		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "CreateAreaLoad", "member" ,"suport", "section", "material", "CreateStructuralPlate", "calc", "diagram"])
 
 	def Activated(self):
 		'''
