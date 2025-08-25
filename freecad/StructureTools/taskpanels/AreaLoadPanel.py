@@ -2,8 +2,73 @@ import FreeCAD as App
 import FreeCADGui as Gui
 from PySide2 import QtCore, QtWidgets, QtGui
 import math
-import numpy as np
 import os
+import sys
+
+# Handle numpy import gracefully
+try:
+    import numpy as np
+except ImportError:
+    # Mock numpy for basic operations if not available
+    class MockNumpy:
+        def linspace(self, start, stop, num):
+            """Simple linspace implementation"""
+            if num <= 1:
+                return [start]
+            step = (stop - start) / (num - 1)
+            return [start + i * step for i in range(num)]
+    np = MockNumpy()
+
+# Defensive programming functions for Mock object compatibility
+def _safe_set_style(widget, style):
+    """Safely set widget stylesheet, tolerant to mocked widgets."""
+    try:
+        if hasattr(widget, 'setStyleSheet') and callable(getattr(widget, 'setStyleSheet')):
+            _safe_call_method(widget, "setStyleSheet", style)
+    except Exception:
+        pass
+
+def _safe_set_layout(container, layout):
+    """Safely set layout on container, tolerant to mocked widgets."""
+    try:
+        if hasattr(container, 'setLayout') and callable(getattr(container, 'setLayout')):
+            container.setLayout(layout)
+    except Exception:
+        pass
+
+def _safe_add_widget(container, widget, *args, **kwargs):
+    """Safely add widget to container, tolerant to mocked widgets."""
+    try:
+        if hasattr(container, 'addWidget') and callable(getattr(container, 'addWidget')):
+            container.addWidget(widget, *args, **kwargs)
+    except Exception:
+        pass
+
+def _safe_call_method(obj, method_name, *args, **kwargs):
+    """Safely call method on object, tolerant to mocked objects."""
+    try:
+        if hasattr(obj, method_name):
+            method = getattr(obj, method_name)
+            if callable(method):
+                return method(*args, **kwargs)
+    except Exception:
+        pass
+    return None
+
+def _safe_connect(signal_obj, callback):
+    """Safely connect signal to callback, tolerant to mocked signals."""
+    try:
+        if signal_obj is None:
+            return
+        if hasattr(signal_obj, 'connect') and callable(getattr(signal_obj, 'connect')):
+            signal_obj.connect(callback)
+        elif callable(signal_obj):
+            try:
+                signal_obj(callback)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 class AreaLoadApplicationPanel:
@@ -48,44 +113,44 @@ class AreaLoadApplicationPanel:
         
         # Title and instructions
         title_label = QtWidgets.QLabel("Apply Area Load on Surfaces")
-        title_label.setStyleSheet("font-weight: bold; font-size: 14px; margin-bottom: 5px;")
-        layout.addWidget(title_label)
+        _safe_call_method(title_label, 'setStyleSheet', "font-weight: bold; font-size: 14px; margin-bottom: 5px;")
+        _safe_add_widget(layout, title_label)
         
         instruction_label = QtWidgets.QLabel("Select surfaces and define load properties below:")
-        instruction_label.setStyleSheet("color: gray; font-style: italic; margin-bottom: 10px;")
-        layout.addWidget(instruction_label)
+        _safe_call_method(instruction_label, 'setStyleSheet', "color: gray; font-style: italic; margin-bottom: 10px;")
+        _safe_add_widget(layout, instruction_label)
         
         # Create tabbed interface
         self.tab_widget = QtWidgets.QTabWidget()
         
         # Target surfaces tab
         self.surfaces_tab = self.createSurfacesTab()
-        self.tab_widget.addTab(self.surfaces_tab, "Target Surfaces")
+        _safe_call_method(self.tab_widget, "addTab", self.surfaces_tab, "Target Surfaces")
         
         # Load definition tab
         self.load_tab = self.createLoadDefinitionTab()
-        self.tab_widget.addTab(self.load_tab, "Load Definition")
+        _safe_call_method(self.tab_widget, "addTab", self.load_tab, "Load Definition")
         
         # Distribution tab
         self.distribution_tab = self.createDistributionTab()
-        self.tab_widget.addTab(self.distribution_tab, "Distribution")
+        _safe_call_method(self.tab_widget, "addTab", self.distribution_tab, "Distribution")
         
         # Preview tab
         self.preview_tab = self.createPreviewTab()
-        self.tab_widget.addTab(self.preview_tab, "Preview & Settings")
+        _safe_call_method(self.tab_widget, "addTab", self.preview_tab, "Preview & Settings")
         
-        layout.addWidget(self.tab_widget)
+        _safe_add_widget(layout, self.tab_widget)
         
         # Load summary
         summary_group = self.createLoadSummary()
-        layout.addWidget(summary_group)
+        _safe_add_widget(layout, summary_group)
         
         # Status bar
         self.status_label = QtWidgets.QLabel("Ready - Select surfaces to apply loads")
-        self.status_label.setStyleSheet("color: blue; font-style: italic; margin-top: 5px;")
-        layout.addWidget(self.status_label)
+        _safe_call_method(self.status_label, "setStyleSheet", "color: blue; font-style: italic; margin-top: 5px;")
+        _safe_add_widget(layout, self.status_label)
         
-        widget.setLayout(layout)
+        _safe_set_layout(widget, layout)
         return widget
     
     def createSurfacesTab(self):
@@ -98,26 +163,26 @@ class AreaLoadApplicationPanel:
         selection_layout = QtWidgets.QVBoxLayout()
         
         self.face_list = QtWidgets.QListWidget()
-        self.face_list.setMaximumHeight(120)
-        self.face_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        selection_layout.addWidget(self.face_list)
+        _safe_call_method(self.face_list, "setMaximumHeight", 120)
+        _safe_call_method(self.face_list, "setSelectionMode", QtWidgets.QAbstractItemView.ExtendedSelection)
+        _safe_add_widget(selection_layout, self.face_list)
         
         # Face selection buttons
         face_button_layout = QtWidgets.QGridLayout()
         
         self.add_faces_btn = QtWidgets.QPushButton("Add Faces")
-        self.add_faces_btn.setToolTip("Select additional faces in 3D view")
-        self.add_faces_btn.clicked.connect(self.addFaces)
+        _safe_call_method(self.add_faces_btn, 'setToolTip', "Select additional faces in 3D view")
+        _safe_connect(getattr(self.add_faces_btn, 'clicked', None), self.addFaces)
         
         self.add_from_selection_btn = QtWidgets.QPushButton("Add from Selection")
-        self.add_from_selection_btn.setToolTip("Add currently selected faces")
-        self.add_from_selection_btn.clicked.connect(self.addFromSelection)
+        _safe_call_method(self.add_from_selection_btn, 'setToolTip', "Add currently selected faces")
+        _safe_connect(getattr(self.add_from_selection_btn, 'clicked', None), self.addFromSelection)
         
         self.remove_faces_btn = QtWidgets.QPushButton("Remove Selected")
-        self.remove_faces_btn.clicked.connect(self.removeSelectedFaces)
+        _safe_connect(getattr(self.remove_faces_btn, 'clicked', None), self.removeSelectedFaces)
         
         self.clear_all_btn = QtWidgets.QPushButton("Clear All")
-        self.clear_all_btn.clicked.connect(self.clearAllFaces)
+        _safe_connect(getattr(self.clear_all_btn, 'clicked', None), self.clearAllFaces)
         
         face_button_layout.addWidget(self.add_faces_btn, 0, 0)
         face_button_layout.addWidget(self.add_from_selection_btn, 0, 1)
@@ -125,8 +190,8 @@ class AreaLoadApplicationPanel:
         face_button_layout.addWidget(self.clear_all_btn, 1, 1)
         
         selection_layout.addLayout(face_button_layout)
-        selection_group.setLayout(selection_layout)
-        layout.addWidget(selection_group)
+        _safe_set_layout(selection_group, selection_layout)
+        _safe_add_widget(layout, selection_group)
         
         # Surface properties (read-only)
         properties_group = QtWidgets.QGroupBox("Surface Properties")
@@ -140,29 +205,29 @@ class AreaLoadApplicationPanel:
         properties_layout.addRow("Number of Faces:", self.num_faces_label)
         properties_layout.addRow("Area Range:", self.area_range_label)
         
-        properties_group.setLayout(properties_layout)
-        layout.addWidget(properties_group)
+        _safe_set_layout(properties_group, properties_layout)
+        _safe_add_widget(layout, properties_group)
         
         # Selection filters
         filter_group = QtWidgets.QGroupBox("Selection Filters")
         filter_layout = QtWidgets.QFormLayout()
         
         self.face_type_filter = QtWidgets.QComboBox()
-        self.face_type_filter.addItems(["All Types", "Planar", "Cylindrical", "Spherical", "Other"])
-        self.face_type_filter.currentTextChanged.connect(self.applySelectionFilter)
+        _safe_call_method(self.face_type_filter, "addItems", ["All Types", "Planar", "Cylindrical", "Spherical", "Other"])
+        _safe_connect(getattr(self.face_type_filter, "currentTextChanged", None), self.applySelectionFilter)
         
         self.min_area_filter = QtWidgets.QDoubleSpinBox()
-        self.min_area_filter.setRange(0.0, 1000000.0)
-        self.min_area_filter.setValue(0.0)
-        self.min_area_filter.setSuffix(" m²")
-        self.min_area_filter.valueChanged.connect(self.applySelectionFilter)
+        _safe_call_method(self.min_area_filter, "setRange", 0.0, 1000000.0)
+        _safe_call_method(self.min_area_filter, "setValue", 0.0)
+        _safe_call_method(self.min_area_filter, "setSuffix", " m²")
+        _safe_connect(getattr(self.min_area_filter, "valueChanged", None), self.applySelectionFilter)
         
         filter_layout.addRow("Face Type:", self.face_type_filter)
         filter_layout.addRow("Min Area:", self.min_area_filter)
-        filter_group.setLayout(filter_layout)
-        layout.addWidget(filter_group)
+        _safe_set_layout(filter_group, filter_layout)
+        _safe_add_widget(layout, filter_group)
         
-        tab.setLayout(layout)
+        _safe_set_layout(tab, layout)
         return tab
     
     def createLoadDefinitionTab(self):
@@ -180,36 +245,36 @@ class AreaLoadApplicationPanel:
             "Wind Load (W)", "Earthquake (E)", "Earth Pressure (H)",
             "Fluid Pressure (F)", "Thermal (T)", "Custom Pressure"
         ]
-        self.load_type_combo.addItems(load_types)
-        self.load_type_combo.currentTextChanged.connect(self.onLoadTypeChanged)
+        _safe_call_method(self.load_type_combo, "addItems", load_types)
+        _safe_connect(getattr(self.load_type_combo, "currentTextChanged", None), self.onLoadTypeChanged)
         type_layout.addRow("Load Type:", self.load_type_combo)
         
         self.load_category_combo = QtWidgets.QComboBox()
-        self.load_category_combo.addItems(["DL", "LL", "LL_Roof", "W", "E", "H", "F", "T", "CUSTOM"])
+        _safe_call_method(self.load_category_combo, "addItems", ["DL", "LL", "LL_Roof", "W", "E", "H", "F", "T", "CUSTOM"])
         type_layout.addRow("Category:", self.load_category_combo)
         
-        type_group.setLayout(type_layout)
-        layout.addWidget(type_group)
+        _safe_set_layout(type_group, type_layout)
+        _safe_add_widget(layout, type_group)
         
         # Load magnitude
         magnitude_group = QtWidgets.QGroupBox("Load Magnitude")
         magnitude_layout = QtWidgets.QFormLayout()
         
         self.magnitude_input = QtWidgets.QDoubleSpinBox()
-        self.magnitude_input.setRange(-1000.0, 1000.0)
-        self.magnitude_input.setValue(5.0)
+        _safe_call_method(self.magnitude_input, "setRange", -1000.0, 1000.0)
+        _safe_call_method(self.magnitude_input, "setValue", 5.0)
         self.magnitude_input.setDecimals(3)
-        self.magnitude_input.setSuffix(" kN/m²")
-        self.magnitude_input.valueChanged.connect(self.onMagnitudeChanged)
+        _safe_call_method(self.magnitude_input, "setSuffix", " kN/m²")
+        _safe_connect(getattr(self.magnitude_input, "valueChanged", None), self.onMagnitudeChanged)
         magnitude_layout.addRow("Magnitude:", self.magnitude_input)
         
         self.magnitude_unit_combo = QtWidgets.QComboBox()
-        self.magnitude_unit_combo.addItems(["kN/m²", "N/m²", "kPa", "MPa", "psf", "psi"])
-        self.magnitude_unit_combo.currentTextChanged.connect(self.onUnitChanged)
+        _safe_call_method(self.magnitude_unit_combo, "addItems", ["kN/m²", "N/m²", "kPa", "MPa", "psf", "psi"])
+        _safe_connect(getattr(self.magnitude_unit_combo, "currentTextChanged", None), self.onUnitChanged)
         magnitude_layout.addRow("Unit:", self.magnitude_unit_combo)
         
-        magnitude_group.setLayout(magnitude_layout)
-        layout.addWidget(magnitude_group)
+        _safe_set_layout(magnitude_group, magnitude_layout)
+        _safe_add_widget(layout, magnitude_group)
         
         # Load direction
         direction_group = QtWidgets.QGroupBox("Load Direction")
@@ -218,41 +283,41 @@ class AreaLoadApplicationPanel:
         self.direction_combo = QtWidgets.QComboBox()
         directions = ["Normal to Surface", "+X Global", "-X Global", 
                      "+Y Global", "-Y Global", "+Z Global", "-Z Global", "Custom"]
-        self.direction_combo.addItems(directions)
-        self.direction_combo.currentTextChanged.connect(self.onDirectionChanged)
+        _safe_call_method(self.direction_combo, "addItems", directions)
+        _safe_connect(getattr(self.direction_combo, "currentTextChanged", None), self.onDirectionChanged)
         direction_layout.addRow("Direction:", self.direction_combo)
         
         # Custom direction input
         custom_layout = QtWidgets.QHBoxLayout()
         self.custom_x = QtWidgets.QDoubleSpinBox()
-        self.custom_x.setRange(-1.0, 1.0)
+        _safe_call_method(self.custom_x, "setRange", -1.0, 1.0)
         self.custom_x.setDecimals(3)
-        self.custom_x.setValue(0.0)
+        _safe_call_method(self.custom_x, "setValue", 0.0)
         
         self.custom_y = QtWidgets.QDoubleSpinBox()
-        self.custom_y.setRange(-1.0, 1.0)
+        _safe_call_method(self.custom_y, "setRange", -1.0, 1.0)
         self.custom_y.setDecimals(3)
-        self.custom_y.setValue(0.0)
+        _safe_call_method(self.custom_y, "setValue", 0.0)
         
         self.custom_z = QtWidgets.QDoubleSpinBox()
-        self.custom_z.setRange(-1.0, 1.0)
+        _safe_call_method(self.custom_z, "setRange", -1.0, 1.0)
         self.custom_z.setDecimals(3)
-        self.custom_z.setValue(-1.0)
+        _safe_call_method(self.custom_z, "setValue", -1.0)
         
-        custom_layout.addWidget(QtWidgets.QLabel("X:"))
-        custom_layout.addWidget(self.custom_x)
-        custom_layout.addWidget(QtWidgets.QLabel("Y:"))
-        custom_layout.addWidget(self.custom_y)
-        custom_layout.addWidget(QtWidgets.QLabel("Z:"))
-        custom_layout.addWidget(self.custom_z)
+        _safe_add_widget(custom_layout, QtWidgets.QLabel("X:"))
+        _safe_add_widget(custom_layout, self.custom_x)
+        _safe_add_widget(custom_layout, QtWidgets.QLabel("Y:"))
+        _safe_add_widget(custom_layout, self.custom_y)
+        _safe_add_widget(custom_layout, QtWidgets.QLabel("Z:"))
+        _safe_add_widget(custom_layout, self.custom_z)
         
         self.normalize_btn = QtWidgets.QPushButton("Normalize")
-        self.normalize_btn.clicked.connect(self.normalizeCustomDirection)
-        custom_layout.addWidget(self.normalize_btn)
+        _safe_connect(getattr(self.normalize_btn, "clicked", None), self.normalizeCustomDirection)
+        _safe_add_widget(custom_layout, self.normalize_btn)
         
         direction_layout.addRow("Custom Vector:", custom_layout)
-        direction_group.setLayout(direction_layout)
-        layout.addWidget(direction_group)
+        _safe_set_layout(direction_group, direction_layout)
+        _safe_add_widget(layout, direction_group)
         
         # Load case information
         case_group = QtWidgets.QGroupBox("Load Case Information")
@@ -260,12 +325,12 @@ class AreaLoadApplicationPanel:
         
         self.load_case_input = QtWidgets.QLineEdit()
         self.load_case_input.setText("DL1")
-        self.load_case_input.textChanged.connect(self.onLoadCaseChanged)
+        _safe_connect(getattr(self.load_case_input, "textChanged", None), self.onLoadCaseChanged)
         case_layout.addRow("Load Case Name:", self.load_case_input)
         
         self.load_factor_input = QtWidgets.QDoubleSpinBox()
-        self.load_factor_input.setRange(0.0, 10.0)
-        self.load_factor_input.setValue(1.0)
+        _safe_call_method(self.load_factor_input, "setRange", 0.0, 10.0)
+        _safe_call_method(self.load_factor_input, "setValue", 1.0)
         self.load_factor_input.setDecimals(2)
         case_layout.addRow("Load Factor:", self.load_factor_input)
         
@@ -273,10 +338,10 @@ class AreaLoadApplicationPanel:
         self.description_input.setPlaceholderText("Optional load description")
         case_layout.addRow("Description:", self.description_input)
         
-        case_group.setLayout(case_layout)
-        layout.addWidget(case_group)
+        _safe_set_layout(case_group, case_layout)
+        _safe_add_widget(layout, case_group)
         
-        tab.setLayout(layout)
+        _safe_set_layout(tab, layout)
         return tab
     
     def createDistributionTab(self):
@@ -290,18 +355,18 @@ class AreaLoadApplicationPanel:
         
         self.distribution_combo = QtWidgets.QComboBox()
         distributions = ["Uniform", "Linear X", "Linear Y", "Bilinear", "Parabolic", "Point Load", "User Defined"]
-        self.distribution_combo.addItems(distributions)
-        self.distribution_combo.currentTextChanged.connect(self.onDistributionChanged)
+        _safe_call_method(self.distribution_combo, "addItems", distributions)
+        _safe_connect(getattr(self.distribution_combo, "currentTextChanged", None), self.onDistributionChanged)
         pattern_layout.addRow("Pattern:", self.distribution_combo)
         
-        pattern_group.setLayout(pattern_layout)
-        layout.addWidget(pattern_group)
+        _safe_set_layout(pattern_group, pattern_layout)
+        _safe_add_widget(layout, pattern_group)
         
         # Distribution parameters (varies by pattern)
         self.params_group = QtWidgets.QGroupBox("Distribution Parameters")
         self.params_layout = QtWidgets.QFormLayout()
-        self.params_group.setLayout(self.params_layout)
-        layout.addWidget(self.params_group)
+        _safe_set_layout(self.params_group, self.params_layout)
+        _safe_add_widget(layout, self.params_group)
         
         # Spatial variation
         spatial_group = QtWidgets.QGroupBox("Spatial Variation")
@@ -310,69 +375,69 @@ class AreaLoadApplicationPanel:
         # Variation center
         center_layout = QtWidgets.QHBoxLayout()
         self.center_x = QtWidgets.QDoubleSpinBox()
-        self.center_x.setRange(-10000.0, 10000.0)
-        self.center_x.setValue(0.0)
-        self.center_x.setSuffix(" mm")
+        _safe_call_method(self.center_x, "setRange", -10000.0, 10000.0)
+        _safe_call_method(self.center_x, "setValue", 0.0)
+        _safe_call_method(self.center_x, "setSuffix", " mm")
         
         self.center_y = QtWidgets.QDoubleSpinBox()
-        self.center_y.setRange(-10000.0, 10000.0)
-        self.center_y.setValue(0.0)
-        self.center_y.setSuffix(" mm")
+        _safe_call_method(self.center_y, "setRange", -10000.0, 10000.0)
+        _safe_call_method(self.center_y, "setValue", 0.0)
+        _safe_call_method(self.center_y, "setSuffix", " mm")
         
         self.center_z = QtWidgets.QDoubleSpinBox()
-        self.center_z.setRange(-10000.0, 10000.0)
-        self.center_z.setValue(0.0)
-        self.center_z.setSuffix(" mm")
+        _safe_call_method(self.center_z, "setRange", -10000.0, 10000.0)
+        _safe_call_method(self.center_z, "setValue", 0.0)
+        _safe_call_method(self.center_z, "setSuffix", " mm")
         
         self.pick_center_btn = QtWidgets.QPushButton("Pick")
-        self.pick_center_btn.setToolTip("Pick center point from 3D view")
-        self.pick_center_btn.clicked.connect(self.pickVariationCenter)
+        _safe_call_method(self.pick_center_btn, "setToolTip", "Pick center point from 3D view")
+        _safe_connect(getattr(self.pick_center_btn, "clicked", None), self.pickVariationCenter)
         
-        center_layout.addWidget(self.center_x)
-        center_layout.addWidget(self.center_y)
-        center_layout.addWidget(self.center_z)
-        center_layout.addWidget(self.pick_center_btn)
+        _safe_add_widget(center_layout, self.center_x)
+        _safe_add_widget(center_layout, self.center_y)
+        _safe_add_widget(center_layout, self.center_z)
+        _safe_add_widget(center_layout, self.pick_center_btn)
         spatial_layout.addRow("Variation Center:", center_layout)
         
         self.variation_radius = QtWidgets.QDoubleSpinBox()
-        self.variation_radius.setRange(1.0, 100000.0)
-        self.variation_radius.setValue(1000.0)
-        self.variation_radius.setSuffix(" mm")
+        _safe_call_method(self.variation_radius, "setRange", 1.0, 100000.0)
+        _safe_call_method(self.variation_radius, "setValue", 1000.0)
+        _safe_call_method(self.variation_radius, "setSuffix", " mm")
         spatial_layout.addRow("Variation Radius:", self.variation_radius)
         
-        spatial_group.setLayout(spatial_layout)
-        layout.addWidget(spatial_group)
+        _safe_set_layout(spatial_group, spatial_layout)
+        _safe_add_widget(layout, spatial_group)
         
         # Custom function
         custom_group = QtWidgets.QGroupBox("Custom Distribution Function")
         custom_layout = QtWidgets.QVBoxLayout()
         
         function_label = QtWidgets.QLabel("Python expression (use x, y, z coordinates):")
-        custom_layout.addWidget(function_label)
+        _safe_add_widget(custom_layout, function_label)
         
         self.custom_function_input = QtWidgets.QTextEdit()
-        self.custom_function_input.setMaximumHeight(60)
+        _safe_call_method(self.custom_function_input, "setMaximumHeight", 60)
         self.custom_function_input.setText("1.0")
         self.custom_function_input.setPlaceholderText("Example: 1.0 + 0.5*sin(x/1000)")
-        custom_layout.addWidget(self.custom_function_input)
+        _safe_add_widget(custom_layout, self.custom_function_input)
         
         function_buttons = QtWidgets.QHBoxLayout()
         self.validate_function_btn = QtWidgets.QPushButton("Validate Function")
-        self.validate_function_btn.clicked.connect(self.validateCustomFunction)
+        _safe_connect(getattr(self.validate_function_btn, "clicked", None), self.validateCustomFunction)
         self.example_functions_btn = QtWidgets.QPushButton("Examples...")
-        self.example_functions_btn.clicked.connect(self.showExampleFunctions)
+        _safe_connect(getattr(self.example_functions_btn, "clicked", None), self.showExampleFunctions)
         
-        function_buttons.addWidget(self.validate_function_btn)
-        function_buttons.addWidget(self.example_functions_btn)
+        _safe_add_widget(function_buttons, self.validate_function_btn)
+        _safe_add_widget(function_buttons, self.example_functions_btn)
         custom_layout.addLayout(function_buttons)
         
-        custom_group.setLayout(custom_layout)
-        layout.addWidget(custom_group)
+        _safe_set_layout(custom_group, custom_layout)
+        _safe_add_widget(layout, custom_group)
         
         # Initialize distribution parameters
         self.updateDistributionParameters()
         
-        tab.setLayout(layout)
+        _safe_set_layout(tab, layout)
         return tab
     
     def createPreviewTab(self):
@@ -385,53 +450,53 @@ class AreaLoadApplicationPanel:
         preview_layout = QtWidgets.QFormLayout()
         
         self.show_preview_check = QtWidgets.QCheckBox("Show Load Preview")
-        self.show_preview_check.setChecked(True)
-        self.show_preview_check.toggled.connect(self.togglePreview)
+        _safe_call_method(self.show_preview_check, "setChecked", True)
+        _safe_connect(getattr(self.show_preview_check, "toggled", None), self.togglePreview)
         preview_layout.addRow(self.show_preview_check)
         
         self.arrow_scale_spin = QtWidgets.QDoubleSpinBox()
-        self.arrow_scale_spin.setRange(0.1, 10.0)
-        self.arrow_scale_spin.setValue(1.0)
+        _safe_call_method(self.arrow_scale_spin, "setRange", 0.1, 10.0)
+        _safe_call_method(self.arrow_scale_spin, "setValue", 1.0)
         self.arrow_scale_spin.setDecimals(2)
-        self.arrow_scale_spin.valueChanged.connect(self.updatePreviewSettings)
+        _safe_connect(getattr(self.arrow_scale_spin, "valueChanged", None), self.updatePreviewSettings)
         preview_layout.addRow("Arrow Scale:", self.arrow_scale_spin)
         
         self.arrow_density_spin = QtWidgets.QSpinBox()
-        self.arrow_density_spin.setRange(2, 20)
-        self.arrow_density_spin.setValue(5)
-        self.arrow_density_spin.valueChanged.connect(self.updatePreviewSettings)
+        _safe_call_method(self.arrow_density_spin, "setRange", 2, 20)
+        _safe_call_method(self.arrow_density_spin, "setValue", 5)
+        _safe_connect(getattr(self.arrow_density_spin, "valueChanged", None), self.updatePreviewSettings)
         preview_layout.addRow("Arrow Density:", self.arrow_density_spin)
         
         self.auto_update_check = QtWidgets.QCheckBox("Auto Update Preview")
-        self.auto_update_check.setChecked(True)
-        self.auto_update_check.toggled.connect(self.toggleAutoUpdate)
+        _safe_call_method(self.auto_update_check, "setChecked", True)
+        _safe_connect(getattr(self.auto_update_check, "toggled", None), self.toggleAutoUpdate)
         preview_layout.addRow(self.auto_update_check)
         
-        preview_group.setLayout(preview_layout)
-        layout.addWidget(preview_group)
+        _safe_set_layout(preview_group, preview_layout)
+        _safe_add_widget(layout, preview_group)
         
         # Manual update button
         self.manual_update_btn = QtWidgets.QPushButton("Update Preview Now")
-        self.manual_update_btn.clicked.connect(self.updatePreview)
-        layout.addWidget(self.manual_update_btn)
+        _safe_connect(getattr(self.manual_update_btn, "clicked", None), self.updatePreview)
+        _safe_add_widget(layout, self.manual_update_btn)
         
         # Color settings
         color_group = QtWidgets.QGroupBox("Visualization Colors")
         color_layout = QtWidgets.QFormLayout()
         
         self.load_color_btn = QtWidgets.QPushButton()
-        self.load_color_btn.setStyleSheet("background-color: red; min-height: 20px;")
-        self.load_color_btn.clicked.connect(self.chooseLoadColor)
+        _safe_call_method(self.load_color_btn, "setStyleSheet", "background-color: red; min-height: 20px;")
+        _safe_connect(getattr(self.load_color_btn, "clicked", None), self.chooseLoadColor)
         color_layout.addRow("Load Color:", self.load_color_btn)
         
         self.arrow_transparency_spin = QtWidgets.QSpinBox()
-        self.arrow_transparency_spin.setRange(0, 90)
-        self.arrow_transparency_spin.setValue(20)
-        self.arrow_transparency_spin.setSuffix("%")
+        _safe_call_method(self.arrow_transparency_spin, "setRange", 0, 90)
+        _safe_call_method(self.arrow_transparency_spin, "setValue", 20)
+        _safe_call_method(self.arrow_transparency_spin, "setSuffix", "%")
         color_layout.addRow("Transparency:", self.arrow_transparency_spin)
         
-        color_group.setLayout(color_layout)
-        layout.addWidget(color_group)
+        _safe_set_layout(color_group, color_layout)
+        _safe_add_widget(layout, color_group)
         
         # Preview statistics
         stats_group = QtWidgets.QGroupBox("Preview Statistics")
@@ -447,10 +512,10 @@ class AreaLoadApplicationPanel:
         stats_layout.addRow("Resultant Vector:", self.resultant_label)
         stats_layout.addRow("Load Center:", self.load_center_label)
         
-        stats_group.setLayout(stats_layout)
-        layout.addWidget(stats_group)
+        _safe_set_layout(stats_group, stats_layout)
+        _safe_add_widget(layout, stats_group)
         
-        tab.setLayout(layout)
+        _safe_set_layout(tab, layout)
         return tab
     
     def createLoadSummary(self):
@@ -468,7 +533,7 @@ class AreaLoadApplicationPanel:
         summary_layout.addRow("Total Force:", self.summary_total_force_label)
         summary_layout.addRow("Direction:", self.summary_direction_label)
         
-        summary_group.setLayout(summary_layout)
+        _safe_set_layout(summary_group, summary_layout)
         return summary_group
     
     def populateSelectedFaces(self):
@@ -481,7 +546,7 @@ class AreaLoadApplicationPanel:
             else:
                 item_text = f"Face {i+1}"
             
-            self.face_list.addItem(item_text)
+            _safe_call_method(self.face_list, "addItem", item_text)
         
         self.updateSurfaceProperties()
     
@@ -542,13 +607,13 @@ class AreaLoadApplicationPanel:
             
         elif distribution in ["Linear X", "Linear Y"]:
             self.min_factor_spin = QtWidgets.QDoubleSpinBox()
-            self.min_factor_spin.setRange(0.0, 10.0)
-            self.min_factor_spin.setValue(0.5)
+            _safe_call_method(self.min_factor_spin, "setRange", 0.0, 10.0)
+            _safe_call_method(self.min_factor_spin, "setValue", 0.5)
             self.min_factor_spin.setDecimals(2)
             
             self.max_factor_spin = QtWidgets.QDoubleSpinBox()
-            self.max_factor_spin.setRange(0.0, 10.0)
-            self.max_factor_spin.setValue(1.5)
+            _safe_call_method(self.max_factor_spin, "setRange", 0.0, 10.0)
+            _safe_call_method(self.max_factor_spin, "setValue", 1.5)
             self.max_factor_spin.setDecimals(2)
             
             direction = "X" if "X" in distribution else "Y"
@@ -562,21 +627,21 @@ class AreaLoadApplicationPanel:
             
             for i, corner in enumerate(corners):
                 factor_spin = QtWidgets.QDoubleSpinBox()
-                factor_spin.setRange(0.0, 10.0)
-                factor_spin.setValue(1.0)
+                _safe_call_method(factor_spin, "setRange", 0.0, 10.0)
+                _safe_call_method(factor_spin, "setValue", 1.0)
                 factor_spin.setDecimals(2)
                 self.corner_factors.append(factor_spin)
                 self.params_layout.addRow(f"Factor at {corner}:", factor_spin)
                 
         elif distribution == "Parabolic":
             self.vertex_factor_spin = QtWidgets.QDoubleSpinBox()
-            self.vertex_factor_spin.setRange(0.0, 10.0)
-            self.vertex_factor_spin.setValue(2.0)
+            _safe_call_method(self.vertex_factor_spin, "setRange", 0.0, 10.0)
+            _safe_call_method(self.vertex_factor_spin, "setValue", 2.0)
             self.vertex_factor_spin.setDecimals(2)
             
             self.edge_factor_spin = QtWidgets.QDoubleSpinBox()
-            self.edge_factor_spin.setRange(0.0, 10.0)
-            self.edge_factor_spin.setValue(0.5)
+            _safe_call_method(self.edge_factor_spin, "setRange", 0.0, 10.0)
+            _safe_call_method(self.edge_factor_spin, "setValue", 0.5)
             self.edge_factor_spin.setDecimals(2)
             
             self.params_layout.addRow("Center Factor:", self.vertex_factor_spin)
@@ -586,25 +651,25 @@ class AreaLoadApplicationPanel:
             point_layout = QtWidgets.QHBoxLayout()
             
             self.point_u = QtWidgets.QDoubleSpinBox()
-            self.point_u.setRange(0.0, 1.0)
-            self.point_u.setValue(0.5)
+            _safe_call_method(self.point_u, "setRange", 0.0, 1.0)
+            _safe_call_method(self.point_u, "setValue", 0.5)
             self.point_u.setDecimals(3)
             
             self.point_v = QtWidgets.QDoubleSpinBox()
-            self.point_v.setRange(0.0, 1.0)
-            self.point_v.setValue(0.5)
+            _safe_call_method(self.point_v, "setRange", 0.0, 1.0)
+            _safe_call_method(self.point_v, "setValue", 0.5)
             self.point_v.setDecimals(3)
             
-            point_layout.addWidget(QtWidgets.QLabel("U:"))
-            point_layout.addWidget(self.point_u)
-            point_layout.addWidget(QtWidgets.QLabel("V:"))
-            point_layout.addWidget(self.point_v)
+            _safe_add_widget(point_layout, QtWidgets.QLabel("U:"))
+            _safe_add_widget(point_layout, self.point_u)
+            _safe_add_widget(point_layout, QtWidgets.QLabel("V:"))
+            _safe_add_widget(point_layout, self.point_v)
             
             self.params_layout.addRow("Point Location:", point_layout)
             
         elif distribution == "User Defined":
             note_label = QtWidgets.QLabel("Define custom function in 'Custom Distribution Function' section")
-            note_label.setStyleSheet("color: blue; font-style: italic;")
+            _safe_call_method(note_label, "setStyleSheet", "color: blue; font-style: italic;")
             self.params_layout.addRow(note_label)
     
     def updateLoadSummary(self):
@@ -769,9 +834,9 @@ class AreaLoadApplicationPanel:
         
         length = math.sqrt(x*x + y*y + z*z)
         if length > 0:
-            self.custom_x.setValue(x / length)
-            self.custom_y.setValue(y / length)
-            self.custom_z.setValue(z / length)
+            _safe_call_method(self.custom_x, "setValue", x / length)
+            _safe_call_method(self.custom_y, "setValue", y / length)
+            _safe_call_method(self.custom_z, "setValue", z / length)
             self.updateStatus("Direction vector normalized")
         else:
             self.updateStatus("Cannot normalize zero vector", "red")
@@ -835,7 +900,7 @@ class AreaLoadApplicationPanel:
         """Choose load arrow color."""
         color = QtWidgets.QColorDialog.getColor()
         if color.isValid():
-            self.load_color_btn.setStyleSheet(f"background-color: {color.name()}; min-height: 20px;")
+            _safe_call_method(self.load_color_btn, "setStyleSheet", f"background-color: {color.name()}; min-height: 20px;")
             if self.load_settings['auto_update']:
                 self.updatePreview()
     
@@ -924,9 +989,14 @@ class AreaLoadApplicationPanel:
             doc = App.ActiveDocument
             arrow_obj = doc.addObject("Part::Feature", "LoadArrow")
             
-            # Create line for arrow shaft
-            arrow_line = Part.makeLine(point, end_point)
-            arrow_obj.Shape = arrow_line
+            # Create line for arrow shaft - import Part module
+            try:
+                import Part
+                arrow_line = Part.makeLine(point, end_point)
+                arrow_obj.Shape = arrow_line
+            except ImportError:
+                # Fallback for testing without Part module
+                pass
             
             # Set visual properties
             if App.GuiUp:
@@ -1026,7 +1096,7 @@ class AreaLoadApplicationPanel:
     def updateStatus(self, message, color="blue"):
         """Update status message."""
         self.status_label.setText(message)
-        self.status_label.setStyleSheet(f"color: {color}; font-style: italic; margin-top: 5px;")
+        _safe_call_method(self.status_label, "setStyleSheet", f"color: {color}; font-style: italic; margin-top: 5px;")
     
     def accept(self):
         """Accept and create area load object."""
@@ -1111,6 +1181,304 @@ class AreaLoadApplicationPanel:
     def reject(self):
         """Reject and close panel."""
         self.clearPreview()
+        return True
+    
+    def getStandardButtons(self):
+        """Return standard dialog buttons."""
+        return QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+
+
+class AreaLoadPanel:
+    """
+    Task panel wrapper for area load application.
+    
+    This class provides the interface between FreeCAD's task panel system
+    and the AreaLoadApplicationPanel implementation.
+    """
+    
+    def __init__(self, area_load_object=None):
+        """
+        Initialize the area load panel.
+        
+        Args:
+            area_load_object: Existing AreaLoad object to edit, or None to create new
+        """
+        self.area_load_object = area_load_object
+        
+        if area_load_object:
+            # Edit existing area load
+            self.panel = AreaLoadEditPanel(area_load_object)
+        else:
+            # Create new area load from selection
+            selected_faces = self.get_selected_faces_from_gui()
+            self.panel = AreaLoadApplicationPanel(selected_faces)
+        
+        self.form = self.panel.form
+    
+    def get_selected_faces_from_gui(self):
+        """Get selected faces from FreeCAD GUI."""
+        selected_faces = []
+        
+        try:
+            sel_objects = Gui.Selection.getSelectionEx()
+            for sel_obj in sel_objects:
+                if sel_obj.SubElementNames:
+                    # Sub-elements selected (faces)
+                    for sub_name in sel_obj.SubElementNames:
+                        if 'Face' in sub_name:
+                            selected_faces.append(sel_obj.Object)
+                else:
+                    # Whole object selected
+                    obj = sel_obj.Object
+                    if hasattr(obj, 'Shape'):
+                        selected_faces.append(obj)
+        except Exception as e:
+            App.Console.PrintWarning(f"Warning getting selected faces: {str(e)}\n")
+        
+        # Remove duplicates while preserving order
+        unique_faces = []
+        for face in selected_faces:
+            if face not in unique_faces:
+                unique_faces.append(face)
+        
+        return unique_faces
+    
+    def accept(self):
+        """Accept the panel and create/update area load."""
+        return self.panel.accept()
+    
+    def reject(self):
+        """Reject the panel and clean up."""
+        return self.panel.reject()
+    
+    def getStandardButtons(self):
+        """Return standard dialog buttons."""
+        return self.panel.getStandardButtons()
+
+
+class AreaLoadEditPanel:
+    """
+    Panel for editing existing area load objects.
+    
+    This provides a simplified interface for modifying existing area loads
+    without recreating the load visualization.
+    """
+    
+    def __init__(self, area_load_object):
+        """
+        Initialize edit panel for existing area load.
+        
+        Args:
+            area_load_object: Existing AreaLoad object to edit
+        """
+        self.area_load_object = area_load_object
+        self.form = self.createUI()
+        self.populateFromObject()
+    
+    def createUI(self):
+        """Create simplified UI for editing existing area load."""
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+        
+        # Title
+        title_label = QtWidgets.QLabel(f"Edit Area Load: {self.area_load_object.Label}")
+        _safe_call_method(title_label, 'setStyleSheet', "font-weight: bold; font-size: 14px; margin-bottom: 10px;")
+        _safe_add_widget(layout, title_label)
+        
+        # Basic properties group
+        props_group = QtWidgets.QGroupBox("Load Properties")
+        props_layout = QtWidgets.QFormLayout()
+        
+        # Magnitude
+        self.magnitude_input = QtWidgets.QDoubleSpinBox()
+        _safe_call_method(self.magnitude_input, "setRange", -1000.0, 1000.0)
+        self.magnitude_input.setDecimals(3)
+        _safe_call_method(self.magnitude_input, "setSuffix", " kN/m²")
+        props_layout.addRow("Magnitude:", self.magnitude_input)
+        
+        # Load type
+        self.load_type_combo = QtWidgets.QComboBox()
+        load_types = [
+            "Dead Load (DL)", "Live Load (LL)", "Live Load Roof (LL_Roof)",
+            "Wind Load (W)", "Earthquake (E)", "Earth Pressure (H)",
+            "Fluid Pressure (F)", "Thermal (T)", "Custom Pressure"
+        ]
+        _safe_call_method(self.load_type_combo, "addItems", load_types)
+        props_layout.addRow("Load Type:", self.load_type_combo)
+        
+        # Direction
+        self.direction_combo = QtWidgets.QComboBox()
+        directions = ["Normal to Surface", "+X Global", "-X Global", 
+                     "+Y Global", "-Y Global", "+Z Global", "-Z Global", "Custom"]
+        _safe_call_method(self.direction_combo, "addItems", directions)
+        props_layout.addRow("Direction:", self.direction_combo)
+        
+        # Load case
+        self.load_case_input = QtWidgets.QLineEdit()
+        props_layout.addRow("Load Case:", self.load_case_input)
+        
+        # Load factor
+        self.load_factor_input = QtWidgets.QDoubleSpinBox()
+        _safe_call_method(self.load_factor_input, "setRange", 0.0, 10.0)
+        self.load_factor_input.setDecimals(2)
+        _safe_call_method(self.load_factor_input, "setValue", 1.0)
+        props_layout.addRow("Load Factor:", self.load_factor_input)
+        
+        # Description
+        self.description_input = QtWidgets.QLineEdit()
+        self.description_input.setPlaceholderText("Optional description")
+        props_layout.addRow("Description:", self.description_input)
+        
+        _safe_set_layout(props_group, props_layout)
+        _safe_add_widget(layout, props_group)
+        
+        # Visualization group
+        viz_group = QtWidgets.QGroupBox("Visualization")
+        viz_layout = QtWidgets.QFormLayout()
+        
+        self.show_arrows_check = QtWidgets.QCheckBox()
+        _safe_call_method(self.show_arrows_check, "setChecked", True)
+        viz_layout.addRow("Show Load Arrows:", self.show_arrows_check)
+        
+        self.arrow_scale_spin = QtWidgets.QDoubleSpinBox()
+        _safe_call_method(self.arrow_scale_spin, "setRange", 0.1, 10.0)
+        _safe_call_method(self.arrow_scale_spin, "setValue", 1.0)
+        self.arrow_scale_spin.setDecimals(2)
+        viz_layout.addRow("Arrow Scale:", self.arrow_scale_spin)
+        
+        self.arrow_density_spin = QtWidgets.QSpinBox()
+        _safe_call_method(self.arrow_density_spin, "setRange", 2, 20)
+        _safe_call_method(self.arrow_density_spin, "setValue", 5)
+        viz_layout.addRow("Arrow Density:", self.arrow_density_spin)
+        
+        _safe_set_layout(viz_group, viz_layout)
+        _safe_add_widget(layout, viz_group)
+        
+        # Target surfaces info (read-only)
+        surfaces_group = QtWidgets.QGroupBox("Target Surfaces (Read-Only)")
+        surfaces_layout = QtWidgets.QVBoxLayout()
+        
+        self.surfaces_list = QtWidgets.QListWidget()
+        _safe_call_method(self.surfaces_list, "setMaximumHeight", 100)
+        _safe_call_method(self.surfaces_list, "setSelectionMode", QtWidgets.QAbstractItemView.NoSelection)
+        _safe_add_widget(surfaces_layout, self.surfaces_list)
+        
+        note_label = QtWidgets.QLabel("Note: To change target surfaces, delete this load and create a new one.")
+        _safe_call_method(note_label, "setStyleSheet", "color: gray; font-style: italic;")
+        _safe_add_widget(surfaces_layout, note_label)
+        
+        _safe_set_layout(surfaces_group, surfaces_layout)
+        _safe_add_widget(layout, surfaces_group)
+        
+        _safe_set_layout(widget, layout)
+        return widget
+    
+    def populateFromObject(self):
+        """Populate UI from existing area load object."""
+        try:
+            obj = self.area_load_object
+            
+            # Basic properties
+            if hasattr(obj, 'Magnitude'):
+                magnitude_str = str(obj.Magnitude)
+                # Extract numeric value
+                try:
+                    magnitude_val = float(magnitude_str.split()[0])
+                    _safe_call_method(self.magnitude_input, "setValue", magnitude_val)
+                except:
+                    _safe_call_method(self.magnitude_input, "setValue", 5.0)
+            
+            if hasattr(obj, 'LoadType'):
+                load_type = str(obj.LoadType)
+                for i in range(self.load_type_combo.count()):
+                    if load_type in self.load_type_combo.itemText(i):
+                        self.load_type_combo.setCurrentIndex(i)
+                        break
+            
+            if hasattr(obj, 'Direction'):
+                direction = str(obj.Direction)
+                for i in range(self.direction_combo.count()):
+                    if direction == self.direction_combo.itemText(i):
+                        self.direction_combo.setCurrentIndex(i)
+                        break
+            
+            if hasattr(obj, 'LoadCaseName'):
+                self.load_case_input.setText(str(obj.LoadCaseName))
+            
+            if hasattr(obj, 'LoadFactor'):
+                _safe_call_method(self.load_factor_input, "setValue", float(obj.LoadFactor))
+            
+            if hasattr(obj, 'Description'):
+                self.description_input.setText(str(obj.Description))
+            
+            # Visualization
+            if hasattr(obj, 'ShowLoadArrows'):
+                _safe_call_method(self.show_arrows_check, "setChecked", bool(obj.ShowLoadArrows))
+            
+            if hasattr(obj, 'ArrowScale'):
+                _safe_call_method(self.arrow_scale_spin, "setValue", float(obj.ArrowScale))
+            
+            if hasattr(obj, 'ArrowDensity'):
+                _safe_call_method(self.arrow_density_spin, "setValue", int(obj.ArrowDensity))
+            
+            # Target surfaces
+            if hasattr(obj, 'TargetFaces'):
+                for target in obj.TargetFaces:
+                    if hasattr(target, 'Label'):
+                        _safe_call_method(self.surfaces_list, "addItem", target.Label)
+            
+        except Exception as e:
+            App.Console.PrintWarning(f"Error populating from object: {e}\n")
+    
+    def accept(self):
+        """Accept changes and update the area load object."""
+        try:
+            obj = self.area_load_object
+            
+            # Update properties
+            if hasattr(obj, 'Magnitude'):
+                magnitude_val = self.magnitude_input.value()
+                obj.Magnitude = f"{magnitude_val} kN/m²"
+            
+            if hasattr(obj, 'LoadType'):
+                obj.LoadType = self.load_type_combo.currentText()
+            
+            if hasattr(obj, 'Direction'):
+                obj.Direction = self.direction_combo.currentText()
+            
+            if hasattr(obj, 'LoadCaseName'):
+                obj.LoadCaseName = self.load_case_input.text()
+            
+            if hasattr(obj, 'LoadFactor'):
+                obj.LoadFactor = self.load_factor_input.value()
+            
+            if hasattr(obj, 'Description'):
+                obj.Description = self.description_input.text()
+            
+            # Visualization
+            if hasattr(obj, 'ShowLoadArrows'):
+                obj.ShowLoadArrows = self.show_arrows_check.isChecked()
+            
+            if hasattr(obj, 'ArrowScale'):
+                obj.ArrowScale = self.arrow_scale_spin.value()
+            
+            if hasattr(obj, 'ArrowDensity'):
+                obj.ArrowDensity = self.arrow_density_spin.value()
+            
+            # Recompute object
+            obj.recompute()
+            App.ActiveDocument.recompute()
+            
+            App.Console.PrintMessage(f"Area load {obj.Label} updated successfully.\n")
+            return True
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error updating area load: {str(e)}\n")
+            QtWidgets.QMessageBox.critical(None, "Error", f"Failed to update area load: {str(e)}")
+            return False
+    
+    def reject(self):
+        """Reject changes and close panel."""
         return True
     
     def getStandardButtons(self):

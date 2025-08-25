@@ -20,7 +20,7 @@ def main():
     script_dir = Path(__file__).parent
     os.chdir(script_dir)
     
-    print("🧪 StructureTools Test Runner")
+    print("StructureTools Test Runner")
     print("=" * 50)
     print(f"Project Directory: {script_dir}")
     print(f"Python Version: {sys.version}")
@@ -29,12 +29,12 @@ def main():
     # Check if pytest is available
     try:
         import pytest
-        print(f"✅ Pytest version: {pytest.__version__}")
+        print(f"[OK] Pytest version: {pytest.__version__}")
     except ImportError:
-        print("❌ Pytest not found. Installing...")
+        print("[ERROR] Pytest not found. Installing...")
         subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements-test.txt"])
         import pytest
-        print(f"✅ Pytest installed: {pytest.__version__}")
+        print(f"[OK] Pytest installed: {pytest.__version__}")
     
     print()
     
@@ -54,7 +54,7 @@ def main():
                 "--cov-report=term-missing",
                 "--cov-report=html:htmlcov"
             ])
-            print("📊 Running tests with coverage analysis...")
+            print("[INFO] Running tests with coverage analysis...")
         
         if "--performance" in sys.argv:
             test_args.extend([
@@ -62,19 +62,19 @@ def main():
                 "--benchmark-only",
                 "--benchmark-sort=mean"
             ])
-            print("⚡ Running performance benchmarks...")
+            print("[INFO] Running performance benchmarks...")
         
         if "--unit" in sys.argv:
             test_args.extend(["-m", "unit"])
-            print("🔬 Running unit tests only...")
+            print("[INFO] Running unit tests only...")
         
         if "--integration" in sys.argv:
             test_args.extend(["-m", "integration"])
-            print("🔗 Running integration tests only...")
+            print("[INFO] Running integration tests only...")
     else:
         # Default: run unit tests only
         test_args.extend(["-m", "unit"])
-        print("🔬 Running unit tests (default)...")
+        print("[INFO] Running unit tests (default)...")
     
     print()
     
@@ -90,14 +90,14 @@ def main():
         
         print("-" * 30)
         if exit_code == 0:
-            print("✅ All tests passed!")
+            print("[SUCCESS] All tests passed!")
         else:
-            print(f"❌ Tests failed with exit code: {exit_code}")
+            print(f"[FAIL] Tests failed with exit code: {exit_code}")
         
         return exit_code
         
     except Exception as e:
-        print(f"❌ Error running tests: {e}")
+        print(f"[ERROR] Error running tests: {e}")
         return 1
 
 

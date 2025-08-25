@@ -7,7 +7,9 @@
       "Bash(python -m pytest tests/unit/objects/test_structural_material.py -v)",
       "Bash(python -m pytest tests/ --tb=short)",
       "Bash(python -m pytest tests/unit/objects/test_structural_node.py::TestStructuralNodeVisualRepresentation -v)",
-      "Bash(python -m pytest tests/ --tb=short -q)"
+      "Bash(python -m pytest tests/ --tb=short -q)",
+      "Bash(python -m pytest tests/unit/analysis/test_modal_analysis.py -v)",
+      "Bash(python -m pytest tests/unit/ -v --tb=short)"
     ],
     "deny": [],
     "ask": []

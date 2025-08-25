@@ -165,6 +165,43 @@ class Calc:
 		]
 		obj.LoadCombination = '100_DL'
 
+		# Structured per-member results (stored as a python object so tests and UI can access lists/dicts)
+		_addProp("App::PropertyPythonObject", "MemberResults", "Calc", "structured per-member results", default=[])
+
+		# Other result properties written by execute(); provide safe defaults to avoid AttributeError
+		_addProp("App::PropertyStringList", "NameMembers", "Calc", "list of member names", default=[])
+		_addProp("App::PropertyVectorList", "Nodes", "Calc", "list of node vectors", default=[])
+		# Time-series and diagram data as string lists (comma-joined values per member)
+		_addProp("App::PropertyStringList", "MomentZ", "Calc", "per-member moment Z series", default=[])
+		_addProp("App::PropertyStringList", "MomentY", "Calc", "per-member moment Y series", default=[])
+		_addProp("App::PropertyStringList", "ShearY", "Calc", "per-member shear Y series", default=[])
+		_addProp("App::PropertyStringList", "ShearZ", "Calc", "per-member shear Z series", default=[])
+		_addProp("App::PropertyStringList", "AxialForce", "Calc", "per-member axial force series", default=[])
+		_addProp("App::PropertyStringList", "Torque", "Calc", "per-member torque series", default=[])
+		_addProp("App::PropertyStringList", "DeflectionY", "Calc", "per-member deflection Y series", default=[])
+		_addProp("App::PropertyStringList", "DeflectionZ", "Calc", "per-member deflection Z series", default=[])
+
+		# Min/max scalar lists (floats)
+		_addProp("App::PropertyFloatList", "MinMomentY", "Calc", "min moment Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MinMomentZ", "Calc", "min moment Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxMomentY", "Calc", "max moment Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxMomentZ", "Calc", "max moment Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MinShearY", "Calc", "min shear Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MinShearZ", "Calc", "min shear Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxShearY", "Calc", "max shear Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxShearZ", "Calc", "max shear Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MinTorque", "Calc", "min torque per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxTorque", "Calc", "max torque per member", default=[])
+		_addProp("App::PropertyFloatList", "MinDeflectionY", "Calc", "min deflection Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MinDeflectionZ", "Calc", "min deflection Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxDeflectionY", "Calc", "max deflection Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxDeflectionZ", "Calc", "max deflection Z per member", default=[])
+
+		# Load summary and metadata
+		_addProp("App::PropertyStringList", "LoadSummary", "Calc", "summary of active loads", default=[])
+		_addProp("App::PropertyInteger", "TotalLoads", "Calc", "total number of loads", default=0)
+		_addProp("App::PropertyString", "AnalysisType", "Calc", "text description of analysis type", default='')
+
 
 	#  Mapeia os nós da estrutura, (inverte o eixo y e z para adequação as coordenadas do sover)
 	def mapNodes(self, elements, unitLength):	
@@ -718,6 +755,79 @@ class Calc:
 		minDeflectionz = []
 		maxDeflectionz = []
 
+		# Structured per-member results (list of dicts) for easier downstream consumption
+		member_results = []
+
+		# helper: create a member summary dict from model/member
+		def _build_member_summary(member_name: str) -> dict:
+			"""Build a dict summary for a member.
+
+			Returns keys: name, section, nodes, momentY, momentZ, shearY, shearZ,
+			axial, torque, deflectionY, deflectionZ and min/max scalar values.
+			"""
+			m = model.members[member_name]
+			# numeric arrays (try-except to tolerate missing methods)
+			try:
+				my_vals = [float(v) for v in m.moment_array('My', getattr(obj, 'NumPointsMoment', 3))[1]]
+			except Exception:
+				my_vals = []
+			try:
+				mz_vals = [float(v) for v in m.moment_array('Mz', getattr(obj, 'NumPointsMoment', 3))[1]]
+			except Exception:
+				mz_vals = []
+			try:
+				fy_vals = [float(v) for v in m.shear_array('Fy', getattr(obj, 'NumPointsShear', 3))[1]]
+			except Exception:
+				fy_vals = []
+			try:
+				fz_vals = [float(v) for v in m.shear_array('Fz', getattr(obj, 'NumPointsShear', 3))[1]]
+			except Exception:
+				fz_vals = []
+			try:
+				ax_vals = [float(v) for v in m.axial_array(getattr(obj, 'NumPointsAxial', 2))[1]]
+			except Exception:
+				ax_vals = []
+			try:
+				tq_vals = [float(v) for v in m.torque_array(getattr(obj, 'NumPointsTorque', 2))[1]]
+			except Exception:
+				tq_vals = []
+			try:
+				dy_vals = [float(v) for v in m.deflection_array('dy', getattr(obj, 'NumPointsDeflection', 2))[1]]
+			except Exception:
+				dy_vals = []
+			try:
+				dz_vals = [float(v) for v in m.deflection_array('dz', getattr(obj, 'NumPointsDeflection', 2))[1]]
+			except Exception:
+				dz_vals = []
+
+			return {
+				'name': member_name,
+				'section': (members_map.get(member_name, {}).get('section') if 'members_map' in locals() else None),
+				'nodes': (members_map.get(member_name, {}).get('nodes') if 'members_map' in locals() else []),
+				'momentY': my_vals,
+				'momentZ': mz_vals,
+				'shearY': fy_vals,
+				'shearZ': fz_vals,
+				'axial': ax_vals,
+				'torque': tq_vals,
+				'deflectionY': dy_vals,
+				'deflectionZ': dz_vals,
+				'minMomentY': m.min_moment('My'),
+				'maxMomentY': m.max_moment('My'),
+				'minMomentZ': m.min_moment('Mz'),
+				'maxMomentZ': m.max_moment('Mz'),
+				'minShearY': m.min_shear('Fy'),
+				'maxShearY': m.max_shear('Fy'),
+				'minShearZ': m.min_shear('Fz'),
+				'maxShearZ': m.max_shear('Fz'),
+				'minTorque': m.min_torque(),
+				'maxTorque': m.max_torque(),
+				'minDeflectionY': m.min_deflection('dy'),
+				'maxDeflectionY': m.max_deflection('dy'),
+				'minDeflectionZ': m.min_deflection('dz'),
+				'maxDeflectionZ': m.max_deflection('dz')
+			}
+
 		for name in model.members.keys():			
 			momenty.append(','.join( str(value) for value in model.members[name].moment_array('My', obj.NumPointsMoment)[1]))
 			momentz.append(','.join( str(value) for value in model.members[name].moment_array('Mz', obj.NumPointsMoment)[1]))
@@ -749,7 +859,44 @@ class Calc:
 			minDeflectionz.append(model.members[name].min_deflection('dz'))
 			maxDeflectiony.append(model.members[name].max_deflection('dy'))
 			maxDeflectionz.append(model.members[name].max_deflection('dz'))
-			
+
+			# Also collect structured numeric results for this member (lists of floats)
+			try:
+				my_vals = [float(v) for v in model.members[name].moment_array('My', getattr(obj, 'NumPointsMoment', 3))[1]]
+			except Exception:
+				my_vals = []
+			try:
+				mz_vals = [float(v) for v in model.members[name].moment_array('Mz', getattr(obj, 'NumPointsMoment', 3))[1]]
+			except Exception:
+				mz_vals = []
+			try:
+				fy_vals = [float(v) for v in model.members[name].shear_array('Fy', getattr(obj, 'NumPointsShear', 3))[1]]
+			except Exception:
+				fy_vals = []
+			try:
+				fz_vals = [float(v) for v in model.members[name].shear_array('Fz', getattr(obj, 'NumPointsShear', 3))[1]]
+			except Exception:
+				fz_vals = []
+			try:
+				ax_vals = [float(v) for v in model.members[name].axial_array(getattr(obj, 'NumPointsAxial', 2))[1]]
+			except Exception:
+				ax_vals = []
+			try:
+				tq_vals = [float(v) for v in model.members[name].torque_array(getattr(obj, 'NumPointsTorque', 2))[1]]
+			except Exception:
+				tq_vals = []
+			try:
+				dy_vals = [float(v) for v in model.members[name].deflection_array('dy', getattr(obj, 'NumPointsDeflection', 2))[1]]
+			except Exception:
+				dy_vals = []
+			try:
+				dz_vals = [float(v) for v in model.members[name].deflection_array('dz', getattr(obj, 'NumPointsDeflection', 2))[1]]
+			except Exception:
+				dz_vals = []
+
+			# build structured summary and append
+			summary = _build_member_summary(name)
+			member_results.append(summary)
 			
 
 		obj.NameMembers = model.members.keys()
@@ -776,12 +923,61 @@ class Calc:
 		obj.MinDeflectionZ = minDeflectionz
 		obj.MaxDeflectionY = maxDeflectiony
 		obj.MaxDeflectionZ = maxDeflectionz
+		# expose structured per-member results (backwards-compatible addition)
+		if hasattr(obj, 'MemberResults'):
+			obj.MemberResults = member_results
+		else:
+			# For older Calc objects without MemberResults property, add it dynamically
+			try:
+				obj.addProperty("App::PropertyPythonObject", "MemberResults", "Calc", "structured per-member results")
+				obj.MemberResults = member_results
+			except Exception as e:
+				_print_warning(f"Could not add MemberResults property: {e}\n")
 		
 	   
 
 
 	def onChanged(self,obj,Parameter):
 		pass
+
+	def member_results_to_json(self, obj) -> str:
+		"""Return a JSON string of obj.MemberResults.
+
+		This helper serializes the structured MemberResults for export or UI use.
+		"""
+		import json
+		results = getattr(obj, 'MemberResults', [])
+		# Ensure numeric types are JSON serializable (lists of floats are fine)
+		return json.dumps(results)
+
+	def member_results_to_csv(self, obj, include_header: bool = True) -> str:
+		"""Return a CSV string for obj.MemberResults.
+
+		CSV columns: name,section,nodes,momentY,momentZ,shearY,shearZ,axial,torque,deflectionY,deflectionZ,minMomentY,...
+		Lists are serialized as semicolon-separated numeric strings inside cells.
+		"""
+		import csv, io
+		results = getattr(obj, 'MemberResults', [])
+		if not results:
+			return ''
+
+		# determine header keys (preserve order)
+		header = list(results[0].keys())
+		output = io.StringIO()
+		writer = csv.writer(output)
+		if include_header:
+			writer.writerow(header)
+		for r in results:
+			row = []
+			for k in header:
+				val = r.get(k, '')
+				if isinstance(val, list):
+					# join numeric lists with semicolon
+					row.append(';'.join(str(x) for x in val))
+				else:
+					row.append(str(val))
+			writer.writerow(row)
+		return output.getvalue()
 	
 
 class ViewProviderCalc:

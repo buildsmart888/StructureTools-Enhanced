@@ -44,7 +44,7 @@ class ModalAnalysisResults:
         self.num_modes = len(frequencies)
         
         # Calculate periods
-        self.periods = 1.0 / frequencies where frequencies > 0
+        self.periods = np.where(frequencies > 0, 1.0 / frequencies, np.inf)
         
         # Classify mode types
         self.mode_classifications = self._classify_modes()
@@ -56,19 +56,26 @@ class ModalAnalysisResults:
         for i in range(self.num_modes):
             pf = self.participation_factors[i]
             
-            # Check participation in global directions
-            max_translation = max(abs(pf[0]), abs(pf[1]), abs(pf[2]))
-            max_rotation = max(abs(pf[3]), abs(pf[4]), abs(pf[5]))
-            
-            if max_translation > 0.1:
-                if abs(pf[0]) > abs(pf[1]):
-                    classifications.append("Translation X")
+            # Check participation in global directions (handle different sizes)
+            if len(pf) >= 3:
+                max_translation = max(abs(pf[0]), abs(pf[1]), abs(pf[2]))
+                
+                if len(pf) >= 6:
+                    max_rotation = max(abs(pf[3]), abs(pf[4]), abs(pf[5]))
                 else:
-                    classifications.append("Translation Y") 
-            elif max_rotation > 0.1:
-                classifications.append("Torsional")
+                    max_rotation = 0.0
+                
+                if max_translation > 0.1:
+                    if abs(pf[0]) > abs(pf[1]):
+                        classifications.append("Translation X")
+                    else:
+                        classifications.append("Translation Y") 
+                elif max_rotation > 0.1:
+                    classifications.append("Torsional")
+                else:
+                    classifications.append("Local/Higher Order")
             else:
-                classifications.append("Local/Higher Order")
+                classifications.append("Unclassified")
         
         return classifications
     
@@ -170,6 +177,18 @@ class ModalAnalysis:
         
         App.Console.PrintMessage(f"Modal analysis configured: {num_modes} modes, "
                                 f"{method} method, {frequency_range} Hz range\n")
+    
+    def set_num_modes(self, num_modes: int):
+        """Set number of modes to extract"""
+        if num_modes <= 0 or num_modes > 1000:
+            raise ValueError(f"Invalid number of modes: {num_modes}")
+        self.num_modes = num_modes
+    
+    def set_frequency_range(self, min_freq: float, max_freq: float):
+        """Set frequency range for analysis"""
+        if min_freq < 0 or max_freq <= min_freq:
+            raise ValueError(f"Invalid frequency range: {min_freq} to {max_freq}")
+        self.frequency_range = (min_freq, max_freq)
     
     def run_modal_analysis(self) -> ModalAnalysisResults:
         """
@@ -595,6 +614,13 @@ def run_modal_analysis_on_calc(calc_obj, num_modes: int = 10) -> ModalAnalysisRe
     Returns:
         ModalAnalysisResults object
     """
+    # Input validation
+    if calc_obj is None:
+        raise AnalysisError("Calc object cannot be None")
+        
+    if not hasattr(calc_obj, 'ListElements'):
+        raise AnalysisError("Invalid calc object: missing ListElements attribute")
+    
     try:
         # Extract Pynite model from Calc object
         if hasattr(calc_obj, 'model'):
@@ -604,7 +630,7 @@ def run_modal_analysis_on_calc(calc_obj, num_modes: int = 10) -> ModalAnalysisRe
         
         # Create and run modal analysis
         modal_analysis = ModalAnalysis(pynite_model)
-        modal_analysis.set_analysis_parameters(num_modes=num_modes)
+        modal_analysis.set_num_modes(num_modes)
         
         results = modal_analysis.run_modal_analysis()
         
