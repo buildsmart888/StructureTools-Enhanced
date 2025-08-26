@@ -6,6 +6,19 @@ try:
 except Exception:
 	from PySide import QtWidgets
 
+# Import Global Units System
+try:
+    from .utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
 from .diagram_core import (
 	separates_ordinates as core_separates_ordinates,
 	generate_coordinates as core_generate_coordinates,
@@ -14,6 +27,12 @@ from .diagram_core import (
 	compose_face_loops,
 	get_label_positions,
 )
+
+# Import Thai units support
+try:
+	from .utils.universal_thai_units import UniversalThaiUnits
+except ImportError:
+	UniversalThaiUnits = None
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -62,6 +81,12 @@ class Diagram:
 
 		obj.addProperty("App::PropertyBool", "AxialForce", "DiagramAxial", "Ver diagrama de força normal").AxialForce = False
 		obj.addProperty("App::PropertyFloat", "ScaleAxial", "DiagramAxial", "Escala do diagrama de força normal").ScaleAxial = 1
+		
+		# Thai Units Support for Diagram
+		obj.addProperty("App::PropertyBool", "UseThaiUnits", "Thai Units", "Enable Thai units for diagram display").UseThaiUnits = False
+		obj.addProperty("App::PropertyEnumeration", "ThaiUnitsDisplay", "Thai Units", "Thai units display format")
+		obj.ThaiUnitsDisplay = ["kgf/tf", "ksc/tf·m", "Auto"]
+		obj.ThaiUnitsDisplay = "Auto"
 	
 
 
@@ -142,6 +167,60 @@ class Diagram:
 				}
 		
 		return listMembers
+	
+	def convertToThaiUnits(self, values, unit_type="force"):
+		"""Convert calculation values to Thai units for diagram display"""
+		if not hasattr(self, 'UseThaiUnits') or not self.UseThaiUnits:
+			return values
+			
+		if UniversalThaiUnits is None:
+			return values
+			
+		try:
+			converter = UniversalThaiUnits()
+			converted_values = []
+			
+			for value in values:
+				if unit_type == "force":
+					# Convert kN to kgf for forces
+					converted_values.append(converter.kn_to_kgf(value))
+				elif unit_type == "moment":
+					# Convert kN·m to kgf·cm for moments
+					converted_values.append(converter.kn_m_to_kgf_cm(value))
+				elif unit_type == "stress":
+					# Convert MPa to ksc for stress
+					converted_values.append(converter.mpa_to_ksc(value))
+				else:
+					converted_values.append(value)
+			
+			return converted_values
+			
+		except Exception as e:
+			print(f"Error converting to Thai units: {e}")
+			return values
+	
+	def getThaiUnitsLabel(self, unit_type="force"):
+		"""Get appropriate Thai units label for diagram"""
+		if not hasattr(self, 'UseThaiUnits') or not self.UseThaiUnits:
+			return ""
+			
+		unit_labels = {
+			"force": "kgf",
+			"moment": "kgf·cm", 
+			"stress": "ksc",
+			"tf_force": "tf",
+			"tf_moment": "tf·m"
+		}
+		
+		# Check display preference
+		display_format = getattr(self, 'ThaiUnitsDisplay', 'Auto')
+		if display_format == "ksc/tf·m" and unit_type in ["force", "moment"]:
+			if unit_type == "force":
+				return "tf"
+			elif unit_type == "moment":
+				return "tf·m"
+		
+		return unit_labels.get(unit_type, "")
 	
 	# separa as ordenadas em grupos de valores positivos e negativos
 	def separatesOrdinates(self, values):

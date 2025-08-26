@@ -12,6 +12,18 @@ from PySide2 import QtCore, QtGui, QtWidgets
 import os
 from typing import Optional, Dict, List, Any
 
+# Import Global Units System
+try:
+    from ..utils.units_manager import (
+        get_units_manager, format_force, format_stress
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+
 
 class LoadApplicationPanel:
     """

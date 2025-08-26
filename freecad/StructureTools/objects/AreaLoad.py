@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+AreaLoad - Professional area load object for surface loading
+
+This module provides comprehensive area loading capabilities for structural surfaces
+including pressure loads, distributed loads, wind loads, and thermal effects.
+"""
+
 import FreeCAD as App
 import FreeCADGui as Gui
 import Part
@@ -5,16 +13,26 @@ import Draft
 import math
 import numpy as np
 from typing import List, Dict, Tuple, Optional, Any
-from PySide2 import QtCore, QtWidgets, QtGui
+try:
+    from PySide2 import QtCore, QtWidgets, QtGui
+except ImportError:
+    try:
+        from PySide import QtCore, QtGui
+        QtWidgets = QtGui
+    except ImportError:
+        QtCore = QtWidgets = QtGui = None
 import os
 
 
 class AreaLoad:
     """
-    Custom Document Object for area loads on surfaces.
+    Professional area load object for structural surfaces.
     
-    This class provides comprehensive area loading capabilities for structural surfaces
-    including pressure loads, dead loads, live loads, wind loads, and thermal loads.
+    Provides comprehensive area loading capabilities including:
+    - Pressure loads (uniform, linear, point)
+    - Building code loads (dead, live, wind, seismic)
+    - Load patterns and distributions
+    - Load combinations integration
     """
     
     def __init__(self, obj):
@@ -34,6 +52,10 @@ class AreaLoad:
         obj.addProperty("App::PropertyArea", "LoadedArea", "Geometry",
                        "Total loaded area (calculated)")
         
+        obj.addProperty("App::PropertyVector", "LoadDirection", "Geometry",
+                       "Load direction vector (global coordinates)")
+        obj.LoadDirection = App.Vector(0, 0, -1)  # Downward default
+        
         # Load definition
         obj.addProperty("App::PropertyEnumeration", "LoadType", "Load",
                        "Type of area load")
@@ -48,6 +70,486 @@ class AreaLoad:
                        "Load category for combinations")
         obj.LoadCategory = ["DL", "LL", "LL_Roof", "W", "E", "H", "F", "T", "CUSTOM"]
         obj.LoadCategory = "DL"
+        
+        # Load intensity and distribution
+        obj.addProperty("App::PropertyPressure", "LoadIntensity", "Load",
+                       "Load intensity (pressure)")
+        obj.LoadIntensity = "2.4 kN/m^2"  # Typical dead load
+        
+        obj.addProperty("App::PropertyEnumeration", "DistributionPattern", "Load",
+                       "Load distribution pattern")
+        obj.DistributionPattern = [
+            "Uniform", "Linear X", "Linear Y", "Bilinear", "Radial", 
+            "Point Load", "Line Load", "Custom Pattern"
+        ]
+        obj.DistributionPattern = "Uniform"
+        
+        obj.addProperty("App::PropertyFloatList", "DistributionFactors", "Load",
+                       "Distribution factors for non-uniform patterns")
+        obj.DistributionFactors = [1.0, 1.0, 1.0, 1.0]  # Corner factors
+        
+        # Load case properties
+        obj.addProperty("App::PropertyString", "LoadCase", "Case",
+                       "Load case identifier")
+        obj.LoadCase = "DL1"
+        
+        obj.addProperty("App::PropertyString", "LoadCombination", "Case",
+                       "Load combination identifier")
+        
+        obj.addProperty("App::PropertyFloat", "LoadFactor", "Case",
+                       "Load factor for combinations")
+        obj.LoadFactor = 1.0
+        
+        # Time-dependent properties
+        obj.addProperty("App::PropertyBool", "IsTimeDependent", "Time",
+                       "Time-dependent load")
+        obj.IsTimeDependent = False
+        
+        obj.addProperty("App::PropertyPythonObject", "TimeFunction", "Time",
+                       "Time variation function")
+        
+        # Building code specific properties
+        obj.addProperty("App::PropertyEnumeration", "BuildingCode", "Code",
+                       "Building code standard")
+        obj.BuildingCode = [
+            "ASCE 7-16", "IBC 2018", "NBCC 2015", "Eurocode 1", 
+            "AS/NZS 1170", "Custom"
+        ]
+        obj.BuildingCode = "ASCE 7-16"
+        
+        obj.addProperty("App::PropertyString", "OccupancyType", "Code",
+                       "Building occupancy type")
+        obj.OccupancyType = "Office"
+        
+        obj.addProperty("App::PropertyFloat", "ImportanceFactor", "Code",
+                       "Importance factor for design")
+        obj.ImportanceFactor = 1.0
+        
+        # Load reduction and modification
+        obj.addProperty("App::PropertyBool", "ApplyLoadReduction", "Reduction",
+                       "Apply live load reduction")
+        obj.ApplyLoadReduction = True
+        
+        obj.addProperty("App::PropertyFloat", "ReductionFactor", "Reduction",
+                       "Live load reduction factor")
+        obj.ReductionFactor = 1.0
+        
+        obj.addProperty("App::PropertyFloat", "TributaryArea", "Reduction",
+                       "Tributary area for load reduction")
+        
+        # Environmental loads
+        obj.addProperty("App::PropertyFloat", "WindSpeed", "Environmental",
+                       "Basic wind speed (m/s)")
+        obj.WindSpeed = 50.0
+        
+        obj.addProperty("App::PropertyEnumeration", "ExposureCategory", "Environmental",
+                       "Wind exposure category")
+        obj.ExposureCategory = ["A", "B", "C", "D"]
+        obj.ExposureCategory = "B"
+        
+        obj.addProperty("App::PropertyFloat", "SeismicAcceleration", "Environmental",
+                       "Peak ground acceleration for seismic")
+        obj.SeismicAcceleration = 0.2
+        
+        # Thai Units Support
+        obj.addProperty("App::PropertyBool", "UseThaiUnits", "Thai Units",
+                       "Enable Thai units for load calculations")
+        obj.UseThaiUnits = False
+        
+        obj.addProperty("App::PropertyPressure", "LoadIntensityKsc", "Thai Units", 
+                       "Load intensity in ksc/m² (Thai units)")
+        obj.LoadIntensityKsc = "240 kgf/cm^2/m^2"  # Equivalent to 2.4 kN/m²
+        
+        obj.addProperty("App::PropertyPressure", "LoadIntensityTfM2", "Thai Units",
+                       "Load intensity in tf/m² (Thai units)")
+        obj.LoadIntensityTfM2 = "0.24 tf/m^2"
+        
+        obj.addProperty("App::PropertyFloat", "LoadFactorThai", "Thai Units",
+                       "Load factor per Thai Ministry B.E. 2566")
+        obj.LoadFactorThai = 1.4
+        
+        obj.addProperty("App::PropertyFloat", "TemperatureChange", "Environmental",
+                       "Temperature change (°C)")
+        obj.TemperatureChange = 0.0
+        
+        # Load application properties
+        obj.addProperty("App::PropertyVector", "ReferencePoint", "Application",
+                       "Reference point for load application")
+        
+        obj.addProperty("App::PropertyBool", "ProjectToSurface", "Application",
+                       "Project load normal to surface")
+        obj.ProjectToSurface = True
+        
+        obj.addProperty("App::PropertyFloat", "LoadEccentricity", "Application",
+                       "Load eccentricity from surface centroid")
+        obj.LoadEccentricity = 0.0
+        
+        # Results and integration
+        obj.addProperty("App::PropertyForce", "TotalForce", "Results",
+                       "Total applied force")
+        
+        obj.addProperty("App::PropertyFloat", "MomentX", "Results",
+                       "Moment about X-axis")
+        
+        obj.addProperty("App::PropertyFloat", "MomentY", "Results",
+                       "Moment about Y-axis")
+        
+        obj.addProperty("App::PropertyVector", "CenterOfPressure", "Results",
+                       "Center of pressure location")
+        
+        # Visualization properties
+        obj.addProperty("App::PropertyBool", "ShowLoadVectors", "Display",
+                       "Show load vectors")
+        obj.ShowLoadVectors = True
+        
+        obj.addProperty("App::PropertyFloat", "VectorScale", "Display",
+                       "Scale factor for load vectors")
+        obj.VectorScale = 1.0
+        
+        obj.addProperty("App::PropertyColor", "LoadColor", "Display",
+                       "Color for load display")
+        obj.LoadColor = (1.0, 0.0, 0.0)  # Red
+        
+        obj.addProperty("App::PropertyBool", "ShowLoadDistribution", "Display",
+                       "Show load distribution pattern")
+        obj.ShowLoadDistribution = True
+        
+        obj.addProperty("App::PropertyInteger", "DisplayDensity", "Display",
+                       "Density of load visualization")
+        obj.DisplayDensity = 10
+        
+        # Analysis properties
+        obj.addProperty("App::PropertyBool", "IncludeInAnalysis", "Analysis",
+                       "Include this load in structural analysis")
+        obj.IncludeInAnalysis = True
+        
+        obj.addProperty("App::PropertyEnumeration", "LoadMethod", "Analysis",
+                       "Method for load application in FEA")
+        obj.LoadMethod = ["Nodal Forces", "Pressure", "Body Force"]
+        obj.LoadMethod = "Pressure"
+        
+        obj.addProperty("App::PropertyInteger", "LoadSteps", "Analysis",
+                       "Number of load steps for nonlinear analysis")
+        obj.LoadSteps = 1
+        
+        # Initialize calculations
+        self.calculateLoadProperties(obj)
+    
+    def getLoadInThaiUnits(self, obj):
+        """Get load values in Thai units"""
+        if not hasattr(obj, 'UseThaiUnits') or not obj.UseThaiUnits:
+            return None
+            
+        try:
+            # Import Thai units converter
+            from ..utils.universal_thai_units import UniversalThaiUnits
+            converter = UniversalThaiUnits()
+            
+            # Get load intensity in SI units
+            intensity_kn_m2 = self.parseLoadIntensity(obj.LoadIntensity)
+            
+            # Convert to Thai units
+            intensity_ksc = converter.kn_m2_to_ksc_m2(intensity_kn_m2)
+            intensity_tf_m2 = converter.kn_m2_to_tf_m2(intensity_kn_m2)
+            
+            # Update Thai unit properties
+            obj.LoadIntensityKsc = f"{intensity_ksc:.2f} kgf/cm^2/m^2"
+            obj.LoadIntensityTfM2 = f"{intensity_tf_m2:.3f} tf/m^2"
+            
+            thai_results = {
+                'intensity_ksc': intensity_ksc,
+                'intensity_tf_m2': intensity_tf_m2,
+                'total_force_kgf': converter.kn_to_kgf(obj.TotalForce) if hasattr(obj, 'TotalForce') else 0,
+                'total_force_tf': converter.kn_to_tf(obj.TotalForce) if hasattr(obj, 'TotalForce') else 0,
+                'area_m2': obj.LoadedArea if hasattr(obj, 'LoadedArea') else 0,
+                'load_factor_thai': obj.LoadFactorThai if hasattr(obj, 'LoadFactorThai') else 1.4
+            }
+            
+            return thai_results
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error converting to Thai units: {e}\n")
+            return None
+    
+    def updateThaiUnits(self, obj):
+        """Update Thai units when properties change"""
+        if hasattr(obj, 'UseThaiUnits') and obj.UseThaiUnits:
+            self.getLoadInThaiUnits(obj)
+    
+    def calculateLoadProperties(self, obj):
+        """Calculate basic load properties."""
+        try:
+            if not obj.TargetFaces:
+                return
+                
+            # Calculate total loaded area
+            total_area = 0.0
+            for face_obj in obj.TargetFaces:
+                if hasattr(face_obj, 'Shape') and hasattr(face_obj.Shape, 'Area'):
+                    total_area += face_obj.Shape.Area
+                    
+            obj.LoadedArea = total_area
+            
+            # Calculate total force
+            if hasattr(obj, 'LoadIntensity'):
+                intensity = self.parseLoadIntensity(obj.LoadIntensity)
+                obj.TotalForce = intensity * total_area
+                
+            # Calculate center of pressure
+            self.calculateCenterOfPressure(obj)
+            
+            # Update Thai units if enabled
+            if hasattr(obj, 'UseThaiUnits') and obj.UseThaiUnits:
+                self.updateThaiUnits(obj)
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error calculating load properties: {e}\n")
+    
+    def calculateLoadProperties(self, obj):
+        """Calculate basic load properties."""
+        try:
+            if not obj.TargetFaces:
+                return
+                
+            # Calculate total loaded area
+            total_area = 0.0
+            for face_obj in obj.TargetFaces:
+                if hasattr(face_obj, 'Shape') and hasattr(face_obj.Shape, 'Area'):
+                    total_area += face_obj.Shape.Area
+                    
+            obj.LoadedArea = total_area
+            
+            # Calculate total force
+            if hasattr(obj, 'LoadIntensity'):
+                intensity = self.parseLoadIntensity(obj.LoadIntensity)
+                obj.TotalForce = intensity * total_area
+                
+            # Calculate center of pressure
+            self.calculateCenterOfPressure(obj)
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error calculating load properties: {e}\n")
+    
+    def parseLoadIntensity(self, intensity_str):
+        """Parse load intensity string to numerical value."""
+        try:
+            if isinstance(intensity_str, (int, float)):
+                return float(intensity_str)
+            
+            # Handle unit strings like "2.4 kN/m^2"
+            value_str = str(intensity_str).split()[0]
+            return float(value_str)
+        except:
+            return 0.0
+    
+    def calculateCenterOfPressure(self, obj):
+        """Calculate center of pressure for the load."""
+        try:
+            if not obj.TargetFaces:
+                return
+                
+            total_area = 0.0
+            weighted_center = App.Vector(0, 0, 0)
+            
+            for face_obj in obj.TargetFaces:
+                if hasattr(face_obj, 'Shape') and hasattr(face_obj.Shape, 'CenterOfMass'):
+                    area = face_obj.Shape.Area
+                    center = face_obj.Shape.CenterOfMass
+                    
+                    weighted_center = weighted_center + (center * area)
+                    total_area += area
+            
+            if total_area > 0:
+                obj.CenterOfPressure = weighted_center / total_area
+                
+        except Exception as e:
+            App.Console.PrintError(f"Error calculating center of pressure: {e}\n")
+    
+    def applyBuildingCodeLoads(self, obj):
+        """Apply building code specific loads."""
+        try:
+            code = obj.BuildingCode
+            load_type = obj.LoadType
+            occupancy = obj.OccupancyType
+            
+            if code == "ASCE 7-16":
+                self.applyASCE7Loads(obj, load_type, occupancy)
+            elif code == "IBC 2018":
+                self.applyIBCLoads(obj, load_type, occupancy)
+            elif code == "Eurocode 1":
+                self.applyEurocodeLoads(obj, load_type, occupancy)
+                
+        except Exception as e:
+            App.Console.PrintError(f"Error applying building code loads: {e}\n")
+    
+    def applyASCE7Loads(self, obj, load_type, occupancy):
+        """Apply ASCE 7-16 loads."""
+        if "Dead Load" in load_type:
+            # Typical dead load values
+            if "concrete" in occupancy.lower():
+                obj.LoadIntensity = "3.6 kN/m^2"  # 75 psf
+            else:
+                obj.LoadIntensity = "2.4 kN/m^2"  # 50 psf typical
+                
+        elif "Live Load" in load_type:
+            # ASCE 7 Table 4.3-1
+            live_loads = {
+                "office": "2.4 kN/m^2",     # 50 psf
+                "residential": "1.9 kN/m^2", # 40 psf
+                "retail": "4.8 kN/m^2",     # 100 psf
+                "classroom": "1.9 kN/m^2",  # 40 psf
+                "corridor": "3.8 kN/m^2"    # 80 psf
+            }
+            
+            for key, value in live_loads.items():
+                if key in occupancy.lower():
+                    obj.LoadIntensity = value
+                    break
+            else:
+                obj.LoadIntensity = "2.4 kN/m^2"  # Default
+                
+        elif "Wind Load" in load_type:
+            # Simplified wind pressure calculation
+            # qz = 0.613 * Kz * Kzt * Kd * V^2 * I
+            v = obj.WindSpeed  # m/s
+            kz = 0.85  # Exposure factor
+            kzt = 1.0  # Topographic factor
+            kd = 0.85  # Directionality factor
+            i = obj.ImportanceFactor
+            
+            qz = 0.613 * kz * kzt * kd * (v ** 2) * i / 1000  # kN/m²
+            obj.LoadIntensity = f"{qz:.2f} kN/m^2"
+    
+    def execute(self, obj):
+        """Update load visualization and integration."""
+        if obj.TargetFaces:
+            self.updateLoadVisualization(obj)
+            self.calculateTotalLoad(obj)
+    
+    def updateLoadVisualization(self, obj):
+        """Update visual representation of the load."""
+        try:
+            if not obj.ShowLoadVectors:
+                return
+                
+            # Clear existing visualization
+            doc = App.ActiveDocument
+            if not doc:
+                return
+                
+            # Create load vectors
+            self.createLoadVectors(obj)
+            
+            # Show load distribution if requested
+            if obj.ShowLoadDistribution:
+                self.createLoadDistribution(obj)
+                
+        except Exception as e:
+            App.Console.PrintError(f"Error updating load visualization: {e}\n")
+    
+    def createLoadVectors(self, obj):
+        """Create load vector visualization."""
+        try:
+            doc = App.ActiveDocument
+            if not doc or not obj.TargetFaces:
+                return
+                
+            for i, face_obj in enumerate(obj.TargetFaces):
+                if hasattr(face_obj, 'Shape'):
+                    # Get face center
+                    center = face_obj.Shape.CenterOfMass
+                    
+                    # Calculate load direction and magnitude
+                    direction = obj.LoadDirection
+                    if obj.ProjectToSurface and hasattr(face_obj.Shape, 'normalAt'):
+                        # Use surface normal
+                        u, v = face_obj.Shape.Surface.parameter(center)
+                        direction = face_obj.Shape.normalAt(u, v)
+                        direction = direction * -1  # Point inward for loads
+                    
+                    # Create arrow for visualization
+                    self.createLoadArrow(doc, center, direction, obj, i)
+                    
+        except Exception as e:
+            App.Console.PrintError(f"Error creating load vectors: {e}\n")
+    
+    def createLoadArrow(self, doc, position, direction, load_obj, index):
+        """Create a single load arrow."""
+        try:
+            arrow_name = f"LoadArrow_{load_obj.Label}_{index}"
+            
+            # Remove existing arrow
+            if hasattr(doc, 'getObject') and doc.getObject(arrow_name):
+                doc.removeObject(arrow_name)
+            
+            # Create arrow geometry
+            arrow_length = 100.0 * load_obj.VectorScale  # mm
+            arrow_head = 20.0  # mm
+            
+            # Scale by load magnitude
+            intensity = self.parseLoadIntensity(load_obj.LoadIntensity)
+            if intensity > 0:
+                arrow_length *= min(intensity / 2.4, 5.0)  # Scale relative to 2.4 kN/m²
+            
+            direction_norm = direction.normalize()
+            end_point = position + (direction_norm * arrow_length)
+            
+            # Create arrow shaft
+            shaft = Part.makeCylinder(2.0, arrow_length)
+            
+            # Create arrow head
+            cone = Part.makeCone(0, 8.0, arrow_head)
+            cone.translate(App.Vector(0, 0, arrow_length))
+            
+            # Combine shaft and head
+            arrow = shaft.fuse(cone)
+            
+            # Rotate to align with direction
+            # (Implementation would need proper rotation matrix)
+            
+            # Create object
+            arrow_obj = doc.addObject("Part::Feature", arrow_name)
+            arrow_obj.Shape = arrow
+            arrow_obj.Placement.Base = position
+            
+            # Set color
+            if hasattr(arrow_obj, 'ViewObject'):
+                color = load_obj.LoadColor if hasattr(load_obj, 'LoadColor') else (1.0, 0.0, 0.0)
+                arrow_obj.ViewObject.ShapeColor = color
+                arrow_obj.ViewObject.LineColor = color
+                
+        except Exception as e:
+            App.Console.PrintError(f"Error creating load arrow: {e}\n")
+    
+    def calculateTotalLoad(self, obj):
+        """Calculate total load and moments."""
+        try:
+            if not obj.TargetFaces:
+                return
+                
+            total_force = 0.0
+            moment_x = 0.0
+            moment_y = 0.0
+            
+            intensity = self.parseLoadIntensity(obj.LoadIntensity)
+            
+            for face_obj in obj.TargetFaces:
+                if hasattr(face_obj, 'Shape'):
+                    area = face_obj.Shape.Area / 1000000  # Convert mm² to m²
+                    force = intensity * area  # kN
+                    total_force += force
+                    
+                    # Calculate moments about origin
+                    center = face_obj.Shape.CenterOfMass
+                    moment_x += force * (center.y / 1000)  # kN⋅m
+                    moment_y += force * (center.x / 1000)  # kN⋅m
+            
+            obj.TotalForce = f"{total_force:.2f} kN"
+            obj.MomentX = moment_x
+            obj.MomentY = moment_y
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error calculating total load: {e}\n")
         
         # Load magnitude and direction
         obj.addProperty("App::PropertyPressure", "Magnitude", "Load",

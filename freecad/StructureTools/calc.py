@@ -1,10 +1,56 @@
-import FreeCAD, App, FreeCADGui, Part, os, math
+import os, math
+import sys
+
+# Setup FreeCAD stubs for standalone operation
+try:
+    from .utils.freecad_stubs import setup_freecad_stubs, is_freecad_available
+    if not is_freecad_available():
+        setup_freecad_stubs()
+except ImportError:
+    pass
+
+# Import FreeCAD modules (now available via stubs if needed)
+try:
+    import FreeCAD, App, FreeCADGui, Part
+    FREECAD_AVAILABLE = True
+except ImportError:
+    FREECAD_AVAILABLE = False
+    print("FreeCAD modules not available - using stub mode")
 from PySide import QtWidgets
 import subprocess
+
+# Import Thai units support
+try:
+    from .utils.universal_thai_units import enhance_with_thai_units, thai_auto_units, get_universal_thai_units
+    from .utils.thai_units import get_thai_converter
+    from .utils.units_manager import get_units_manager, format_force, format_stress, format_modulus
+    THAI_UNITS_AVAILABLE = True
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    THAI_UNITS_AVAILABLE = False
+    GLOBAL_UNITS_AVAILABLE = False
+    enhance_with_thai_units = lambda x, t: x
+    thai_auto_units = lambda f: f
+    get_universal_thai_units = lambda: None
+    get_thai_converter = lambda: None
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e6:.0f} MPa"
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
 from .Pynite_main.FEModel3D import FEModel3D
+
+# Import material standards database
+try:
+	from .data.MaterialStandards import MATERIAL_STANDARDS, get_material_info
+	HAS_MATERIAL_DATABASE = True
+except ImportError:
+	MATERIAL_STANDARDS = {}
+	def get_material_info(standard_name):
+		return {}
+	HAS_MATERIAL_DATABASE = False
 
 
 def _find_matching_node_index(nodes_map, coord, tol=1e-3):
@@ -197,6 +243,25 @@ class Calc:
 		_addProp("App::PropertyFloatList", "MaxDeflectionY", "Calc", "max deflection Y per member", default=[])
 		_addProp("App::PropertyFloatList", "MaxDeflectionZ", "Calc", "max deflection Z per member", default=[])
 
+		# Thai Units Support (Legacy)
+		_addProp("App::PropertyBool", "UseThaiUnits", "Thai Units", "enable Thai units for calculation results", default=False)
+		_addProp("App::PropertyStringList", "MomentZKsc", "Thai Units", "per-member moment Z in ksc", default=[])
+		_addProp("App::PropertyStringList", "MomentYKsc", "Thai Units", "per-member moment Y in ksc", default=[])
+		_addProp("App::PropertyStringList", "AxialForceKgf", "Thai Units", "per-member axial force in kgf", default=[])
+		_addProp("App::PropertyStringList", "AxialForceTf", "Thai Units", "per-member axial force in tf", default=[])
+		_addProp("App::PropertyStringList", "ShearYKgf", "Thai Units", "per-member shear Y in kgf", default=[])
+		_addProp("App::PropertyStringList", "ShearZKgf", "Thai Units", "per-member shear Z in kgf", default=[])
+		
+		# Global Units System (New Enhanced System)
+		_addProp("App::PropertyEnumeration", "GlobalUnitsSystem", "Global Units", "global units system", default="SI")
+		_addProp("App::PropertyBool", "UseGlobalUnits", "Global Units", "enable global units system", default=True)
+		_addProp("App::PropertyStringList", "FormattedForces", "Global Units", "formatted force results", default=[])
+		_addProp("App::PropertyStringList", "FormattedStresses", "Global Units", "formatted stress results", default=[])
+		_addProp("App::PropertyStringList", "FormattedMoments", "Global Units", "formatted moment results", default=[])
+		
+		# Set enum options for GlobalUnitsSystem
+		if hasattr(obj, 'GlobalUnitsSystem'):
+			obj.GlobalUnitsSystem = ["SI", "US", "THAI"]
 		# Load summary and metadata
 		_addProp("App::PropertyStringList", "LoadSummary", "Calc", "summary of active loads", default=[])
 		_addProp("App::PropertyInteger", "TotalLoads", "Calc", "total number of loads", default=0)
@@ -445,13 +510,31 @@ class Calc:
 			section = line.SectionMember
 
 			if not material.Name in materiais:
-				density = FreeCAD.Units.Quantity(material.Density).getValueAs('t/m^3') * 10 #Converte a unidade de entrada em t/m³ e na sequencia converte em kN/m³
-				density = float(FreeCAD.Units.Quantity(density, 'kN/m^3').getValueAs(unitForce+"/"+unitLength+"^3")) #Converte kN/m³ para as unidades definidas no calc
-				modulusElasticity = float(material.ModulusElasticity.getValueAs(unitForce+"/"+unitLength+"^2"))
-				poissonRatio = float(material.PoissonRatio)
-				G = modulusElasticity / (2 * (1 + poissonRatio))
-				model.add_material(material.Name, modulusElasticity, G, poissonRatio, density)
-				materiais.append(material.Name)
+				# Try to get calc properties from material object first (supports both old and new materials)
+				if hasattr(material, 'Proxy') and hasattr(material.Proxy, 'get_calc_properties'):
+					# New StructuralMaterial or updated old Material with get_calc_properties method
+					try:
+						mat_props = material.Proxy.get_calc_properties(material, unitLength, unitForce)
+						model.add_material(mat_props['name'], mat_props['E'], mat_props['G'], mat_props['nu'], mat_props['density'])
+						materiais.append(material.Name)
+						continue
+					except Exception as e:
+						App.Console.PrintWarning(f"Error using material calc properties for {material.Name}: {e}\n")
+				
+				# Fallback to original method for compatibility
+				try:
+					density = FreeCAD.Units.Quantity(material.Density).getValueAs('t/m^3') * 10 #Converte a unidade de entrada em t/m³ e na sequencia converte em kN/m³
+					density = float(FreeCAD.Units.Quantity(density, 'kN/m^3').getValueAs(unitForce+"/"+unitLength+"^3")) #Converte kN/m³ para as unidades definidas no calc
+					modulusElasticity = float(material.ModulusElasticity.getValueAs(unitForce+"/"+unitLength+"^2"))
+					poissonRatio = float(material.PoissonRatio)
+					G = modulusElasticity / (2 * (1 + poissonRatio))
+					model.add_material(material.Name, modulusElasticity, G, poissonRatio, density)
+					materiais.append(material.Name)
+				except Exception as e:
+					App.Console.PrintError(f"Error processing material {material.Name}: {e}\n")
+					# Add default material as fallback
+					model.add_material(material.Name, 200000.0, 77000.0, 0.3, 78.5)
+					materiais.append(material.Name)
 				
 
 			if not section.Name in sections:
@@ -476,14 +559,29 @@ class Calc:
 	
 	def execute(self, obj):
 		model = FEModel3D()
+		# Initialize materials list to track processed materials
+		materiais = []
+		
 		# Ensure there's a default material so meshed quads can be assigned a material name
 		# Tests and minimal workflows may not define materials; create a light default.
 		try:
 			if 'default' not in model.materials:
-				model.add_material('default', 200000.0, 77000.0, 0.3, 7850.0)
-		except Exception:
+				# Try to use ASTM A992 from database as default
+				if HAS_MATERIAL_DATABASE and 'ASTM_A992' in MATERIAL_STANDARDS:
+					props = get_material_info('ASTM_A992')
+					E = float(props.get('ModulusElasticity', '200000 MPa').replace(' MPa', ''))
+					nu = props.get('PoissonRatio', 0.3)
+					G = E / (2 * (1 + nu))
+					density_kg_m3 = float(props.get('Density', '7850 kg/m^3').replace(' kg/m^3', ''))
+					density = density_kg_m3 * 9.81 / 1000  # Convert to kN/m³
+					model.add_material('default', E, G, nu, density)
+					_print_message(f"Using ASTM A992 as default material from database\n")
+				else:
+					# Fallback to hardcoded values
+					model.add_material('default', 200000.0, 77000.0, 0.3, 78.5)
+		except Exception as e:
 			# Non-fatal if FEModel internals differ; proceed without failing
-			pass
+			_print_warning(f"Could not create default material: {e}\n")
 		# Filtra os diferentes tipos de elementos
 		lines = list(filter(lambda element: 'Line' in element.Name or 'Wire' in element.Name, obj.ListElements))
 		loads = list(filter(lambda element: 'Load' in element.Name, obj.ListElements))
@@ -612,10 +710,33 @@ class Calc:
 									thk = float(thk)
 								except Exception:
 									thk = 0.1
-							mat_name = getattr(plate_obj, 'Material', None)
-							if mat_name and hasattr(mat_name, 'Name'):
-								mat_name = mat_name.Name
-							elif not mat_name:
+							# Get material name and ensure material is added to model
+							mat_obj = getattr(plate_obj, 'Material', None)
+							if mat_obj and hasattr(mat_obj, 'Name'):
+								mat_name = mat_obj.Name
+								# Ensure plate material is added to FE model
+								if mat_name not in materiais:
+									if hasattr(mat_obj, 'Proxy') and hasattr(mat_obj.Proxy, 'get_calc_properties'):
+										try:
+											mat_props = mat_obj.Proxy.get_calc_properties(mat_obj, obj.LengthUnit, obj.ForceUnit)
+											model.add_material(mat_props['name'], mat_props['E'], mat_props['G'], mat_props['nu'], mat_props['density'])
+											materiais.append(mat_name)
+										except Exception:
+											model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+											materiais.append(mat_name)
+									else:
+										try:
+											density = FreeCAD.Units.Quantity(mat_obj.Density).getValueAs('t/m^3') * 10
+											density = float(FreeCAD.Units.Quantity(density, 'kN/m^3').getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^3"))
+											E = float(mat_obj.ModulusElasticity.getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^2"))
+											nu = float(mat_obj.PoissonRatio)
+											G = E / (2 * (1 + nu))
+											model.add_material(mat_name, E, G, nu, density)
+											materiais.append(mat_name)
+										except Exception:
+											model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+											materiais.append(mat_name)
+							else:
 								mat_name = 'default'
 							# Create a stable element name linked to the plate
 							elem_name = f"{plate_obj.Name}_{elem_id}"
@@ -641,10 +762,32 @@ class Calc:
 					n_name = str(corner_indices[3])
 					# thickness and material
 					thk = getattr(plate_obj, 'Thickness', 0.1)
-					mat_name = getattr(plate_obj, 'Material', None)
-					if mat_name and hasattr(mat_name, 'Name'):
-						mat_name = mat_name.Name
-					elif not mat_name:
+					mat_obj = getattr(plate_obj, 'Material', None)
+					if mat_obj and hasattr(mat_obj, 'Name'):
+						mat_name = mat_obj.Name
+						# Ensure plate material is added to FE model
+						if mat_name not in materiais:
+							if hasattr(mat_obj, 'Proxy') and hasattr(mat_obj.Proxy, 'get_calc_properties'):
+								try:
+									mat_props = mat_obj.Proxy.get_calc_properties(mat_obj, obj.LengthUnit, obj.ForceUnit)
+									model.add_material(mat_props['name'], mat_props['E'], mat_props['G'], mat_props['nu'], mat_props['density'])
+									materiais.append(mat_name)
+								except Exception:
+									model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+									materiais.append(mat_name)
+							else:
+								try:
+									density = FreeCAD.Units.Quantity(mat_obj.Density).getValueAs('t/m^3') * 10
+									density = float(FreeCAD.Units.Quantity(density, 'kN/m^3').getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^3"))
+									E = float(mat_obj.ModulusElasticity.getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^2"))
+									nu = float(mat_obj.PoissonRatio)
+									G = E / (2 * (1 + nu))
+									model.add_material(mat_name, E, G, nu, density)
+									materiais.append(mat_name)
+								except Exception:
+									model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+									materiais.append(mat_name)
+					else:
 						mat_name = 'default'
 					try:
 						model.add_plate(plate_obj.Name, i_name, j_name, m_name, n_name, float(thk), mat_name)
@@ -933,6 +1076,135 @@ class Calc:
 				obj.MemberResults = member_results
 			except Exception as e:
 				_print_warning(f"Could not add MemberResults property: {e}\n")
+		
+		# Update Thai units if enabled (Legacy support)
+		if hasattr(obj, 'UseThaiUnits') and getattr(obj, 'UseThaiUnits', False):
+			self.updateThaiUnitsResults(obj)
+			
+		# Update Global Units if enabled (New enhanced system)
+		if hasattr(obj, 'UseGlobalUnits') and getattr(obj, 'UseGlobalUnits', True):
+			self.updateGlobalUnitsResults(obj)
+	   
+
+	def updateThaiUnitsResults(self, obj):
+		"""Update Thai units calculation results"""
+		try:
+			from .utils.universal_thai_units import UniversalThaiUnits
+			converter = UniversalThaiUnits()
+		except ImportError:
+			# Thai units not available
+			return
+			
+		try:
+			
+			# Convert moment results to ksc
+			moment_z_ksc = []
+			moment_y_ksc = []
+			for mz_str in obj.MomentZ:
+				values = [float(v) for v in mz_str.split(',')]
+				ksc_values = [converter.kn_m_to_ksc_m(v) for v in values]
+				moment_z_ksc.append(','.join(str(v) for v in ksc_values))
+			
+			for my_str in obj.MomentY:
+				values = [float(v) for v in my_str.split(',')]
+				ksc_values = [converter.kn_m_to_ksc_m(v) for v in values]
+				moment_y_ksc.append(','.join(str(v) for v in ksc_values))
+			
+			obj.MomentZKsc = moment_z_ksc
+			obj.MomentYKsc = moment_y_ksc
+			
+			# Convert axial forces to kgf and tf
+			axial_kgf = []
+			axial_tf = []
+			for ax_str in obj.AxialForce:
+				values = [float(v) for v in ax_str.split(',')]
+				kgf_values = [converter.kn_to_kgf(v) for v in values]
+				tf_values = [converter.kn_to_tf(v) for v in values]
+				axial_kgf.append(','.join(str(v) for v in kgf_values))
+				axial_tf.append(','.join(str(v) for v in tf_values))
+			
+			obj.AxialForceKgf = axial_kgf
+			obj.AxialForceTf = axial_tf
+			
+			# Convert shear forces to kgf
+			shear_y_kgf = []
+			shear_z_kgf = []
+			for sy_str in obj.ShearY:
+				values = [float(v) for v in sy_str.split(',')]
+				kgf_values = [converter.kn_to_kgf(v) for v in values]
+				shear_y_kgf.append(','.join(str(v) for v in kgf_values))
+			
+			for sz_str in obj.ShearZ:
+				values = [float(v) for v in sz_str.split(',')]
+				kgf_values = [converter.kn_to_kgf(v) for v in values]
+				shear_z_kgf.append(','.join(str(v) for v in kgf_values))
+			
+			obj.ShearYKgf = shear_y_kgf
+			obj.ShearZKgf = shear_z_kgf
+			
+		except Exception as e:
+			_print_warning(f"Thai units conversion failed: {e}\n")
+
+	def getResultsInThaiUnits(self, obj):
+		"""Get calculation results in Thai units format"""
+		if not hasattr(obj, 'UseThaiUnits') or not obj.UseThaiUnits:
+			return None
+			
+		thai_results = {
+			'moments_ksc': {
+				'momentY': getattr(obj, 'MomentYKsc', []),
+				'momentZ': getattr(obj, 'MomentZKsc', [])
+			},
+			'forces_kgf': {
+				'axial': getattr(obj, 'AxialForceKgf', []),
+				'shearY': getattr(obj, 'ShearYKgf', []),
+				'shearZ': getattr(obj, 'ShearZKgf', [])
+			},
+			'forces_tf': {
+				'axial': getattr(obj, 'AxialForceTf', [])
+			}
+		}
+		return thai_results
+	
+	def updateGlobalUnitsResults(self, obj):
+		"""Update calculation results using Global Units System"""
+		if not GLOBAL_UNITS_AVAILABLE:
+			return
+			
+		try:
+			# Get units manager and set system
+			units_manager = get_units_manager()
+			if hasattr(obj, 'GlobalUnitsSystem'):
+				units_manager.set_unit_system(obj.GlobalUnitsSystem)
+			
+			# Format force results
+			if hasattr(obj, 'MaxAxialForce') and obj.MaxAxialForce:
+				formatted_forces = []
+				for force_n in obj.MaxAxialForce:
+					formatted = format_force(force_n * 1000)  # Convert kN to N for function
+					formatted_forces.append(formatted)
+				obj.FormattedForces = formatted_forces
+			
+			# Format moment results (as stress equivalent)
+			if hasattr(obj, 'MaxMomentZ') and obj.MaxMomentZ:
+				formatted_moments = []
+				for moment_knm in obj.MaxMomentZ:
+					# Convert moment to equivalent stress for display
+					moment_nm = moment_knm * 1000000  # kN⋅m to N⋅mm
+					formatted = format_stress(moment_nm)  # Display as stress-like unit
+					formatted_moments.append(formatted)
+				obj.FormattedMoments = formatted_moments
+			
+			# Format general stress results (if available)
+			if hasattr(obj, 'MaxStress') and getattr(obj, 'MaxStress', None):
+				formatted_stresses = []
+				for stress_pa in obj.MaxStress:
+					formatted = format_stress(stress_pa)
+					formatted_stresses.append(formatted)
+				obj.FormattedStresses = formatted_stresses
+				
+		except Exception as e:
+			_print_warning(f"Global units formatting failed: {e}\n")
 		
 	   
 
@@ -1330,4 +1602,6 @@ class CommandCalc():
         
         return True
 
-FreeCADGui.addCommand("calc", CommandCalc())
+# Only register command if FreeCAD GUI is available
+if FREECAD_AVAILABLE and 'FreeCADGui' in globals():
+    FreeCADGui.addCommand("calc", CommandCalc())

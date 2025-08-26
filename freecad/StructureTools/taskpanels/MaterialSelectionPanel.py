@@ -20,6 +20,18 @@ except ImportError:
         def get_all_materials():
             return {"Steel": {"ASTM A36": {"name": "Test Material"}}}
 
+# Import Thai units converter and global units manager
+try:
+    from ..utils.universal_thai_units import UniversalThaiUnits
+    from ..utils.units_manager import get_units_manager, format_stress, format_modulus
+    THAI_UNITS_AVAILABLE = True
+except ImportError:
+    THAI_UNITS_AVAILABLE = False
+    UniversalThaiUnits = None
+    get_units_manager = lambda: None
+    format_stress = lambda x, y=None: f"{x:.0f} MPa"
+    format_modulus = lambda x, y=None: f"{x/1000:.0f} GPa"
+
 
 class MaterialSelectionPanel:
     """Professional material selection panel with database integration"""
@@ -34,6 +46,11 @@ class MaterialSelectionPanel:
         self.material_object = material_object
         self.selected_material_data = None
         self.all_materials = MaterialDatabase.get_all_materials()
+        
+        # Initialize units manager and Thai converter
+        self.units_manager = get_units_manager()
+        self.thai_converter = UniversalThaiUnits() if THAI_UNITS_AVAILABLE else None
+        
         self.form = self.createUI()
         
         # Initialize the interface
@@ -42,6 +59,29 @@ class MaterialSelectionPanel:
         # If editing existing material, populate from object
         if material_object:
             self.populate_from_object()
+    
+    def format_strength_with_thai_units(self, mpa_value, is_concrete=False):
+        """Format strength values according to global units settings"""
+        if not mpa_value or mpa_value == 0:
+            return "N/A"
+        
+        material_type = "concrete" if is_concrete else "steel"
+        if self.units_manager:
+            return format_stress(mpa_value, material_type)
+        else:
+            return f"{mpa_value:.0f} MPa"
+    
+    def format_modulus_with_thai_units(self, mpa_value, is_concrete=False):
+        """Format elastic modulus according to global units settings"""
+        if not mpa_value or mpa_value == 0:
+            return "N/A"
+        
+        material_type = "concrete" if is_concrete else "steel"
+        if self.units_manager:
+            return format_modulus(mpa_value, material_type)
+        else:
+            gpa_value = mpa_value / 1000.0
+            return f"{gpa_value:.0f} GPa"
     
     def createUI(self):
         """Create the user interface"""
@@ -53,6 +93,12 @@ class MaterialSelectionPanel:
         title_label.setStyleSheet("font-weight: bold; font-size: 16px; margin-bottom: 10px;")
         title_label.setAlignment(QtCore.Qt.AlignCenter)
         layout.addWidget(title_label)
+        
+        # Add units selector
+        if self.units_manager and hasattr(self.units_manager, 'create_units_selector_widget'):
+            units_widget = self.units_manager.create_units_selector_widget()
+            if units_widget:
+                layout.addWidget(units_widget)
         
         # Create tab widget for different selection methods
         self.tab_widget = QtWidgets.QTabWidget()
@@ -183,16 +229,33 @@ class MaterialSelectionPanel:
         self.modulus_input.setRange(1.0, 500000.0)
         self.modulus_input.setValue(200000.0)
         self.modulus_input.setDecimals(0)
-        self.modulus_input.setSuffix(" MPa")
+        if self.units_manager:
+            suffix = self.units_manager.get_units_suffix("modulus")
+            self.modulus_input.setSuffix(suffix)
+            self.modulus_input.setToolTip("Elastic Modulus\nUnits adapt to current selection")
+        else:
+            self.modulus_input.setSuffix(" MPa")
         modulus_layout.addWidget(self.modulus_input)
         
-        # Common values buttons
-        self.steel_modulus_btn = QtWidgets.QPushButton("Steel (200 GPa)")
-        self.steel_modulus_btn.clicked.connect(lambda: self.modulus_input.setValue(200000))
-        modulus_layout.addWidget(self.steel_modulus_btn)
+        # Common values buttons with dynamic units
+        if self.units_manager and self.units_manager.is_thai_units():
+            recommendations = self.units_manager.get_material_recommendations()
+            steel_mod_val, steel_unit = recommendations["steel_modulus"]
+            concrete_mod_val, concrete_unit = recommendations["concrete_modulus"]
+            
+            self.steel_modulus_btn = QtWidgets.QPushButton(f"Steel ({steel_mod_val/1000:.0f}k {steel_unit})")
+            self.steel_modulus_btn.clicked.connect(lambda: self.modulus_input.setValue(steel_mod_val))
+            
+            self.concrete_modulus_btn = QtWidgets.QPushButton(f"Concrete ({concrete_mod_val/1000:.0f}k {concrete_unit})")
+            self.concrete_modulus_btn.clicked.connect(lambda: self.concrete_modulus_btn.setValue(concrete_mod_val))
+        else:
+            self.steel_modulus_btn = QtWidgets.QPushButton("Steel (200 GPa)")
+            self.steel_modulus_btn.clicked.connect(lambda: self.modulus_input.setValue(200000))
+            
+            self.concrete_modulus_btn = QtWidgets.QPushButton("Concrete (30 GPa)")
+            self.concrete_modulus_btn.clicked.connect(lambda: self.modulus_input.setValue(30000))
         
-        self.concrete_modulus_btn = QtWidgets.QPushButton("Concrete (30 GPa)")
-        self.concrete_modulus_btn.clicked.connect(lambda: self.modulus_input.setValue(30000))
+        modulus_layout.addWidget(self.steel_modulus_btn)
         modulus_layout.addWidget(self.concrete_modulus_btn)
         
         mechanical_layout.addRow("Elastic Modulus:", modulus_layout)
@@ -227,20 +290,72 @@ class MaterialSelectionPanel:
         layout.addWidget(mechanical_group)
         
         # Strength properties group
-        strength_group = QtWidgets.QGroupBox("Strength Properties (Optional)")
+        strength_group = QtWidgets.QGroupBox("Strength Properties - กำลังวัสดุ (Optional)")
         strength_layout = QtWidgets.QFormLayout(strength_group)
         
+        # Yield strength
+        yield_layout = QtWidgets.QHBoxLayout()
         self.yield_strength_input = QtWidgets.QDoubleSpinBox()
-        self.yield_strength_input.setRange(0.0, 2000.0)
-        self.yield_strength_input.setValue(250.0)
-        self.yield_strength_input.setSuffix(" MPa")
-        strength_layout.addRow("Yield Strength:", self.yield_strength_input)
+        self.yield_strength_input.setRange(0.0, 10000.0)  # Increased range for Thai units
         
+        # Set default value based on current units
+        if self.units_manager and self.units_manager.is_thai_units():
+            recommendations = self.units_manager.get_material_recommendations()
+            default_val, unit = recommendations["steel_yield_sd40"]
+            self.yield_strength_input.setValue(default_val)
+            suffix = self.units_manager.get_units_suffix("stress")
+            tooltip = "Yield Strength in ksc\nThai: จุดครากเอี้ยว"
+        else:
+            self.yield_strength_input.setValue(250.0)
+            suffix = " MPa"
+            tooltip = "Yield Strength in MPa"
+        
+        self.yield_strength_input.setSuffix(suffix)
+        self.yield_strength_input.setToolTip(tooltip)
+        yield_layout.addWidget(self.yield_strength_input)
+        
+        # Live conversion label
+        if self.units_manager and self.units_manager.show_both_units():
+            self.yield_thai_label = QtWidgets.QLabel()
+            self.yield_thai_label.setStyleSheet("color: #007700; font-weight: bold;")
+            self.yield_strength_input.valueChanged.connect(self.update_yield_thai_label)
+            yield_layout.addWidget(self.yield_thai_label)
+            # Initialize label
+            self.update_yield_thai_label(self.yield_strength_input.value())
+        
+        strength_layout.addRow("Yield Strength:", yield_layout)
+        
+        # Ultimate strength
+        ultimate_layout = QtWidgets.QHBoxLayout()
         self.ultimate_strength_input = QtWidgets.QDoubleSpinBox()
-        self.ultimate_strength_input.setRange(0.0, 2000.0)
-        self.ultimate_strength_input.setValue(400.0)
-        self.ultimate_strength_input.setSuffix(" MPa")
-        strength_layout.addRow("Ultimate Strength:", self.ultimate_strength_input)
+        self.ultimate_strength_input.setRange(0.0, 10000.0)  # Increased range for Thai units
+        
+        # Set default value based on current units
+        if self.units_manager and self.units_manager.is_thai_units():
+            recommendations = self.units_manager.get_material_recommendations()
+            default_val = recommendations["steel_yield_sd40"][0] * 1.6  # ~Ultimate = 1.6 * Yield
+            self.ultimate_strength_input.setValue(default_val)
+            suffix = self.units_manager.get_units_suffix("stress")
+            tooltip = "Ultimate Strength in ksc\nThai: กำลังแรงดึงสูงสุด"
+        else:
+            self.ultimate_strength_input.setValue(400.0)
+            suffix = " MPa"
+            tooltip = "Ultimate Strength in MPa"
+        
+        self.ultimate_strength_input.setSuffix(suffix)
+        self.ultimate_strength_input.setToolTip(tooltip)
+        ultimate_layout.addWidget(self.ultimate_strength_input)
+        
+        # Live conversion label
+        if self.units_manager and self.units_manager.show_both_units():
+            self.ultimate_thai_label = QtWidgets.QLabel()
+            self.ultimate_thai_label.setStyleSheet("color: #007700; font-weight: bold;")
+            self.ultimate_strength_input.valueChanged.connect(self.update_ultimate_thai_label)
+            ultimate_layout.addWidget(self.ultimate_thai_label)
+            # Initialize label
+            self.update_ultimate_thai_label(self.ultimate_strength_input.value())
+        
+        strength_layout.addRow("Ultimate Strength:", ultimate_layout)
         
         layout.addWidget(strength_group)
         
@@ -256,6 +371,22 @@ class MaterialSelectionPanel:
         thermal_layout.addRow("Thermal Expansion:", self.thermal_expansion_input)
         
         layout.addWidget(thermal_group)
+        
+        # Connect signals for live updates of custom material preview
+        self.name_input.textChanged.connect(self.update_custom_preview)
+        self.type_combo.currentTextChanged.connect(self.update_custom_preview)
+        self.standard_input.textChanged.connect(self.update_custom_preview)
+        self.modulus_input.valueChanged.connect(self.update_custom_preview)
+        self.poisson_input.valueChanged.connect(self.update_custom_preview)
+        self.density_input.valueChanged.connect(self.update_custom_preview)
+        self.yield_strength_input.valueChanged.connect(self.update_custom_preview)
+        self.ultimate_strength_input.valueChanged.connect(self.update_custom_preview)
+        self.thermal_expansion_input.valueChanged.connect(self.update_custom_preview)
+        
+        # Initialize Thai labels with default values
+        if THAI_UNITS_AVAILABLE:
+            self.update_yield_thai_label(self.yield_strength_input.value())
+            self.update_ultimate_thai_label(self.ultimate_strength_input.value())
         
         return tab
     
@@ -389,6 +520,28 @@ class MaterialSelectionPanel:
     
     def update_material_details(self, material_data):
         """Update the material details text"""
+        # Determine if material is concrete based on type/name
+        is_concrete = any(term in material_data.get('type', '').lower() + material_data.get('name', '').lower() 
+                         for term in ['concrete', 'คอนกรีต', 'fc'])
+        
+        # Format modulus with Thai units
+        modulus_mpa = material_data.get('modulus_elasticity', 0)
+        modulus_text = self.format_modulus_with_thai_units(modulus_mpa, is_concrete)
+        
+        # Format yield strength with Thai units
+        yield_strength = material_data.get('yield_strength')
+        if yield_strength and str(yield_strength).replace('.', '').isdigit():
+            yield_text = self.format_strength_with_thai_units(float(yield_strength), is_concrete)
+        else:
+            yield_text = str(yield_strength) if yield_strength else 'N/A'
+        
+        # Format ultimate strength with Thai units
+        ultimate_strength = material_data.get('ultimate_strength')
+        if ultimate_strength and str(ultimate_strength).replace('.', '').isdigit():
+            ultimate_text = self.format_strength_with_thai_units(float(ultimate_strength), is_concrete)
+        else:
+            ultimate_text = str(ultimate_strength) if ultimate_strength else 'N/A'
+        
         details = f"""
 <b>{material_data['name']}</b>
 
@@ -396,13 +549,13 @@ class MaterialSelectionPanel:
 <b>Type:</b> {material_data.get('type', 'Not specified')}
 
 <b>Mechanical Properties:</b>
-• Elastic Modulus: {material_data.get('modulus_elasticity', 0):,.0f} MPa
+• Elastic Modulus: {modulus_text}
 • Poisson's Ratio: {material_data.get('poisson_ratio', 0):.2f}  
 • Density: {material_data.get('density', 0):,.0f} kg/m³
 
-<b>Strength Properties:</b>
-• Yield Strength: {material_data.get('yield_strength', 'N/A')} MPa
-• Ultimate Strength: {material_data.get('ultimate_strength', 'N/A')} MPa
+<b>Strength Properties (🇹🇭 Thai Units):</b>
+• Yield Strength: {yield_text}
+• Ultimate Strength: {ultimate_text}
 
 <b>Thermal Properties:</b>
 • Thermal Expansion: {material_data.get('thermal_expansion', 'N/A')} × 10⁻⁶ /°C
@@ -415,12 +568,45 @@ class MaterialSelectionPanel:
     
     def update_properties_preview(self, material_data):
         """Update the properties preview section"""
+        # Determine if material is concrete
+        is_concrete = any(term in material_data.get('type', '').lower() + material_data.get('name', '').lower() 
+                         for term in ['concrete', 'คอนกรีต', 'fc'])
+        
         self.preview_name.setText(material_data.get('name', ''))
         self.preview_standard.setText(material_data.get('standard', ''))
         self.preview_type.setText(material_data.get('type', ''))
-        self.preview_modulus.setText(f"{material_data.get('modulus_elasticity', 0):,.0f} MPa")
+        
+        # Format modulus with Thai units
+        modulus_mpa = material_data.get('modulus_elasticity', 0)
+        modulus_text = self.format_modulus_with_thai_units(modulus_mpa, is_concrete)
+        self.preview_modulus.setText(modulus_text)
+        
         self.preview_poisson.setText(f"{material_data.get('poisson_ratio', 0):.3f}")
         self.preview_density.setText(f"{material_data.get('density', 0):,.0f} kg/m³")
+    
+    def update_yield_thai_label(self, value):
+        """Update Thai units label for yield strength"""
+        if hasattr(self, 'yield_thai_label') and self.units_manager:
+            if self.units_manager.is_thai_units():
+                # Input is in ksc, show MPa equivalent
+                mpa_value = self.units_manager.convert_input_to_si(value, "stress")
+                self.yield_thai_label.setText(f"= {mpa_value:.1f} MPa")
+            else:
+                # Input is in MPa, show ksc equivalent  
+                ksc_value = self.thai_converter.mpa_to_ksc(value) if self.thai_converter else 0
+                self.yield_thai_label.setText(f"= {ksc_value:.0f} ksc")
+    
+    def update_ultimate_thai_label(self, value):
+        """Update Thai units label for ultimate strength"""
+        if hasattr(self, 'ultimate_thai_label') and self.units_manager:
+            if self.units_manager.is_thai_units():
+                # Input is in ksc, show MPa equivalent
+                mpa_value = self.units_manager.convert_input_to_si(value, "stress")
+                self.ultimate_thai_label.setText(f"= {mpa_value:.1f} MPa")
+            else:
+                # Input is in MPa, show ksc equivalent
+                ksc_value = self.thai_converter.mpa_to_ksc(value) if self.thai_converter else 0
+                self.ultimate_thai_label.setText(f"= {ksc_value:.0f} ksc")
     
     def filter_by_standard(self, standard):
         """Filter materials by standard"""
@@ -541,7 +727,9 @@ class MaterialSelectionPanel:
             'type': self.type_combo.currentText(),
             'modulus_elasticity': self.modulus_input.value(),
             'poisson_ratio': self.poisson_input.value(),
-            'density': self.density_input.value()
+            'density': self.density_input.value(),
+            'yield_strength': self.yield_strength_input.value() if self.yield_strength_input.value() > 0 else None,
+            'ultimate_strength': self.ultimate_strength_input.value() if self.ultimate_strength_input.value() > 0 else None
         }
         
         self.selected_material_data = custom_data

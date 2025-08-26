@@ -27,6 +27,20 @@ import os
 from typing import Dict, List, Optional
 import math
 
+# Import Global Units System
+try:
+    from .utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
+
 try:
     import FreeCAD as App
     import FreeCADGui as Gui
@@ -90,6 +104,265 @@ except ImportError:
         def calculate_wind_loads(self): return {}
         def calculate_seismic_loads(self): return {}
         def generate_load_combinations(self): return []
+
+
+class LoadGeneratorSelectionDialog(QtWidgets.QDialog):
+    """Selection dialog to choose load types and basic parameters before main generation."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Load Generator - Select Load Types")
+        self.setModal(True)
+        self.resize(450, 600)
+        
+        # Initialize preferences storage
+        self.preferences = {}
+        
+        self.setupUI()
+        
+    def setupUI(self):
+        """Create the selection dialog interface."""
+        main_layout = QtWidgets.QVBoxLayout()
+        
+        # Title and description
+        title_label = QtWidgets.QLabel("Advanced Load Generator")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        main_layout.addWidget(title_label)
+        
+        desc_label = QtWidgets.QLabel("Select the types of loads you want to generate and configure basic parameters.")
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet("margin-bottom: 15px; color: #666;")
+        main_layout.addWidget(desc_label)
+        
+        # Load Types Selection
+        load_types_group = QtWidgets.QGroupBox("Load Types to Generate")
+        load_types_layout = QtWidgets.QVBoxLayout()
+        
+        # Gravity Loads
+        self.gravity_loads_cb = QtWidgets.QCheckBox("Gravity Loads (Dead Load + Live Load)")
+        self.gravity_loads_cb.setChecked(True)
+        self.gravity_loads_cb.setToolTip("Generate dead loads and live loads based on building code requirements")
+        load_types_layout.addWidget(self.gravity_loads_cb)
+        
+        # Wind Loads
+        self.wind_loads_cb = QtWidgets.QCheckBox("Wind Loads (ASCE 7 / Local Code)")
+        self.wind_loads_cb.setChecked(False)
+        self.wind_loads_cb.setToolTip("Generate wind pressure loads based on ASCE 7 or local building codes")
+        load_types_layout.addWidget(self.wind_loads_cb)
+        
+        # Seismic Loads
+        self.seismic_loads_cb = QtWidgets.QCheckBox("Seismic Loads (Earthquake)")
+        self.seismic_loads_cb.setChecked(False)
+        self.seismic_loads_cb.setToolTip("Generate seismic forces based on site seismicity and building characteristics")
+        load_types_layout.addWidget(self.seismic_loads_cb)
+        
+        # Snow Loads
+        self.snow_loads_cb = QtWidgets.QCheckBox("Snow Loads")
+        self.snow_loads_cb.setChecked(False)
+        self.snow_loads_cb.setToolTip("Generate snow loads for roof surfaces")
+        load_types_layout.addWidget(self.snow_loads_cb)
+        
+        # Other Loads
+        self.other_loads_cb = QtWidgets.QCheckBox("Other Environmental Loads")
+        self.other_loads_cb.setChecked(False)
+        self.other_loads_cb.setToolTip("Include thermal loads, hydrostatic pressure, etc.")
+        load_types_layout.addWidget(self.other_loads_cb)
+        
+        load_types_group.setLayout(load_types_layout)
+        main_layout.addWidget(load_types_group)
+        
+        # Basic Project Parameters
+        project_group = QtWidgets.QGroupBox("Basic Project Parameters")
+        project_layout = QtWidgets.QFormLayout()
+        
+        # Building Code
+        self.building_code_combo = QtWidgets.QComboBox()
+        self.building_code_combo.addItems([
+            "IBC 2021 (International Building Code)",
+            "ASCE 7-22 (Wind & Seismic)",
+            "Local Building Code",
+            "Custom Parameters"
+        ])
+        project_layout.addRow("Building Code:", self.building_code_combo)
+        
+        # Occupancy Type
+        self.occupancy_combo = QtWidgets.QComboBox()
+        self.occupancy_combo.addItems([
+            "Office Building",
+            "Residential",
+            "Industrial/Warehouse",
+            "Educational",
+            "Healthcare",
+            "Retail/Commercial",
+            "Mixed Use",
+            "Other"
+        ])
+        project_layout.addRow("Occupancy Type:", self.occupancy_combo)
+        
+        # Building Height (approximate)
+        self.building_height_spin = QtWidgets.QDoubleSpinBox()
+        self.building_height_spin.setRange(3.0, 300.0)  # 3m to 300m
+        self.building_height_spin.setValue(12.0)  # Default 4 stories
+        self.building_height_spin.setSuffix(" m")
+        self.building_height_spin.setToolTip("Approximate building height for wind/seismic calculations")
+        project_layout.addRow("Building Height:", self.building_height_spin)
+        
+        # Geographic Location
+        self.location_edit = QtWidgets.QLineEdit()
+        self.location_edit.setPlaceholderText("City, State/Province, Country")
+        self.location_edit.setToolTip("Location for climate and seismic data")
+        project_layout.addRow("Location:", self.location_edit)
+        
+        project_group.setLayout(project_layout)
+        main_layout.addWidget(project_group)
+        
+        # Load Combination Preferences
+        combination_group = QtWidgets.QGroupBox("Load Combinations")
+        combination_layout = QtWidgets.QVBoxLayout()
+        
+        self.generate_combinations_cb = QtWidgets.QCheckBox("Auto-generate standard load combinations")
+        self.generate_combinations_cb.setChecked(True)
+        self.generate_combinations_cb.setToolTip("Automatically create code-compliant load combinations")
+        combination_layout.addWidget(self.generate_combinations_cb)
+        
+        self.design_method_combo = QtWidgets.QComboBox()
+        self.design_method_combo.addItems([
+            "LRFD (Load and Resistance Factor Design)",
+            "ASD (Allowable Stress Design)",
+            "Both LRFD and ASD"
+        ])
+        combination_layout.addWidget(QtWidgets.QLabel("Design Method:"))
+        combination_layout.addWidget(self.design_method_combo)
+        
+        combination_group.setLayout(combination_layout)
+        main_layout.addWidget(combination_group)
+        
+        # Preview Options
+        preview_group = QtWidgets.QGroupBox("Preview Options")
+        preview_layout = QtWidgets.QVBoxLayout()
+        
+        self.preview_loads_cb = QtWidgets.QCheckBox("Show load preview before applying")
+        self.preview_loads_cb.setChecked(True)
+        self.preview_loads_cb.setToolTip("Display calculated loads for review before adding to model")
+        preview_layout.addWidget(self.preview_loads_cb)
+        
+        self.validate_model_cb = QtWidgets.QCheckBox("Validate structural model first")
+        self.validate_model_cb.setChecked(True)
+        self.validate_model_cb.setToolTip("Check model completeness before load generation")
+        preview_layout.addWidget(self.validate_model_cb)
+        
+        preview_group.setLayout(preview_layout)
+        main_layout.addWidget(preview_group)
+        
+        # Dialog buttons
+        button_layout = QtWidgets.QHBoxLayout()
+        
+        # Help button
+        help_btn = QtWidgets.QPushButton("Help")
+        help_btn.clicked.connect(self.show_help)
+        button_layout.addWidget(help_btn)
+        
+        button_layout.addStretch()  # Push buttons to right
+        
+        # Cancel and OK buttons
+        cancel_btn = QtWidgets.QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        ok_btn = QtWidgets.QPushButton("Continue to Load Generator")
+        ok_btn.clicked.connect(self.accept)
+        ok_btn.setDefault(True)
+        ok_btn.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }")
+        button_layout.addWidget(ok_btn)
+        
+        main_layout.addLayout(button_layout)
+        self.setLayout(main_layout)
+        
+        # Connect signals for dynamic updates
+        self.gravity_loads_cb.toggled.connect(self.update_preview)
+        self.wind_loads_cb.toggled.connect(self.update_preview)
+        self.seismic_loads_cb.toggled.connect(self.update_preview)
+        
+    def update_preview(self):
+        """Update preview text based on selections."""
+        # Could add a preview text area showing what will be generated
+        pass
+        
+    def show_help(self):
+        """Show help information for load selection."""
+        help_text = """
+Load Generator Selection Help
+
+This dialog allows you to choose which types of loads to generate and set basic project parameters.
+
+LOAD TYPES:
+
+• Gravity Loads: Dead loads (self-weight, permanent fixtures) and live loads (occupancy, furniture)
+• Wind Loads: Wind pressure on building surfaces based on ASCE 7 or local codes
+• Seismic Loads: Earthquake forces based on site seismicity and building characteristics  
+• Snow Loads: Snow accumulation on roof surfaces
+• Other Environmental: Thermal effects, hydrostatic pressure, etc.
+
+BASIC PARAMETERS:
+
+• Building Code: Determines load calculation methods and factors
+• Occupancy Type: Affects live load magnitudes and load factors
+• Building Height: Used for wind and seismic calculations
+• Location: Determines climate data and seismic zone
+
+LOAD COMBINATIONS:
+
+The system can automatically generate standard load combinations per building codes:
+• LRFD: Ultimate strength design with factored loads
+• ASD: Working stress design with service loads
+• Both: Generate combinations for both design methods
+
+Click "Continue to Load Generator" to proceed with detailed load calculation and application.
+        """
+        
+        help_dialog = QtWidgets.QDialog(self)
+        help_dialog.setWindowTitle("Load Selection Help")
+        help_dialog.resize(600, 500)
+        
+        layout = QtWidgets.QVBoxLayout()
+        text_edit = QtWidgets.QTextEdit()
+        text_edit.setText(help_text)
+        text_edit.setReadOnly(True)
+        layout.addWidget(text_edit)
+        
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(help_dialog.close)
+        layout.addWidget(close_btn)
+        
+        help_dialog.setLayout(layout)
+        help_dialog.exec_()
+    
+    def get_preferences(self):
+        """Get user preferences from the dialog."""
+        self.preferences = {
+            # Load type selections
+            'generate_gravity_loads': self.gravity_loads_cb.isChecked(),
+            'generate_wind_loads': self.wind_loads_cb.isChecked(),
+            'generate_seismic_loads': self.seismic_loads_cb.isChecked(),
+            'generate_snow_loads': self.snow_loads_cb.isChecked(),
+            'generate_other_loads': self.other_loads_cb.isChecked(),
+            
+            # Project parameters
+            'building_code': self.building_code_combo.currentText(),
+            'occupancy_type': self.occupancy_combo.currentText(),
+            'building_height': self.building_height_spin.value(),
+            'location': self.location_edit.text(),
+            
+            # Load combination preferences
+            'generate_combinations': self.generate_combinations_cb.isChecked(),
+            'design_method': self.design_method_combo.currentText(),
+            
+            # Preview options
+            'preview_loads': self.preview_loads_cb.isChecked(),
+            'validate_model': self.validate_model_cb.isChecked()
+        }
+        
+        return self.preferences
 
 
 class LoadGeneratorDialog(QtWidgets.QDialog):
@@ -701,6 +974,95 @@ class LoadGeneratorDialog(QtWidgets.QDialog):
         self.update_occupancy_loads()
         self.update_building_height()
         self.update_status("Ready to generate loads")
+    
+    def apply_preferences(self, preferences):
+        """Apply preferences from the selection dialog."""
+        if not preferences:
+            return
+        
+        try:
+            # Apply building code selection
+            if 'building_code' in preferences:
+                building_code = preferences['building_code']
+                # Find and set the appropriate building code in combo
+                for i in range(self.building_code_combo.count()):
+                    if building_code in self.building_code_combo.itemText(i):
+                        self.building_code_combo.setCurrentIndex(i)
+                        break
+            
+            # Apply occupancy type
+            if 'occupancy_type' in preferences:
+                occupancy = preferences['occupancy_type']
+                for i in range(self.occupancy_combo.count()):
+                    if occupancy in self.occupancy_combo.itemText(i):
+                        self.occupancy_combo.setCurrentIndex(i)
+                        break
+            
+            # Apply building height
+            if 'building_height' in preferences:
+                self.height_input.setValue(preferences['building_height'])
+            
+            # Apply location if provided
+            if 'location' in preferences and preferences['location']:
+                location = preferences['location']
+                # Try to match with presets first
+                if location in ["New York City", "Los Angeles", "Chicago", "Houston", "Miami", "Seattle", "Denver"]:
+                    self.location_combo.setCurrentText(location)
+                    self.load_location_preset(location)
+                else:
+                    # Set as custom location
+                    self.location_combo.setCurrentText("Custom")
+                    # You could parse the location string and try to set coordinates
+            
+            # Set active load types based on selections
+            # Enable/disable tabs or sections based on what user wants to generate
+            load_types_selected = []
+            
+            if preferences.get('generate_gravity_loads', True):
+                load_types_selected.append("Gravity")
+                # Focus on gravity loads tab initially
+                
+            if preferences.get('generate_wind_loads', False):
+                load_types_selected.append("Wind")
+                # Enable wind load calculations
+                
+            if preferences.get('generate_seismic_loads', False):
+                load_types_selected.append("Seismic")
+                # Enable seismic calculations
+                
+            if preferences.get('generate_snow_loads', False):
+                load_types_selected.append("Snow")
+                
+            if preferences.get('generate_other_loads', False):
+                load_types_selected.append("Other")
+            
+            # Update status to show what will be generated
+            if load_types_selected:
+                status_msg = f"Configured to generate: {', '.join(load_types_selected)} loads"
+                self.update_status(status_msg)
+            
+            # Set design method preferences
+            if 'design_method' in preferences:
+                design_method = preferences['design_method']
+                if 'LRFD' in design_method:
+                    # Enable LRFD combinations
+                    pass
+                if 'ASD' in design_method:
+                    # Enable ASD combinations
+                    pass
+            
+            # Set preview and validation options
+            self.preview_mode = preferences.get('preview_loads', True)
+            self.validate_model = preferences.get('validate_model', True)
+            
+            # Store preferences for later use during generation
+            self.user_preferences = preferences
+            
+            App.Console.PrintMessage(f"Applied user preferences: {len(load_types_selected)} load types selected\n")
+            
+        except Exception as e:
+            App.Console.PrintWarning(f"Error applying preferences: {str(e)}\n")
+            # Continue with defaults if preferences can't be applied
     
     def load_location_preset(self, location: str):
         """Load preset location parameters."""
@@ -1385,9 +1747,22 @@ class LoadGeneratorCommand:
         }
     
     def Activated(self):
-        # Create and show the load generation dialog
-        dialog = LoadGeneratorDialog()
-        dialog.show()
+        # Show selection dialog first
+        selection_dialog = LoadGeneratorSelectionDialog()
+        result = selection_dialog.exec_()
+        
+        if result == QtWidgets.QDialog.Accepted:
+            # Get user preferences
+            preferences = selection_dialog.get_preferences()
+            
+            # Create and show the main load generation dialog
+            dialog = LoadGeneratorDialog()
+            
+            # Apply preferences to the dialog
+            if preferences:
+                dialog.apply_preferences(preferences)
+            
+            dialog.exec_()  # Use exec_() instead of show() to make it modal
     
     def IsActive(self):
         return True

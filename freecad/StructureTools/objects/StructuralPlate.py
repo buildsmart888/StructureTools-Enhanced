@@ -98,6 +98,20 @@ class StructuralPlate:
         obj.addProperty("App::PropertyFloatList", "ThermalLoads", "Loads",
                        "Temperature loads by load case (°C)")
         
+        # Thai Units Support
+        obj.addProperty("App::PropertyBool", "UseThaiUnits", "Thai Units",
+                       "Enable Thai units for plate load calculations")
+        obj.UseThaiUnits = False
+        
+        obj.addProperty("App::PropertyFloatList", "PressureLoadsKsc", "Thai Units",
+                       "Pressure loads in ksc/m² (Thai units)")
+        
+        obj.addProperty("App::PropertyFloatList", "PressureLoadsTfM2", "Thai Units",
+                       "Pressure loads in tf/m² (Thai units)")
+        
+        obj.addProperty("App::PropertyFloatList", "ShearLoadsKgfM", "Thai Units",
+                       "In-plane shear loads in kgf/m (Thai units)")
+        
         obj.addProperty("App::PropertyFloatList", "TemperatureGradient", "Loads",
                        "Temperature gradient through thickness by load case (°C/mm)")
         
@@ -165,7 +179,7 @@ class StructuralPlate:
         obj.addProperty("App::PropertyFloatList", "TwistingMoment", "Results",
                        "Twisting moment Mxy by load combination")
         
-        # Shear forces (for thick plates)
+        # Transverse shear forces (per unit width)
         obj.addProperty("App::PropertyFloatList", "ShearForceX", "Results",
                        "Transverse shear force Qx by load combination")
         
@@ -173,58 +187,195 @@ class StructuralPlate:
                        "Transverse shear force Qy by load combination")
         
         # Stress results
-        obj.addProperty("App::PropertyFloatList", "StressTop", "Results",
-                       "Von Mises stress at top surface")
+        obj.addProperty("App::PropertyFloatList", "MaxStress", "Results",
+                       "Maximum stress by load combination")
         
-        obj.addProperty("App::PropertyFloatList", "StressBottom", "Results",
-                       "Von Mises stress at bottom surface")
+        obj.addProperty("App::PropertyFloatList", "MinStress", "Results",
+                       "Minimum stress by load combination")
         
-        obj.addProperty("App::PropertyFloatList", "PrincipalStress1", "Results",
-                       "Maximum principal stress")
+        obj.addProperty("App::PropertyFloatList", "VonMisesStress", "Results",
+                       "Von Mises stress by load combination")
         
-        obj.addProperty("App::PropertyFloatList", "PrincipalStress2", "Results",
-                       "Minimum principal stress")
+        # Buckling analysis
+        obj.addProperty("App::PropertyFloatList", "BucklingFactors", "Stability",
+                       "Critical buckling load factors")
         
-        # Stability and design
-        obj.addProperty("App::PropertyFloat", "BucklingFactor", "Design",
-                       "Critical buckling load factor")
+        obj.addProperty("App::PropertyFloatList", "BucklingModes", "Stability",
+                       "Buckling mode shapes")
         
-        obj.addProperty("App::PropertyFloatList", "UtilizationRatios", "Design",
-                       "Utilization ratios by load combination")
+        # Meshing properties
+        obj.addProperty("App::PropertyInteger", "MeshDivisionsX", "Mesh",
+                       "Number of mesh divisions in X direction")
+        obj.MeshDivisionsX = 4
         
-        obj.addProperty("App::PropertyString", "ControllingCase", "Design",
-                       "Controlling load combination")
+        obj.addProperty("App::PropertyInteger", "MeshDivisionsY", "Mesh",
+                       "Number of mesh divisions in Y direction")
+        obj.MeshDivisionsY = 4
         
-        # Advanced properties
-        obj.addProperty("App::PropertyInteger", "MeshDensity", "Advanced",
-                       "Mesh density for analysis (elements per edge)")
-        obj.MeshDensity = 4
+        obj.addProperty("App::PropertyEnumeration", "ElementType", "Mesh",
+                       "Type of finite element for analysis")
+        obj.ElementType = ["Quad4", "Quad8", "Quad9", "Tri3", "Tri6"]
+        obj.ElementType = "Quad4"
         
-        obj.addProperty("App::PropertyBool", "IncludeGeometricNonlinearity", "Advanced",
-                       "Include geometric nonlinearity (large deflections)")
-        obj.IncludeGeometricNonlinearity = False
+        obj.addProperty("App::PropertyBool", "AutoMesh", "Mesh",
+                       "Automatically generate mesh")
+        obj.AutoMesh = True
         
-        obj.addProperty("App::PropertyBool", "IncludeMaterialNonlinearity", "Advanced",
-                       "Include material nonlinearity")
-        obj.IncludeMaterialNonlinearity = False
+        # Visualization properties
+        obj.addProperty("App::PropertyBool", "ShowLocalAxes", "Display",
+                       "Show local coordinate axes")
+        obj.ShowLocalAxes = False
         
-        # Identification and organization
-        obj.addProperty("App::PropertyString", "PlateID", "Identification",
-                       "Unique plate identifier")
+        obj.addProperty("App::PropertyBool", "ShowLoads", "Display",
+                       "Show surface loads")
+        obj.ShowLoads = True
         
-        obj.addProperty("App::PropertyString", "PlateGroup", "Identification",
-                       "Plate group for organization")
+        obj.addProperty("App::PropertyBool", "ShowResults", "Display",
+                       "Show analysis results")
+        obj.ShowResults = False
         
-        obj.addProperty("App::PropertyString", "Description", "Identification",
-                       "Plate description or notes")
+        obj.addProperty("App::PropertyEnumeration", "ResultsType", "Display",
+                       "Type of results to display")
+        obj.ResultsType = ["Displacement", "Stress", "Membrane Force", "Bending Moment"]
+        obj.ResultsType = "Displacement"
         
-        # Internal properties
+        # Initialize calculations
+        self.calculatePlateProperties(obj)
+    
+    def calculatePlateProperties(self, obj):
+        """Calculate basic plate properties."""
+        try:
+            if not obj.CornerNodes:
+                return
+            
+            # Calculate area and perimeter
+            self.updateGeometry(obj)
+            
+            # Calculate aspect ratio
+            if hasattr(obj, 'Area') and obj.Area > 0:
+                # Simplified aspect ratio calculation
+                obj.AspectRatio = math.sqrt(obj.Area.Value / 1000000)  # Basic estimate
+                
+        except Exception as e:
+            App.Console.PrintError(f"Error calculating plate properties: {e}\n")
+    
+    def updateGeometry(self, obj):
+        """Update plate geometry based on corner nodes."""
+        if not obj.CornerNodes or len(obj.CornerNodes) < 3:
+            return
+        
+        try:
+            # Get node positions
+            points = []
+            for node in obj.CornerNodes:
+                if hasattr(node, 'Position'):
+                    points.append(node.Position)
+                else:
+                    App.Console.PrintWarning("Node missing Position property\n")
+                    return
+            
+            # Create plate surface
+            if len(points) == 3:
+                # Triangular plate
+                face = Part.Face(Part.makePolygon(points + [points[0]]))
+            elif len(points) == 4:
+                # Quadrilateral plate
+                face = Part.Face(Part.makePolygon(points + [points[0]]))
+            else:
+                App.Console.PrintError("Plate must have 3 or 4 corner nodes\n")
+                return
+                
+            # Update properties
+            obj.Area = face.Area
+            obj.Perimeter = face.Perimeter
+            
+            # Calculate local axes
+            self.calculateLocalAxes(obj, points)
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error updating plate geometry: {e}\n")
+    
+    def calculateLocalAxes(self, obj, points):
+        """Calculate local coordinate system for the plate."""
+        try:
+            if len(points) < 3:
+                return
+                
+            # Local X-axis: from node 1 to node 2
+            x_vec = points[1] - points[0]
+            x_vec.normalize()
+            obj.LocalXAxis = x_vec
+            
+            # Local Z-axis: normal to plane (cross product)
+            if len(points) >= 3:
+                y_temp = points[2] - points[0]
+                z_vec = x_vec.cross(y_temp)
+                z_vec.normalize()
+                obj.LocalZAxis = z_vec
+                
+                # Local Y-axis: complete right-handed system
+                y_vec = z_vec.cross(x_vec)
+                y_vec.normalize()
+                obj.LocalYAxis = y_vec
+                
+        except Exception as e:
+            App.Console.PrintError(f"Error calculating local axes: {e}\n")
         obj.addProperty("App::PropertyInteger", "InternalID", "Internal",
                        "Internal numbering for analysis")
         
         obj.addProperty("App::PropertyBool", "IsActive", "Internal",
                        "Plate is active in current analysis")
         obj.IsActive = True
+    
+    def getLoadsInThaiUnits(self, obj):
+        """Get plate loads in Thai units"""
+        if not hasattr(obj, 'UseThaiUnits') or not obj.UseThaiUnits:
+            return None
+            
+        try:
+            # Import Thai units converter
+            from ..utils.universal_thai_units import UniversalThaiUnits
+            converter = UniversalThaiUnits()
+            
+            thai_results = {
+                'pressure_loads_ksc': [],
+                'pressure_loads_tf_m2': [],
+                'shear_loads_kgf_m': []
+            }
+            
+            # Convert pressure loads
+            if hasattr(obj, 'PressureLoads') and obj.PressureLoads:
+                for pressure_pa in obj.PressureLoads:
+                    # Convert Pa to kN/m² first, then to Thai units
+                    pressure_kn_m2 = pressure_pa / 1000.0  # Pa to kN/m²
+                    ksc_value = converter.kn_m2_to_ksc_m2(pressure_kn_m2)
+                    tf_value = converter.kn_m2_to_tf_m2(pressure_kn_m2)
+                    thai_results['pressure_loads_ksc'].append(ksc_value)
+                    thai_results['pressure_loads_tf_m2'].append(tf_value)
+            
+            # Convert shear loads
+            if hasattr(obj, 'ShearLoadsX') and obj.ShearLoadsX:
+                for shear_n_m in obj.ShearLoadsX:
+                    # Convert N/m to kN/m first, then to kgf/m
+                    shear_kn_m = shear_n_m / 1000.0  # N/m to kN/m
+                    kgf_value = converter.kn_to_kgf(shear_kn_m)
+                    thai_results['shear_loads_kgf_m'].append(kgf_value)
+            
+            # Update Thai unit properties
+            obj.PressureLoadsKsc = thai_results['pressure_loads_ksc']
+            obj.PressureLoadsTfM2 = thai_results['pressure_loads_tf_m2']
+            obj.ShearLoadsKgfM = thai_results['shear_loads_kgf_m']
+            
+            return thai_results
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error converting plate loads to Thai units: {e}\n")
+            return None
+    
+    def updateThaiUnits(self, obj):
+        """Update Thai units when properties change"""
+        if hasattr(obj, 'UseThaiUnits') and obj.UseThaiUnits:
+            self.getLoadsInThaiUnits(obj)
     
     def onChanged(self, obj, prop: str) -> None:
         """
@@ -244,6 +395,10 @@ class StructuralPlate:
             self._update_plate_behavior(obj)
         elif prop in ["EdgeCondition1", "EdgeCondition2", "EdgeCondition3", "EdgeCondition4"]:
             self._update_boundary_conditions(obj)
+        elif prop in ["PressureLoads", "ShearLoadsX", "ShearLoadsY"]:
+            # Update Thai units when loads change
+            if hasattr(obj, 'UseThaiUnits') and obj.UseThaiUnits:
+                self.updateThaiUnits(obj)
     
     def _update_geometry(self, obj) -> None:
         """Update geometric properties when corner nodes change."""

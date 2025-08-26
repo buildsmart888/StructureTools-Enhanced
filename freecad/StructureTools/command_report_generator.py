@@ -8,6 +8,20 @@ from datetime import datetime
 import tempfile
 import webbrowser
 
+# Import Global Units System
+try:
+    from .utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
+
 try:
     from .reporting.ReportGenerator import (
         StructuralReportGenerator, ReportFormat, 

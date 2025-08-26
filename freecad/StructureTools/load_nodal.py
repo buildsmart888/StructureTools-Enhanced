@@ -1,5 +1,57 @@
-import FreeCAD, App, FreeCADGui, Part, os
-from PySide import QtWidgets
+# Setup FreeCAD stubs for standalone operation
+try:
+    from .utils.freecad_stubs import setup_freecad_stubs, is_freecad_available
+    if not is_freecad_available():
+        setup_freecad_stubs()
+except ImportError:
+    pass
+
+# Import FreeCAD modules (now available via stubs if needed)
+try:
+    import FreeCAD, App, FreeCADGui, Part
+    FREECAD_AVAILABLE = True
+except ImportError:
+    FREECAD_AVAILABLE = False
+
+import os
+
+# Import GUI framework with fallbacks
+try:
+    from PySide import QtWidgets
+except ImportError:
+    try:
+        from PySide2 import QtWidgets
+    except ImportError:
+        # Mock QtWidgets for standalone operation
+        class QtWidgets:
+            class QDialog:
+                def __init__(self): pass
+
+# Import Global Units System
+try:
+    from .utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
+
+# Import Thai units support
+try:
+    from .utils.universal_thai_units import enhance_with_thai_units, thai_load_units, get_universal_thai_units
+    from .utils.thai_units import get_thai_converter
+    THAI_UNITS_AVAILABLE = True
+except ImportError:
+    THAI_UNITS_AVAILABLE = False
+    enhance_with_thai_units = lambda x, t: x
+    thai_load_units = lambda f: f
+    get_universal_thai_units = lambda: None
+    get_thai_converter = lambda: None
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
@@ -19,6 +71,12 @@ class LoadNodal:
         obj.addProperty("App::PropertyForce", "NodalLoading", "Nodal", "Nodal loading").NodalLoading = 10000000
         obj.addProperty("App::PropertyFloat", "ScaleDraw", "Load", "Scale from drawing").ScaleDraw = 1
         
+        # Add Thai units properties
+        if THAI_UNITS_AVAILABLE:
+            obj.addProperty("App::PropertyFloat", "NodalLoadingKgf", "Thai Units", "Nodal loading in kgf").NodalLoadingKgf = 1000000  # ~10000000 N in kgf
+            obj.addProperty("App::PropertyFloat", "NodalLoadingTf", "Thai Units", "Nodal loading in tf").NodalLoadingTf = 1000  # ~10000000 N in tf
+            obj.addProperty("App::PropertyBool", "UseThaiUnits", "Thai Units", "Use Thai units display").UseThaiUnits = False
+        
         # Load Type Properties
         obj.addProperty("App::PropertyEnumeration", "LoadType", "Load", "Type of load")
         obj.LoadType = ['DL', 'LL', 'H', 'F', 'W', 'E']
@@ -30,6 +88,33 @@ class LoadNodal:
         
         print(selection)
         obj.ObjectBase = (selection[0], selection[1])
+    
+    def getLoadInThaiUnits(self, obj):
+        """Get load values in Thai units."""
+        if not THAI_UNITS_AVAILABLE:
+            return None
+        
+        converter = get_thai_converter()
+        force_n = obj.NodalLoading.Value  # Force in N
+        
+        return enhance_with_thai_units({
+            'force_N': force_n,
+            'force_kN': force_n / 1000,
+            'load_type': obj.LoadType,
+            'direction': obj.GlobalDirection,
+            'description_thai': f'ภาระจุด {obj.LoadType} ทิศทาง {obj.GlobalDirection}'
+        }, 'load')
+    
+    def updateThaiUnits(self, obj):
+        """Update Thai units properties when main load changes."""
+        if not THAI_UNITS_AVAILABLE or not hasattr(obj, 'NodalLoadingKgf'):
+            return
+        
+        converter = get_thai_converter()
+        force_n = obj.NodalLoading.Value
+        
+        obj.NodalLoadingKgf = converter.n_to_kgf(force_n)
+        obj.NodalLoadingTf = converter.kn_to_tf(force_n / 1000)
     
     # Desenha carregamento pontual
     def drawNodeLoad(self, obj, vertex):
@@ -225,4 +310,6 @@ class CommandLoadNodal():
         are met or not. This function is optional."""
         return True
 
-FreeCADGui.addCommand("load_nodal", CommandLoadNodal())
+# Only register command if FreeCAD GUI is available
+if FREECAD_AVAILABLE and 'FreeCADGui' in globals():
+    FreeCADGui.addCommand("load_nodal", CommandLoadNodal())

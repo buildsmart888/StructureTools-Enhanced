@@ -2,6 +2,29 @@ import FreeCAD, App, FreeCADGui, Part, os, math, copy
 from PySide import QtWidgets
 from PySide.QtGui import QPixmap
 
+# Import Global Units System
+try:
+    from .utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
+
+# Import Thai units support
+try:
+    from .utils.universal_thai_units import enhance_with_thai_units, thai_geometric_units
+    THAI_UNITS_AVAILABLE = True
+except ImportError:
+    THAI_UNITS_AVAILABLE = False
+    enhance_with_thai_units = lambda x, t: x
+    thai_geometric_units = lambda f: f
+
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 # path_ui = str(os.path.dirname(__file__))+'/resources/ui/sectionGui.ui'
 

@@ -331,6 +331,50 @@ class StructuralMaterial:
             
         except Exception as e:
             App.Console.PrintWarning(f"Could not update FreeCAD material: {e}\n")
+    
+    def get_calc_properties(self, obj, unit_length: str = 'm', unit_force: str = 'kN') -> dict:
+        """
+        Get material properties formatted for calc integration.
+        
+        Args:
+            obj: Material DocumentObject
+            unit_length: Target length unit (m, mm, etc.)
+            unit_force: Target force unit (kN, N, etc.)
+            
+        Returns:
+            Dictionary with material properties for FEModel3D
+        """
+        try:
+            # Convert density from kg/m³ to force/volume units
+            density_kg_m3 = obj.Density.getValueAs('kg/m^3')
+            density_kn_m3 = density_kg_m3 * 9.81 / 1000  # Convert to kN/m³
+            density = density_kn_m3  # Will be converted to target units by calc
+            
+            # Get elastic properties in target units
+            E = obj.ModulusElasticity.getValueAs(f'{unit_force}/{unit_length}^2')
+            nu = obj.PoissonRatio
+            G = E / (2 * (1 + nu))  # Calculate shear modulus
+            
+            return {
+                'name': obj.Name,
+                'E': float(E),
+                'G': float(G),
+                'nu': float(nu),
+                'density': float(density),
+                'unit_system': f'{unit_force}-{unit_length}'
+            }
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error getting calc properties for material {obj.Name}: {e}\n")
+            # Return safe defaults
+            return {
+                'name': obj.Name if hasattr(obj, 'Name') else 'Material',
+                'E': 200000.0,  # MPa
+                'G': 77000.0,   # MPa  
+                'nu': 0.3,
+                'density': 7850.0,  # kg/m³
+                'unit_system': f'{unit_force}-{unit_length}'
+            }
 
 
 class ViewProviderStructuralMaterial:

@@ -8,6 +8,18 @@ Supports both ASD (Allowable Stress Design) and LRFD (Load and Resistance Factor
 import os
 from typing import List, Dict, Optional
 
+# Import Global Units System
+try:
+    from .utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+
 try:
     import FreeCAD as App
     import FreeCADGui as Gui

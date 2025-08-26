@@ -5,6 +5,19 @@ import math
 import os
 import sys
 
+# Import Global Units System
+try:
+    from ..utils.units_manager import (
+        get_units_manager, set_units_system, 
+        format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN/m²"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+
 # Handle numpy import gracefully
 try:
     import numpy as np

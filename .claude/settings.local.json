@@ -9,7 +9,13 @@
       "Bash(python -m pytest tests/unit/objects/test_structural_node.py::TestStructuralNodeVisualRepresentation -v)",
       "Bash(python -m pytest tests/ --tb=short -q)",
       "Bash(python -m pytest tests/unit/analysis/test_modal_analysis.py -v)",
-      "Bash(python -m pytest tests/unit/ -v --tb=short)"
+      "Bash(python -m pytest tests/unit/ -v --tb=short)",
+      "Bash(python test:*)",
+      "WebFetch(domain:manual.midasuser.com)",
+      "WebFetch(domain:manual.midasuser.com)",
+      "WebFetch(domain:manual.midasuser.com)",
+      "WebFetch(domain:manual.midasuser.com)",
+      "WebFetch(domain:manual.midasuser.com)"
     ],
     "deny": [],
     "ask": []

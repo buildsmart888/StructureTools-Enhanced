@@ -1,5 +1,57 @@
-import FreeCAD, App, FreeCADGui, Part, os
-from PySide import QtWidgets
+# Setup FreeCAD stubs for standalone operation
+try:
+    from .utils.freecad_stubs import setup_freecad_stubs, is_freecad_available
+    if not is_freecad_available():
+        setup_freecad_stubs()
+except ImportError:
+    pass
+
+# Import FreeCAD modules (now available via stubs if needed)
+try:
+    import FreeCAD, App, FreeCADGui, Part
+    FREECAD_AVAILABLE = True
+except ImportError:
+    FREECAD_AVAILABLE = False
+
+import os
+
+# Import GUI framework with fallbacks
+try:
+    from PySide import QtWidgets
+except ImportError:
+    try:
+        from PySide2 import QtWidgets
+    except ImportError:
+        # Mock QtWidgets for standalone operation
+        class QtWidgets:
+            class QDialog:
+                def __init__(self): pass
+
+# Import Global Units System
+try:
+    from .utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
+
+# Import Thai units support
+try:
+    from .utils.universal_thai_units import enhance_with_thai_units, thai_load_units, get_universal_thai_units
+    from .utils.thai_units import get_thai_converter
+    THAI_UNITS_AVAILABLE = True
+except ImportError:
+    THAI_UNITS_AVAILABLE = False
+    enhance_with_thai_units = lambda x, t: x
+    thai_load_units = lambda f: f
+    get_universal_thai_units = lambda: None
+    get_thai_converter = lambda: None
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
@@ -20,6 +72,14 @@ class LoadDistributed:
         obj.addProperty("App::PropertyForce", "FinalLoading", "Distributed", "Final loading (load per unit length)").FinalLoading = 10000000
         obj.addProperty("App::PropertyFloat", "ScaleDraw", "Load", "Scale from drawing").ScaleDraw = 1
 
+        # Add Thai units properties for distributed loads
+        if THAI_UNITS_AVAILABLE:
+            obj.addProperty("App::PropertyFloat", "InitialLoadingKgfM", "Thai Units", "Initial loading in kgf/m").InitialLoadingKgfM = 1000000  # N/m to kgf/m
+            obj.addProperty("App::PropertyFloat", "FinalLoadingKgfM", "Thai Units", "Final loading in kgf/m").FinalLoadingKgfM = 1000000
+            obj.addProperty("App::PropertyFloat", "InitialLoadingTfM", "Thai Units", "Initial loading in tf/m").InitialLoadingTfM = 1000  # N/m to tf/m
+            obj.addProperty("App::PropertyFloat", "FinalLoadingTfM", "Thai Units", "Final loading in tf/m").FinalLoadingTfM = 1000
+            obj.addProperty("App::PropertyBool", "UseThaiUnits", "Thai Units", "Use Thai units display").UseThaiUnits = False
+
         # Load Type Properties
         obj.addProperty("App::PropertyEnumeration", "LoadType", "Load", "Type of load")
         obj.LoadType = ['DL', 'LL', 'H', 'F', 'W', 'E']
@@ -31,6 +91,42 @@ class LoadDistributed:
         
         print(selection)
         obj.ObjectBase = (selection[0], selection[1])
+    
+    def getDistributedLoadInThaiUnits(self, obj):
+        """Get distributed load values in Thai units."""
+        if not THAI_UNITS_AVAILABLE:
+            return None
+        
+        converter = get_thai_converter()
+        initial_n_m = obj.InitialLoading.Value  # Force per length in N/m
+        final_n_m = obj.FinalLoading.Value
+        
+        return enhance_with_thai_units({
+            'initial_force_N_m': initial_n_m,
+            'final_force_N_m': final_n_m,
+            'initial_force_kN_m': initial_n_m / 1000,
+            'final_force_kN_m': final_n_m / 1000,
+            'load_type': obj.LoadType,
+            'direction': obj.GlobalDirection,
+            'is_uniform': abs(initial_n_m - final_n_m) < 0.001,
+            'description_thai': f'ภาระกระจาย {obj.LoadType} ทิศทาง {obj.GlobalDirection}',
+            'load_pattern': 'uniform' if abs(initial_n_m - final_n_m) < 0.001 else 'triangular'
+        }, 'load')
+    
+    def updateThaiUnits(self, obj):
+        """Update Thai units properties when main loads change."""
+        if not THAI_UNITS_AVAILABLE or not hasattr(obj, 'InitialLoadingKgfM'):
+            return
+        
+        converter = get_thai_converter()
+        initial_n_m = obj.InitialLoading.Value
+        final_n_m = obj.FinalLoading.Value
+        
+        # Convert to kgf/m and tf/m
+        obj.InitialLoadingKgfM = converter.n_to_kgf(initial_n_m)  # N/m to kgf/m (same conversion factor)
+        obj.FinalLoadingKgfM = converter.n_to_kgf(final_n_m)
+        obj.InitialLoadingTfM = converter.kn_to_tf(initial_n_m / 1000)  # N/m to tf/m
+        obj.FinalLoadingTfM = converter.kn_to_tf(final_n_m / 1000)
     
     # Desenha carregamento pontual
     def drawNodeLoad(self, obj, vertex):
@@ -328,4 +424,6 @@ class CommandLoadDistributed():
         are met or not. This function is optional."""
         return True
 
-FreeCADGui.addCommand("load_distributed", CommandLoadDistributed())
+# Only register command if FreeCAD GUI is available
+if FREECAD_AVAILABLE and 'FreeCADGui' in globals():
+    FreeCADGui.addCommand("load_distributed", CommandLoadDistributed())

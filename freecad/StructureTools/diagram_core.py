@@ -5,6 +5,20 @@ they can be unit tested without FreeCAD dependencies.
 """
 from typing import List, Tuple
 
+# Import Global Units System
+try:
+    from .utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
+
 
 def separates_ordinates(values: List[float], zero_tol: float = 1e-2) -> List[List[float]]:
     """Split a 1D list of ordinates into loops each time sign changes.

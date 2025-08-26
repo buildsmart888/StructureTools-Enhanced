@@ -1,0 +1,36 @@
+{
+  "unit_system": "THAI",
+  "base_units": {
+    "length": "cm",
+    "force": "kgf",
+    "stress": "ksc",
+    "moment": "kgf·cm",
+    "area": "cm²",
+    "volume": "cm³",
+    "unit_weight": "kgf/cm³",
+    "density": "pcf"
+  },
+  "report_units": {
+    "length": "m",
+    "force": "kN",
+    "stress": "ksi",
+    "moment": "kN·m",
+    "area": "m²",
+    "volume": "m³",
+    "unit_weight": "kN/m³",
+    "density": "kg/m³"
+  },
+  "show_both_units": true,
+  "auto_detect_material": true,
+  "mixed_unit_mode": false,
+  "precision": {
+    "length": 3,
+    "force": 2,
+    "stress": 1,
+    "moment": 2,
+    "area": 4,
+    "volume": 6,
+    "unit_weight": 1,
+    "density": 0
+  }
+}
