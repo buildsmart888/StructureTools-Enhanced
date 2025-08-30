@@ -1685,7 +1685,241 @@ class Calc:
 class ViewProviderCalc:
 	def __init__(self, obj):
 		obj.Proxy = self
+		self.Object = obj.Object
+		self.reaction_texts = []  # Store reaction text objects
 	
+	def updateData(self, obj, prop):
+		"""Called when the object's data changes"""
+		if prop in ['ShowReactionText', 'ReactionPrecision', 'ReactionTextOffset', 'ReactionFontSize', 'LoadCombination']:
+			self.updateReactionTextDisplay()
+	
+	def onChanged(self, obj, prop):
+		"""Called when view properties change"""
+		if prop == 'ShowReactionText':
+			self.updateReactionTextDisplay()
+	
+	def updateReactionTextDisplay(self):
+		"""Update the display of reaction texts based on ShowReactionText property"""
+		try:
+			# Clear existing reaction texts
+			self.clearReactionTexts()
+			
+			# Only proceed if ShowReactionText is True
+			if not getattr(self.Object, 'ShowReactionText', False):
+				return
+			
+			# Get reaction data from analysis results
+			if not hasattr(self.Object, 'model') or self.Object.model is None:
+				return
+			
+			# Create reaction texts for each support node
+			self.createReactionTexts()
+			
+		except Exception as e:
+			print(f"Error updating reaction text display: {e}")
+	
+	def createReactionTexts(self):
+		"""Create 3D text objects for reaction forces and moments"""
+		try:
+			model = self.Object.model
+			if not model or not hasattr(model, 'Nodes'):
+				return
+			
+			# Get display properties
+			precision = getattr(self.Object, 'ReactionPrecision', 2)
+			offset = getattr(self.Object, 'ReactionTextOffset', 100.0)  # mm
+			font_size = getattr(self.Object, 'ReactionFontSize', 12.0)
+			active_combination = getattr(self.Object, 'LoadCombination', '100_DL')
+			
+			# Iterate through nodes to find supports with reactions
+			for node_name, node in model.Nodes.items():
+				# Check if node has support conditions
+				has_support = any([
+					node.support_DX, node.support_DY, node.support_DZ,
+					node.support_RX, node.support_RY, node.support_RZ
+				])
+				
+				if not has_support:
+					continue
+				
+				# Get reaction values
+				reactions = self.getNodeReactions(node, active_combination)
+				if not reactions:
+					continue
+				
+				# Create text for this node
+				text_content = self.formatReactionText(node_name, reactions, precision)
+				if text_content:
+					text_obj = self.createTextObject(node, text_content, offset, font_size)
+					if text_obj:
+						self.reaction_texts.append(text_obj)
+			
+		except Exception as e:
+			print(f"Error creating reaction texts: {e}")
+	
+	def getNodeReactions(self, node, combo_name):
+		"""Extract reaction values for a node from analysis results"""
+		reactions = {}
+		
+		try:
+			# Get reaction forces
+			if hasattr(node, 'RxnFX') and combo_name in node.RxnFX:
+				reactions['FX'] = node.RxnFX[combo_name]
+			if hasattr(node, 'RxnFY') and combo_name in node.RxnFY:
+				reactions['FY'] = node.RxnFY[combo_name]
+			if hasattr(node, 'RxnFZ') and combo_name in node.RxnFZ:
+				reactions['FZ'] = node.RxnFZ[combo_name]
+			
+			# Get reaction moments
+			if hasattr(node, 'RxnMX') and combo_name in node.RxnMX:
+				reactions['MX'] = node.RxnMX[combo_name]
+			if hasattr(node, 'RxnMY') and combo_name in node.RxnMY:
+				reactions['MY'] = node.RxnMY[combo_name]
+			if hasattr(node, 'RxnMZ') and combo_name in node.RxnMZ:
+				reactions['MZ'] = node.RxnMZ[combo_name]
+				
+		except Exception as e:
+			print(f"Error getting node reactions: {e}")
+		
+		return reactions
+	
+	def formatReactionText(self, node_name, reactions, precision):
+		"""Format reaction values into display text"""
+		lines = [f"Node: {node_name}"]
+		
+		# Format forces
+		force_lines = []
+		for component in ['FX', 'FY', 'FZ']:
+			if component in reactions:
+				value = reactions[component]
+				if abs(value) > 1e-6:  # Only show significant values
+					force_lines.append(f"{component}: {value:.{precision}f} kN")
+		
+		if force_lines:
+			lines.extend(force_lines)
+		
+		# Format moments
+		moment_lines = []
+		for component in ['MX', 'MY', 'MZ']:
+			if component in reactions:
+				value = reactions[component]
+				if abs(value) > 1e-6:  # Only show significant values
+					moment_lines.append(f"{component}: {value:.{precision}f} kN·m")
+		
+		if moment_lines:
+			lines.extend(moment_lines)
+		
+		return '\n'.join(lines) if len(lines) > 1 else ""
+	
+	def createTextObject(self, node, text_content, offset, font_size):
+		"""Create a 3D text object at the node location"""
+		try:
+			doc = App.ActiveDocument
+			if not doc:
+				return None
+			
+			# Calculate text position (offset from node)
+			node_pos = App.Vector(node.X, node.Y, node.Z)
+			text_pos = node_pos + App.Vector(offset, offset, 0)
+			
+			# Try different methods to create text
+			text_obj = None
+			
+			# Method 1: Try using Part workbench for 3D text
+			try:
+				import Part
+				# Create simple text using Part.makeText (if available)
+				text_obj = doc.addObject("Part::Feature", f"Reactions_{node.name}")
+				
+				# Create simple wire geometry for text display
+				# Since Part.makeText might not be available, create basic shapes
+				lines = text_content.split('\n')
+				shapes = []
+				
+				for i, line in enumerate(lines):
+					if line.strip():
+						# Create a simple line/wire to represent text
+						start_point = text_pos + App.Vector(0, -i * font_size * 2, 0)
+						end_point = start_point + App.Vector(len(line) * font_size * 0.8, 0, 0)
+						
+						# Create a simple line
+						line_wire = Part.makeLine(start_point, end_point)
+						shapes.append(line_wire)
+				
+				if shapes:
+					# Combine all lines
+					compound = Part.makeCompound(shapes)
+					text_obj.Shape = compound
+					text_obj.Label = f"Reactions_{node.name}_Wire"
+					
+					# Set visual properties
+					if hasattr(text_obj.ViewObject, 'ShapeColor'):
+						text_obj.ViewObject.ShapeColor = (1.0, 0.0, 0.0)  # Red
+					if hasattr(text_obj.ViewObject, 'LineWidth'):
+						text_obj.ViewObject.LineWidth = 2.0
+					
+					print(f"Created wire-based text for {node.name}: {text_content}")
+					return text_obj
+				
+			except Exception as e:
+				print(f"Part method failed: {e}")
+			
+			# Method 2: Try Draft workbench
+			try:
+				import Draft
+				text_obj = Draft.make_text(text_content, point=text_pos)
+				text_obj.Label = f"Reactions_{node.name}_Draft"
+				
+				# Set text properties
+				if hasattr(text_obj.ViewObject, 'FontSize'):
+					text_obj.ViewObject.FontSize = font_size
+				if hasattr(text_obj.ViewObject, 'TextColor'):
+					text_obj.ViewObject.TextColor = (1.0, 0.0, 0.0)  # Red color
+				
+				print(f"Created Draft text for {node.name}: {text_content}")
+				return text_obj
+				
+			except Exception as e:
+				print(f"Draft method failed: {e}")
+			
+			# Method 3: Create annotation object
+			try:
+				text_obj = doc.addObject("App::Annotation", f"Reactions_{node.name}_Annotation")
+				text_obj.LabelText = text_content
+				text_obj.Position = text_pos
+				
+				print(f"Created annotation for {node.name}: {text_content}")
+				return text_obj
+				
+			except Exception as e:
+				print(f"Annotation method failed: {e}")
+			
+			# Method 4: Simple debug print
+			print(f"All text creation methods failed. Text content for {node.name}:")
+			print(f"  Position: {text_pos}")
+			print(f"  Content: {text_content}")
+			
+			return None
+			
+		except Exception as e:
+			print(f"Error creating text object: {e}")
+			return None
+	
+	def clearReactionTexts(self):
+		"""Remove all existing reaction text objects"""
+		try:
+			doc = App.ActiveDocument
+			if not doc:
+				return
+			
+			for text_obj in self.reaction_texts:
+				if text_obj and text_obj.Name in doc.Objects:
+					doc.removeObject(text_obj.Name)
+			
+			self.reaction_texts.clear()
+			
+		except Exception as e:
+			print(f"Error clearing reaction texts: {e}")
 
 	def getIcon(self):
 		return """
