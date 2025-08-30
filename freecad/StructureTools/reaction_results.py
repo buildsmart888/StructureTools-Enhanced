@@ -137,6 +137,9 @@ class ReactionResults:
             obj.ActiveLoadCombination = load_combo
             FreeCAD.Console.PrintMessage(f"  ℹ️ Using first available load combination: {load_combo}\n")
         
+        # Print detailed reaction information as requested
+        self.print_detailed_reaction_info(model, load_combo)
+        
         # Create reaction arrows for each supported node
         for node_name, node in model.nodes.items():
             if self.is_node_supported(node):
@@ -161,6 +164,61 @@ class ReactionResults:
                     
                 if obj.ShowReactionMZ and hasattr(node, 'RxnMZ') and load_combo in node.RxnMZ and abs(node.RxnMZ[load_combo]) > 1e-6:
                     self.create_moment_arrow(obj, node_pos, 'Z', node.RxnMZ[load_combo], node_name)
+
+    def print_detailed_reaction_info(self, model, load_combo):
+        """Print detailed reaction information as requested."""
+        try:
+            FreeCAD.Console.PrintMessage(f"\nCollecting reactions for load combination: {load_combo}\n")
+            
+            # Count supported nodes
+            supported_nodes = []
+            for node_name, node in model.nodes.items():
+                if self.is_node_supported(node):
+                    supported_nodes.append((node_name, node))
+            
+            FreeCAD.Console.PrintMessage(f"  Found {len(supported_nodes)} supported nodes\n")
+            
+            # Initialize sums for total reactions
+            sum_fx = sum_fy = sum_fz = 0.0
+            
+            # Process each supported node
+            for node_name, node in supported_nodes:
+                # Get reaction values
+                rx = node.RxnFX.get(load_combo, 0.0) if hasattr(node, 'RxnFX') else 0.0
+                ry = node.RxnFY.get(load_combo, 0.0) if hasattr(node, 'RxnFY') else 0.0
+                rz = node.RxnFZ.get(load_combo, 0.0) if hasattr(node, 'RxnFZ') else 0.0
+                mx = node.RxnMX.get(load_combo, 0.0) if hasattr(node, 'RxnMX') else 0.0
+                my = node.RxnMY.get(load_combo, 0.0) if hasattr(node, 'RxnMY') else 0.0
+                mz = node.RxnMZ.get(load_combo, 0.0) if hasattr(node, 'RxnMZ') else 0.0
+                
+                # Add to totals
+                sum_fx += rx
+                sum_fy += ry
+                sum_fz += rz
+                
+                # Print node reactions
+                FreeCAD.Console.PrintMessage(f" Node {node_name} reactions: FX={rx:.3f}, FY={ry:.3f}, FZ={rz:.3f}, MX={mx:.3f}, MY={my:.3f}, MZ={mz:.3f}\n")
+                
+                # Print support conditions
+                support_conditions = []
+                if node.support_DX: support_conditions.append("DX")
+                if node.support_DY: support_conditions.append("DY")
+                if node.support_DZ: support_conditions.append("DZ")
+                if node.support_RX: support_conditions.append("RX")
+                if node.support_RY: support_conditions.append("RY")
+                if node.support_RZ: support_conditions.append("RZ")
+                FreeCAD.Console.PrintMessage(f"    Support conditions: {', '.join(support_conditions)}\n")
+                
+                # Print node coordinates
+                FreeCAD.Console.PrintMessage(f"   Node coordinates: ({node.X:.3f}, {node.Y:.3f}, {node.Z:.3f})\n")
+            
+            # Print total reactions
+            FreeCAD.Console.PrintMessage(f"  Total reactions - Sum FX: {sum_fx:.3f}, Sum FY: {sum_fy:.3f}, Sum FZ: {sum_fz:.3f}\n")
+            FreeCAD.Console.PrintMessage(f"  Storing {len(supported_nodes)} reaction nodes with their values\n")
+            FreeCAD.Console.PrintMessage("  Unit system set to: SI (Metric Engineering)\n")
+            
+        except Exception as e:
+            FreeCAD.Console.PrintError(f"Error printing detailed reaction info: {str(e)}\n")
 
     def is_node_supported(self, node) -> bool:
         """Check if a node has any support conditions."""

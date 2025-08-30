@@ -51,6 +51,21 @@ class ReactionTablePanel:
         combo_layout.addStretch()
         main_layout.addLayout(combo_layout)
         
+        # Detailed reaction info text area
+        self.detail_text = QtWidgets.QTextEdit()
+        self.detail_text.setMaximumHeight(150)
+        self.detail_text.setReadOnly(True)
+        self.detail_text.setStyleSheet("""
+            QTextEdit {
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                font-family: Consolas, monospace;
+                font-size: 10px;
+            }
+        """)
+        main_layout.addWidget(self.detail_text)
+        
         # Table for reaction results
         self.table_widget = QtWidgets.QTableWidget()
         self.table_widget.setAlternatingRowColors(True)
@@ -209,6 +224,59 @@ class ReactionTablePanel:
                 self.status_label.setText("Analysis not completed or no nodes available - please run calculation")
                 self.status_label.setStyleSheet("color: #e74c3c;")
                 return
+            
+            # Prepare detailed reaction info text
+            detail_text = f"Collecting reactions for load combination: {load_combo}\n"
+            
+            # Count supported nodes
+            supported_nodes = []
+            for node_name, node in model.nodes.items():
+                if self.is_node_supported(node):
+                    supported_nodes.append((node_name, node))
+            
+            detail_text += f"  Found {len(supported_nodes)} supported nodes\n"
+            
+            # Initialize sums for total reactions
+            sum_fx = sum_fy = sum_fz = 0.0
+            
+            # Process each supported node for detailed text
+            for node_name, node in supported_nodes:
+                # Get reaction values
+                rx = node.RxnFX.get(load_combo, 0.0) if hasattr(node, 'RxnFX') else 0.0
+                ry = node.RxnFY.get(load_combo, 0.0) if hasattr(node, 'RxnFY') else 0.0
+                rz = node.RxnFZ.get(load_combo, 0.0) if hasattr(node, 'RxnFZ') else 0.0
+                mx = node.RxnMX.get(load_combo, 0.0) if hasattr(node, 'RxnMX') else 0.0
+                my = node.RxnMY.get(load_combo, 0.0) if hasattr(node, 'RxnMY') else 0.0
+                mz = node.RxnMZ.get(load_combo, 0.0) if hasattr(node, 'RxnMZ') else 0.0
+                
+                # Add to totals
+                sum_fx += rx
+                sum_fy += ry
+                sum_fz += rz
+                
+                # Add to detail text
+                detail_text += f" Node {node_name} reactions: FX={rx:.3f}, FY={ry:.3f}, FZ={rz:.3f}, MX={mx:.3f}, MY={my:.3f}, MZ={mz:.3f}\n"
+                
+                # Add support conditions
+                support_conditions = []
+                if node.support_DX: support_conditions.append("DX")
+                if node.support_DY: support_conditions.append("DY")
+                if node.support_DZ: support_conditions.append("DZ")
+                if node.support_RX: support_conditions.append("RX")
+                if node.support_RY: support_conditions.append("RY")
+                if node.support_RZ: support_conditions.append("RZ")
+                detail_text += f"    Support conditions: {', '.join(support_conditions)}\n"
+                
+                # Add node coordinates
+                detail_text += f"   Node coordinates: ({node.X:.3f}, {node.Y:.3f}, {node.Z:.3f})\n"
+            
+            # Add total reactions to detail text
+            detail_text += f"  Total reactions - Sum FX: {sum_fx:.3f}, Sum FY: {sum_fy:.3f}, Sum FZ: {sum_fz:.3f}\n"
+            detail_text += f"  Storing {len(supported_nodes)} reaction nodes with their values\n"
+            detail_text += "  Unit system set to: SI (Metric Engineering)\n"
+            
+            # Update the detail text area
+            self.detail_text.setPlainText(detail_text)
             
             # Prepare table data
             table_data = []

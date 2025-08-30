@@ -203,6 +203,8 @@ class Diagram:
 						unit = " kN·m"  # Torque unit
 					elif hasattr(obj, 'AxialForce') and obj.AxialForce:
 						unit = " kN"    # Axial force unit
+					elif (hasattr(obj, 'ShearZ') and obj.ShearZ) or (hasattr(obj, 'ShearY') and obj.ShearY):
+						unit = " kN"    # Shear force unit
 					else:
 						unit = " kN·m"  # Default to moment unit
 					string = f"{valueString:.{precision}f}{unit}"
