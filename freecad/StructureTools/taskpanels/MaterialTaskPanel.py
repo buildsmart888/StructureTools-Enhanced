@@ -326,7 +326,7 @@ class MaterialTaskPanel:
             self._update_validation_status()
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error populating material form: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error populating material form: {e}\n")
     
     def _connect_signals(self) -> None:
         """Connect UI signals to handlers."""
@@ -397,7 +397,7 @@ class MaterialTaskPanel:
             self._update_strength_ratio()
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating from standard: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating from standard: {e}\n")
     
     def _update_calculated_values(self) -> None:
         """Update calculated values like shear modulus."""
@@ -544,10 +544,10 @@ class MaterialTaskPanel:
             self.material_obj.touch()
             App.ActiveDocument.recompute()
             
-            App.Console.PrintMessage(f"Material {self.material_obj.Label} updated successfully\n")
+            FreeCAD.Console.PrintMessage(f"Material {self.material_obj.Label} updated successfully\n")
             
         except Exception as e:
-            App.Console.PrintError(f"Error updating material: {e}\n")
+            FreeCAD.Console.PrintError(f"Error updating material: {e}\n")
         
         # Close dialog
         Gui.Control.closeDialog()

@@ -556,12 +556,12 @@ class AnalysisSetupPanel:
     
     def _view_results(self) -> None:
         """Open results viewer."""
-        App.Console.PrintMessage("Results viewer not yet implemented\n")
+        FreeCAD.Console.PrintMessage("Results viewer not yet implemented\n")
     
     def accept(self) -> None:
         """Apply analysis settings."""
         # Save analysis configuration
-        App.Console.PrintMessage("Analysis settings saved\n")
+        FreeCAD.Console.PrintMessage("Analysis settings saved\n")
         Gui.Control.closeDialog()
     
     def reject(self) -> None:

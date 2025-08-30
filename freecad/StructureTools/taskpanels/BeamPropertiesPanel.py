@@ -255,7 +255,7 @@ class BeamPropertiesPanel:
                 self.section_size_edit.setText(self.beam_obj.SectionSize)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error populating beam form: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error populating beam form: {e}\n")
     
     def _connect_signals(self) -> None:
         """Connect UI signals."""
@@ -283,7 +283,7 @@ class BeamPropertiesPanel:
     def _browse_material(self) -> None:
         """Browse for material object."""
         # This would open material selection dialog
-        App.Console.PrintMessage("Material browser not yet implemented\n")
+        FreeCAD.Console.PrintMessage("Material browser not yet implemented\n")
     
     def accept(self) -> None:
         """Apply changes."""
@@ -316,7 +316,7 @@ class BeamPropertiesPanel:
             App.ActiveDocument.recompute()
             
         except Exception as e:
-            App.Console.PrintError(f"Error updating beam: {e}\n")
+            FreeCAD.Console.PrintError(f"Error updating beam: {e}\n")
         
         Gui.Control.closeDialog()
     

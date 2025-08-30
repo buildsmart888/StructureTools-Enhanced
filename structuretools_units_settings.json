@@ -1,14 +1,14 @@
 {
-  "unit_system": "THAI",
+  "unit_system": "SI",
   "base_units": {
-    "length": "cm",
-    "force": "kgf",
-    "stress": "ksc",
-    "moment": "kgf·cm",
-    "area": "cm²",
-    "volume": "cm³",
-    "unit_weight": "kgf/cm³",
-    "density": "pcf"
+    "length": "m",
+    "force": "kN",
+    "stress": "MPa",
+    "moment": "kN·m",
+    "area": "m²",
+    "volume": "m³",
+    "unit_weight": "kN/m³",
+    "density": "kg/m³"
   },
   "report_units": {
     "length": "m",

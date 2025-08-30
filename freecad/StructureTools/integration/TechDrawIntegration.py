@@ -136,7 +136,7 @@ class TechDrawStructuralIntegration:
                 return diagram_obj
                 
         except Exception as e:
-            App.Console.PrintWarning(f"Failed to create diagram geometry: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Failed to create diagram geometry: {e}\n")
         
         return None
     
@@ -179,7 +179,7 @@ class CommandCreateStructuralDrawing:
     def Activated(self):
         doc = App.ActiveDocument
         if not doc:
-            App.Console.PrintError("No active document\n")
+            FreeCAD.Console.PrintError("No active document\n")
             return
         
         # Find calc objects
@@ -187,7 +187,7 @@ class CommandCreateStructuralDrawing:
                        hasattr(obj.Proxy, '__class__') and 'Calc' in str(obj.Proxy.__class__)]
         
         if not calc_objects:
-            App.Console.PrintMessage("No structural analysis found. Run analysis first.\n")
+            FreeCAD.Console.PrintMessage("No structural analysis found. Run analysis first.\n")
             return
         
         # Use the first calc object
@@ -198,14 +198,14 @@ class CommandCreateStructuralDrawing:
         page = techdraw_integration.create_structural_drawing(calc_obj)
         
         if page:
-            App.Console.PrintMessage(f"Created structural drawing: {page.Label}\n")
+            FreeCAD.Console.PrintMessage(f"Created structural drawing: {page.Label}\n")
             # Switch to TechDraw workbench to view the drawing
             try:
                 Gui.activateWorkbench("TechDrawWorkbench")
             except:
-                App.Console.PrintWarning("TechDraw workbench not available\n")
+                FreeCAD.Console.PrintWarning("TechDraw workbench not available\n")
         else:
-            App.Console.PrintError("Failed to create structural drawing\n")
+            FreeCAD.Console.PrintError("Failed to create structural drawing\n")
     
     def IsActive(self):
         return App.ActiveDocument is not None

@@ -497,7 +497,7 @@ class StructuralNode:
                 continue
         
         if lengths and len(set(lengths)) > 1:
-            App.Console.PrintWarning(
+            FreeCAD.Console.PrintWarning(
                 f"Node {obj.Label}: Inconsistent load case count across load types\n"
             )
     

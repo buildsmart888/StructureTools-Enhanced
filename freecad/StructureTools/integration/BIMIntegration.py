@@ -35,7 +35,7 @@ class BIMStructuralIntegration:
             selected_objects = Gui.Selection.getSelection()
         
         if not selected_objects:
-            App.Console.PrintWarning("No BIM objects selected for import\n")
+            FreeCAD.Console.PrintWarning("No BIM objects selected for import\n")
             return []
         
         imported_structural = []
@@ -49,7 +49,7 @@ class BIMStructuralIntegration:
                     self.bim_to_structural_map[bim_obj] = structural_obj
                     self.structural_to_bim_map[structural_obj] = bim_obj
                     
-        App.Console.PrintMessage(f"Imported {len(imported_structural)} structural elements from BIM\n")
+        FreeCAD.Console.PrintMessage(f"Imported {len(imported_structural)} structural elements from BIM\n")
         App.ActiveDocument.recompute()
         return imported_structural
     
@@ -68,7 +68,7 @@ class BIMStructuralIntegration:
     def convert_bim_to_structural(self, bim_obj):
         """Convert BIM object to appropriate structural element"""
         if not hasattr(bim_obj, 'Shape') or not bim_obj.Shape.isValid():
-            App.Console.PrintWarning(f"BIM object {bim_obj.Label} has invalid shape\n")
+            FreeCAD.Console.PrintWarning(f"BIM object {bim_obj.Label} has invalid shape\n")
             return None
         
         # Determine structural type from BIM properties
@@ -81,7 +81,7 @@ class BIMStructuralIntegration:
         elif structural_type in ['slab', 'wall']:
             return self.create_structural_plate_from_bim(bim_obj)
         else:
-            App.Console.PrintWarning(f"Unknown structural type for {bim_obj.Label}\n")
+            FreeCAD.Console.PrintWarning(f"Unknown structural type for {bim_obj.Label}\n")
             return None
     
     def determine_structural_type(self, bim_obj):
@@ -143,7 +143,7 @@ class BIMStructuralIntegration:
             # Extract beam centerline
             centerline = self.extract_beam_centerline(bim_obj)
             if not centerline:
-                App.Console.PrintWarning(f"Cannot extract centerline from {bim_obj.Label}\n")
+                FreeCAD.Console.PrintWarning(f"Cannot extract centerline from {bim_obj.Label}\n")
                 return None
             
             # Create member object
@@ -169,11 +169,11 @@ class BIMStructuralIntegration:
             if hasattr(bim_obj, 'Description'):
                 structural_beam.Description = bim_obj.Description
             
-            App.Console.PrintMessage(f"Created structural beam: {structural_beam.Label}\n")
+            FreeCAD.Console.PrintMessage(f"Created structural beam: {structural_beam.Label}\n")
             return structural_beam
             
         except Exception as e:
-            App.Console.PrintError(f"Error creating structural beam from {bim_obj.Label}: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"Error creating structural beam from {bim_obj.Label}: {str(e)}\n")
             return None
     
     def create_structural_column_from_bim(self, bim_obj):
@@ -192,7 +192,7 @@ class BIMStructuralIntegration:
                 has_plates = False
             
             if not has_plates:
-                App.Console.PrintWarning("Structural plates not yet implemented - creating placeholder\n")
+                FreeCAD.Console.PrintWarning("Structural plates not yet implemented - creating placeholder\n")
                 # Create placeholder Part object for now
                 structural_plate = App.ActiveDocument.addObject("Part::Feature", f"Plate_{bim_obj.Label}")
                 structural_plate.Shape = bim_obj.Shape
@@ -202,7 +202,7 @@ class BIMStructuralIntegration:
             # Extract base face from BIM object
             base_faces = self.extract_structural_faces(bim_obj)
             if not base_faces:
-                App.Console.PrintWarning(f"Cannot extract structural faces from {bim_obj.Label}\n")
+                FreeCAD.Console.PrintWarning(f"Cannot extract structural faces from {bim_obj.Label}\n")
                 return None
             
             # Create structural plate
@@ -224,11 +224,11 @@ class BIMStructuralIntegration:
                     structural_plate.Material = material_obj
             
             structural_plate.Label = f"Plate_{bim_obj.Label}"
-            App.Console.PrintMessage(f"Created structural plate: {structural_plate.Label}\n")
+            FreeCAD.Console.PrintMessage(f"Created structural plate: {structural_plate.Label}\n")
             return structural_plate
             
         except Exception as e:
-            App.Console.PrintError(f"Error creating structural plate from {bim_obj.Label}: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"Error creating structural plate from {bim_obj.Label}: {str(e)}\n")
             return None
     
     def extract_beam_centerline(self, bim_obj):
@@ -332,7 +332,7 @@ class BIMStructuralIntegration:
                 return create_material_from_database("Custom", material_name)
                 
         except Exception as e:
-            App.Console.PrintWarning(f"Could not convert BIM material {material_name}: {str(e)}\n")
+            FreeCAD.Console.PrintWarning(f"Could not convert BIM material {material_name}: {str(e)}\n")
             return None
     
     def apply_section_properties(self, structural_obj, section_props):
@@ -374,7 +374,7 @@ class BIMStructuralIntegration:
                         bim_obj.ViewObject.ShapeColor = (0.0, 1.0, 0.0)  # Green for safe
                         
         except Exception as e:
-            App.Console.PrintError(f"Error applying results to BIM object {bim_obj.Label}: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"Error applying results to BIM object {bim_obj.Label}: {str(e)}\n")
     
     def sync_geometry_changes(self):
         """Synchronize geometry changes between BIM and structural objects"""
@@ -384,7 +384,7 @@ class BIMStructuralIntegration:
                 if bim_obj.Shape.isValid() and structural_obj.Shape.isValid():
                     # Update structural object if BIM geometry changed
                     if bim_obj.Shape.BoundBox != structural_obj.Shape.BoundBox:
-                        App.Console.PrintMessage(f"Updating structural object {structural_obj.Label} from BIM changes\n")
+                        FreeCAD.Console.PrintMessage(f"Updating structural object {structural_obj.Label} from BIM changes\n")
                         # Re-extract geometry and update
                         self.update_structural_from_bim(bim_obj, structural_obj)
 

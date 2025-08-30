@@ -236,6 +236,8 @@ class MaterialDatabase:
                 "standard": "Thai Ministry B.E. 2566 (มยผ. 1101)",
                 "type": "Normal Weight Concrete",
                 "compressive_strength": 18.0,  # MPa
+                "yield_strength": 18.0,  # MPa
+                "ultimate_strength": 18.0,  # MPa
                 "compressive_strength_ksc": 180.0,  # Thai unit
                 "elastic_modulus": 19998,  # MPa (4700√fc)
                 "poisson_ratio": 0.20,
@@ -259,6 +261,8 @@ class MaterialDatabase:
                 "standard": "Thai Ministry B.E. 2566 (มยผ. 1101)",
                 "type": "Normal Weight Concrete",
                 "compressive_strength": 21.0,  # MPa
+                "yield_strength": 21.0,  # MPa
+                "ultimate_strength": 21.0,  # MPa
                 "compressive_strength_ksc": 210.0,  # Thai unit
                 "elastic_modulus": 21579,  # MPa (4700√fc)
                 "poisson_ratio": 0.20,
@@ -282,6 +286,8 @@ class MaterialDatabase:
                 "standard": "Thai Ministry B.E. 2566 (มยผ. 1101)",
                 "type": "High Strength Normal Weight Concrete",
                 "compressive_strength": 28.0,  # MPa
+                "yield_strength": 28.0,  # MPa
+                "ultimate_strength": 28.0,  # MPa
                 "compressive_strength_ksc": 280.0,  # Thai unit
                 "elastic_modulus": 24870,  # MPa (4700√fc)
                 "poisson_ratio": 0.20,
@@ -307,6 +313,8 @@ class MaterialDatabase:
                 "standard": "Thai Ministry B.E. 2566 (มยผ. 1101)",
                 "type": "Very High Strength Concrete",
                 "compressive_strength": 35.0,  # MPa
+                "yield_strength": 35.0,  # MPa
+                "ultimate_strength": 35.0,  # MPa
                 "compressive_strength_ksc": 350.0,  # Thai unit
                 "elastic_modulus": 27838,  # MPa (4700√fc)
                 "poisson_ratio": 0.20,
@@ -338,6 +346,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.20,
                 "density": 2400,  # kg/m³
                 "compressive_strength": 25,  # MPa
+                "yield_strength": 25,  # MPa
+                "ultimate_strength": 25,  # MPa
                 "tensile_strength": 2.7,  # MPa (0.33√f'c)
                 "thermal_expansion": 10.0e-6,  # /°C
                 "description": "Standard concrete for general construction"
@@ -350,6 +360,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.20,
                 "density": 2400,  # kg/m³
                 "compressive_strength": 30,  # MPa
+                "yield_strength": 30,  # MPa
+                "ultimate_strength": 30,  # MPa
                 "tensile_strength": 2.96,  # MPa
                 "thermal_expansion": 10.0e-6,  # /°C
                 "description": "Standard concrete for structural applications"
@@ -362,6 +374,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.20,
                 "density": 2400,  # kg/m³
                 "compressive_strength": 50,  # MPa
+                "yield_strength": 50,  # MPa
+                "ultimate_strength": 50,  # MPa
                 "tensile_strength": 3.82,  # MPa
                 "thermal_expansion": 10.0e-6,  # /°C
                 "description": "High strength concrete for high-rise buildings"
@@ -377,6 +391,8 @@ class MaterialDatabase:
                 "density": 2500,  # kg/m³
                 "compressive_strength": 20,  # MPa (cylinder)
                 "cube_strength": 25,  # MPa (cube)
+                "yield_strength": 20,  # MPa
+                "ultimate_strength": 20,  # MPa
                 "tensile_strength": 2.2,  # MPa
                 "thermal_expansion": 10.0e-6,  # /°C
                 "description": "Standard concrete (Eurocode 2)"
@@ -390,6 +406,8 @@ class MaterialDatabase:
                 "density": 2500,  # kg/m³
                 "compressive_strength": 30,  # MPa (cylinder)
                 "cube_strength": 37,  # MPa (cube)
+                "yield_strength": 30,  # MPa
+                "ultimate_strength": 30,  # MPa
                 "tensile_strength": 2.9,  # MPa
                 "thermal_expansion": 10.0e-6,  # /°C
                 "description": "Medium strength concrete (Eurocode 2)"
@@ -404,6 +422,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.20,
                 "density": 1800,  # kg/m³
                 "compressive_strength": 20,  # MPa
+                "yield_strength": 20,  # MPa
+                "ultimate_strength": 20,  # MPa
                 "tensile_strength": 1.8,  # MPa (lower for LW)
                 "thermal_expansion": 8.0e-6,  # /°C
                 "description": "Lightweight concrete for reduced dead load"
@@ -466,6 +486,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.30,
                 "density": 550,  # kg/m³
                 "bending_strength": 12.4,  # MPa (Grade: Select Structural)
+                "yield_strength": 12.4,  # MPa
+                "ultimate_strength": 12.4,  # MPa
                 "compression_parallel": 7.6,  # MPa
                 "compression_perpendicular": 6.2,  # MPa
                 "thermal_expansion": 4.5e-6,  # /°C (parallel to grain)
@@ -479,6 +501,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.30,
                 "density": 590,  # kg/m³
                 "bending_strength": 11.2,  # MPa
+                "yield_strength": 11.2,  # MPa
+                "ultimate_strength": 11.2,  # MPa
                 "compression_parallel": 8.3,  # MPa
                 "compression_perpendicular": 5.9,  # MPa
                 "thermal_expansion": 4.2e-6,  # /°C
@@ -494,6 +518,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.30,
                 "density": 420,  # kg/m³
                 "bending_strength": 24.0,  # MPa
+                "yield_strength": 24.0,  # MPa
+                "ultimate_strength": 24.0,  # MPa
                 "compression_parallel": 24.0,  # MPa
                 "compression_perpendicular": 2.7,  # MPa
                 "thermal_expansion": 5.0e-6,  # /°C
@@ -507,6 +533,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.30,
                 "density": 470,  # kg/m³
                 "bending_strength": 24.0,  # MPa
+                "yield_strength": 24.0,  # MPa
+                "ultimate_strength": 24.0,  # MPa
                 "compression_parallel": 21.0,  # MPa
                 "compression_perpendicular": 3.0,  # MPa
                 "thermal_expansion": 5.0e-6,  # /°C
@@ -527,6 +555,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.20,
                 "density": 2000,  # kg/m³
                 "compressive_strength": 20.0,  # MPa
+                "yield_strength": 20.0,  # MPa
+                "ultimate_strength": 20.0,  # MPa
                 "flexural_strength": 1.5,  # MPa
                 "thermal_expansion": 5.4e-6,  # /°C
                 "description": "High strength clay brick masonry"
@@ -541,6 +571,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.20,
                 "density": 2100,  # kg/m³
                 "compressive_strength": 15.0,  # MPa
+                "yield_strength": 15.0,  # MPa
+                "ultimate_strength": 15.0,  # MPa
                 "flexural_strength": 1.2,  # MPa
                 "thermal_expansion": 8.0e-6,  # /°C
                 "description": "Standard concrete masonry units"
@@ -555,6 +587,8 @@ class MaterialDatabase:
                 "poisson_ratio": 0.25,
                 "density": 2650,  # kg/m³
                 "compressive_strength": 130.0,  # MPa
+                "yield_strength": 130.0,  # MPa
+                "ultimate_strength": 130.0,  # MPa
                 "flexural_strength": 8.0,  # MPa
                 "thermal_expansion": 8.0e-6,  # /°C
                 "description": "High strength natural granite"

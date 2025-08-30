@@ -333,7 +333,7 @@ class StructuralColumn:
                 obj.UnbracedLengthZ = obj.Height
                 
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating column geometry: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating column geometry: {e}\n")
     
     def _calculate_local_coordinates(self, obj, height_vector: App.Vector) -> None:
         """Calculate local coordinate system for the column."""
@@ -354,7 +354,7 @@ class StructuralColumn:
             obj.LocalYAxis = local_y
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating local coordinates: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating local coordinates: {e}\n")
     
     def _update_material_properties(self, obj) -> None:
         """Update properties when material changes."""
@@ -369,7 +369,7 @@ class StructuralColumn:
             self._update_design_checks(obj)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating material properties: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating material properties: {e}\n")
     
     def _update_section_properties(self, obj) -> None:
         """Update section properties when section changes."""
@@ -392,7 +392,7 @@ class StructuralColumn:
             self._update_design_checks(obj)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating section properties: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating section properties: {e}\n")
     
     def _update_buckling_properties(self, obj) -> None:
         """Update buckling analysis properties."""
@@ -436,7 +436,7 @@ class StructuralColumn:
                                          obj.ElasticBucklingLoadZ)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating buckling properties: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating buckling properties: {e}\n")
     
     def _update_design_checks(self, obj) -> None:
         """Update design capacity and interaction checks."""
@@ -454,7 +454,7 @@ class StructuralColumn:
             self._calculate_interaction_ratios(obj)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating design checks: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating design checks: {e}\n")
     
     def _calculate_compressive_strength(self, obj) -> None:
         """Calculate nominal compressive strength per AISC 360."""
@@ -496,7 +496,7 @@ class StructuralColumn:
             obj.DesignCompressiveStrength = 0.90 * obj.NominalCompressiveStrength
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating compressive strength: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating compressive strength: {e}\n")
     
     def _calculate_flexural_strengths(self, obj) -> None:
         """Calculate nominal flexural strengths."""
@@ -521,7 +521,7 @@ class StructuralColumn:
             obj.DesignFlexuralStrengthY = 0.90 * obj.NominalFlexuralStrengthY
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating flexural strengths: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating flexural strengths: {e}\n")
     
     def _calculate_interaction_ratios(self, obj) -> None:
         """Calculate P-M interaction ratios for all load combinations."""
@@ -569,7 +569,7 @@ class StructuralColumn:
             obj.DesignPassed = (max_ratio <= 1.0)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating interaction ratios: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating interaction ratios: {e}\n")
     
     def _has_required_properties_for_buckling(self, obj) -> bool:
         """Check if required properties are available for buckling analysis."""
@@ -619,7 +619,7 @@ class StructuralColumn:
             obj.Shape = centerline
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating column visualization: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating column visualization: {e}\n")
     
     def _create_column_solid(self, obj, centerline) -> Optional[Part.Shape]:
         """Create 3D column solid based on section."""
@@ -648,7 +648,7 @@ class StructuralColumn:
             return solid
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error creating column solid: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error creating column solid: {e}\n")
             return None
     
     def execute(self, obj) -> None:
@@ -691,7 +691,7 @@ class StructuralColumn:
         
         # Log warnings
         if warnings:
-            App.Console.PrintWarning(f"Column {obj.Label} warnings: {'; '.join(warnings)}\n")
+            FreeCAD.Console.PrintWarning(f"Column {obj.Label} warnings: {'; '.join(warnings)}\n")
 
 
 class ViewProviderStructuralColumn:
@@ -754,7 +754,7 @@ class ViewProviderStructuralColumn:
                 Gui.Control.showDialog(self.panel)
                 return True
             except ImportError:
-                App.Console.PrintWarning("ColumnPropertiesPanel not yet implemented\n")
+                FreeCAD.Console.PrintWarning("ColumnPropertiesPanel not yet implemented\n")
                 return False
         return False
     
@@ -785,7 +785,7 @@ def makeStructuralColumn(base_point=None, top_point=None, section_type="W", sect
     """
     doc = App.ActiveDocument
     if not doc:
-        App.Console.PrintError("No active document. Please create or open a document first.\n")
+        FreeCAD.Console.PrintError("No active document. Please create or open a document first.\n")
         return None
     
     # Create the object
@@ -813,5 +813,5 @@ def makeStructuralColumn(base_point=None, top_point=None, section_type="W", sect
     obj.recompute()
     doc.recompute()
     
-    App.Console.PrintMessage(f"Created StructuralColumn: {obj.Label} with ID: {obj.ColumnID}\n")
+    FreeCAD.Console.PrintMessage(f"Created StructuralColumn: {obj.Label} with ID: {obj.ColumnID}\n")
     return obj

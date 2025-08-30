@@ -77,6 +77,13 @@ The StructureTools workbench is still under development and is constantly changi
 
 **Diagram** – generates the effort diagrams based on the Calc object. With this tool, it is possible to graphically view the diagram of the efforts of the same on the axis of the element itself. The tool has parameters for scale, color, text size, all to facilitate the visualization and interpretation of the results. It is possible to draw the diagram of individual elements or of the entire structure.
 
+**Reaction Results** - displays reaction forces and moments at support points with both 3D visualization and tabular formats. Features include:
+- Interactive 3D reaction force and moment visualization
+- Tabular view of all reaction results
+- Export to Excel, Word, and CSV formats
+- Load combination selection
+- Customizable display options
+
 You can see more about the tools in these videos:
 
 * StructureTools - Alpha Version - Workbench Tools and Workflow: https://www.youtube.com/watch?v=AicdjiOc61k

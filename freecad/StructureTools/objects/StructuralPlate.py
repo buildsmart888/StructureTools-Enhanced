@@ -257,7 +257,7 @@ class StructuralPlate:
                 obj.AspectRatio = math.sqrt(obj.Area.Value / 1000000)  # Basic estimate
                 
         except Exception as e:
-            App.Console.PrintError(f"Error calculating plate properties: {e}\n")
+            FreeCAD.Console.PrintError(f"Error calculating plate properties: {e}\n")
     
     def updateGeometry(self, obj):
         """Update plate geometry based on corner nodes."""
@@ -271,7 +271,7 @@ class StructuralPlate:
                 if hasattr(node, 'Position'):
                     points.append(node.Position)
                 else:
-                    App.Console.PrintWarning("Node missing Position property\n")
+                    FreeCAD.Console.PrintWarning("Node missing Position property\n")
                     return
             
             # Create plate surface
@@ -282,7 +282,7 @@ class StructuralPlate:
                 # Quadrilateral plate
                 face = Part.Face(Part.makePolygon(points + [points[0]]))
             else:
-                App.Console.PrintError("Plate must have 3 or 4 corner nodes\n")
+                FreeCAD.Console.PrintError("Plate must have 3 or 4 corner nodes\n")
                 return
                 
             # Update properties
@@ -293,7 +293,7 @@ class StructuralPlate:
             self.calculateLocalAxes(obj, points)
             
         except Exception as e:
-            App.Console.PrintError(f"Error updating plate geometry: {e}\n")
+            FreeCAD.Console.PrintError(f"Error updating plate geometry: {e}\n")
     
     def calculateLocalAxes(self, obj, points):
         """Calculate local coordinate system for the plate."""
@@ -319,7 +319,7 @@ class StructuralPlate:
                 obj.LocalYAxis = y_vec
                 
         except Exception as e:
-            App.Console.PrintError(f"Error calculating local axes: {e}\n")
+            FreeCAD.Console.PrintError(f"Error calculating local axes: {e}\n")
         obj.addProperty("App::PropertyInteger", "InternalID", "Internal",
                        "Internal numbering for analysis")
         
@@ -369,7 +369,7 @@ class StructuralPlate:
             return thai_results
             
         except Exception as e:
-            App.Console.PrintError(f"Error converting plate loads to Thai units: {e}\n")
+            FreeCAD.Console.PrintError(f"Error converting plate loads to Thai units: {e}\n")
             return None
     
     def updateThaiUnits(self, obj):
@@ -423,7 +423,7 @@ class StructuralPlate:
                 wire = Part.makePolygon(points + [points[0]])
                 face = Part.Face(wire)
             else:
-                App.Console.PrintWarning("Plate supports 3 or 4 corner nodes only\n")
+                FreeCAD.Console.PrintWarning("Plate supports 3 or 4 corner nodes only\n")
                 return
             
             # Calculate geometric properties
@@ -437,7 +437,7 @@ class StructuralPlate:
             self._update_visual_representation(obj, face)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating plate geometry: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating plate geometry: {e}\n")
     
     def _calculate_local_coordinates(self, obj, points: List) -> None:
         """Calculate local coordinate system for the plate."""
@@ -466,7 +466,7 @@ class StructuralPlate:
                 obj.AspectRatio = max(length1, length2) / min(length1, length2)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating local coordinates: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating local coordinates: {e}\n")
     
     def _update_material_properties(self, obj) -> None:
         """Update properties when material changes."""
@@ -491,7 +491,7 @@ class StructuralPlate:
                 obj.MembraneBendingRatio = A * t**2 / (12 * D) if D > 0 else 0
                 
             except Exception as e:
-                App.Console.PrintWarning(f"Error updating material properties: {e}\n")
+                FreeCAD.Console.PrintWarning(f"Error updating material properties: {e}\n")
     
     def _update_section_properties(self, obj) -> None:
         """Update section properties when thickness changes."""
@@ -542,7 +542,7 @@ class StructuralPlate:
                 obj.Shape = face
                 
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating plate visualization: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating plate visualization: {e}\n")
             obj.Shape = face
     
     def execute(self, obj) -> None:
@@ -557,7 +557,7 @@ class StructuralPlate:
         
         # Validate material assignment
         if not hasattr(obj, 'Material') or not obj.Material:
-            App.Console.PrintWarning(f"Plate {obj.Label}: No material assigned\n")
+            FreeCAD.Console.PrintWarning(f"Plate {obj.Label}: No material assigned\n")
         
         # Validate load consistency
         self._validate_load_consistency(obj)
@@ -577,7 +577,7 @@ class StructuralPlate:
                 lengths.append(len(getattr(obj, prop, [])))
         
         if lengths and len(set(lengths)) > 1:
-            App.Console.PrintWarning(
+            FreeCAD.Console.PrintWarning(
                 f"Plate {obj.Label}: Inconsistent load case count across load types\n"
             )
     
@@ -613,7 +613,7 @@ class StructuralPlate:
             return self._calculate_element_stiffness(membrane_factor, bending_factor, nu)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating plate stiffness: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating plate stiffness: {e}\n")
             return []
     
     def _calculate_element_stiffness(self, A_factor: float, D_factor: float, nu: float) -> List[List[float]]:
@@ -671,7 +671,7 @@ class StructuralPlate:
                 loads[i * 3 + 2] = nodal_load  # Z-direction load
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating equivalent loads: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating equivalent loads: {e}\n")
         
         return loads
 

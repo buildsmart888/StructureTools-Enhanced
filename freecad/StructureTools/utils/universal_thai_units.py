@@ -33,11 +33,18 @@ class UniversalThaiUnits:
         self.converter = get_thai_converter() if THAI_UNITS_AVAILABLE else None
         self.enabled = THAI_UNITS_AVAILABLE
         
-        # Thai conversion factors (CORRECTED VALUES)
-        self.KN_TO_KGF = 101.97162129779283  # 1 kN = 101.972 kgf
-        self.KN_TO_TF = 0.10197162129779283   # 1 kN = 0.10197 tf
-        self.KGF_TO_KN = 1.0 / self.KN_TO_KGF
-        self.TF_TO_KN = 1.0 / self.KN_TO_TF
+        # Thai conversion factors (FIXED STANDARD VALUES)
+        # Based on: 1 kgf = 9.80665 N exactly, 1 tf = 1000 kgf exactly
+        self.KGF_TO_N = 9.80665              # 1 kgf = 9.80665 N (exact)
+        self.N_TO_KGF = 1.0 / self.KGF_TO_N  # 1 N = 0.101972 kgf
+        self.KN_TO_KGF = self.N_TO_KGF * 1000  # 1 kN = 101.972 kgf
+        self.KGF_TO_KN = 1.0 / self.KN_TO_KGF  # 1 kgf = 0.00980665 kN
+        
+        # Ton-force (metric): 1 tf = 1000 kgf exactly (Thai standard)
+        self.TF_TO_KGF = 1000.0              # 1 tf = 1000 kgf (exact)
+        self.KGF_TO_TF = 1.0 / self.TF_TO_KGF  # 1 kgf = 0.001 tf
+        self.KN_TO_TF = self.KN_TO_KGF * self.KGF_TO_TF  # 1 kN = 0.101972 tf
+        self.TF_TO_KN = 1.0 / self.KN_TO_TF  # 1 tf = 9.80665 kN
         # FIXED: Pressure/Stress conversion
         self.MPA_TO_KSC = 10.19716  # 1 MPa = 10.19716 ksc (NOT 0.102!)
         self.KSC_TO_MPA = 0.0980665  # 1 ksc = 0.0980665 MPa
@@ -59,13 +66,22 @@ class UniversalThaiUnits:
         """Convert tf to kN (ตันแรงเป็นกิโลนิวตัน)"""
         return tf_value * self.TF_TO_KN
     
-    # Moment conversions
+    # Moment conversions (FIXED: use consistent meter units)
+    def kn_m_to_kgf_m(self, kn_m_value):
+        """Convert kN·m to kgf·m (กิโลนิวตัน-เมตรเป็นกิโลกรัมแรง-เมตร)"""
+        return kn_m_value * self.KN_TO_KGF
+    
+    def kgf_m_to_kn_m(self, kgf_m_value):
+        """Convert kgf·m to kN·m (กิโลกรัมแรง-เมตรเป็นกิโลนิวตัน-เมตร)"""
+        return kgf_m_value * self.KGF_TO_KN
+    
+    # Legacy method for backward compatibility (use kgf·m instead)
     def kn_m_to_kgf_cm(self, kn_m_value):
-        """Convert kN·m to kgf·cm (กิโลนิวตัน-เมตรเป็นกิโลกรัมแรง-เซนติเมตร)"""
+        """DEPRECATED: Convert kN·m to kgf·cm (use kn_m_to_kgf_m instead)"""
         return kn_m_value * self.KN_TO_KGF * 100  # × 100 for m to cm
     
     def kgf_cm_to_kn_m(self, kgf_cm_value):
-        """Convert kgf·cm to kN·m (กิโลกรัมแรง-เซนติเมตรเป็นกิโลนิวตัน-เมตร)"""
+        """DEPRECATED: Convert kgf·cm to kN·m (use kgf_m_to_kn_m instead)"""
         return kgf_cm_value * self.KGF_TO_KN / 100
     
     def kn_m_to_tf_m(self, kn_m_value):

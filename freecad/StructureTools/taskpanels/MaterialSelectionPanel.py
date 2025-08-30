@@ -717,7 +717,7 @@ class MaterialSelectionPanel:
             self.update_custom_preview()
             
         except Exception as e:
-            App.Console.PrintWarning(f"Warning populating from object: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Warning populating from object: {e}\n")
     
     def update_custom_preview(self):
         """Update preview from custom inputs"""
@@ -756,38 +756,79 @@ class MaterialSelectionPanel:
             # Update label
             obj.Label = data.get('name', 'Material')
             
-            # Update properties
-            modulus_mpa = data.get('modulus_elasticity', 200000)
-            obj.ModulusElasticity = f"{modulus_mpa} MPa"
-            
-            obj.PoissonRatio = data.get('poisson_ratio', 0.30)
-            
-            density_kg_m3 = data.get('density', 7850)
-            obj.Density = f"{density_kg_m3} kg/m^3"
-            
-            # Add additional properties if they exist
-            if hasattr(obj, 'MaterialType'):
-                obj.MaterialType = data.get('type', 'Structural Steel')
+            # Check if this is a StructuralMaterial object
+            if hasattr(obj, 'Proxy') and hasattr(obj.Proxy, 'Type') and obj.Proxy.Type == "StructuralMaterial":
+                # For StructuralMaterial objects, set the standard if possible
+                standard_name = self.find_matching_standard(data)
+                if standard_name and hasattr(obj, 'MaterialStandard'):
+                    obj.MaterialStandard = standard_name
+                    # The _update_standard_properties method will be called automatically
+                else:
+                    # Set custom properties
+                    modulus_mpa = data.get('modulus_elasticity', 200000)
+                    obj.ModulusElasticity = f"{modulus_mpa} MPa"
+                    
+                    obj.PoissonRatio = data.get('poisson_ratio', 0.30)
+                    
+                    density_kg_m3 = data.get('density', 7850)
+                    obj.Density = f"{density_kg_m3} kg/m^3"
+                    
+                    # Determine material type based on data
+                    material_type = "Steel"  # Default
+                    if any(term in data.get('type', '').lower() + data.get('name', '').lower() 
+                          for term in ['concrete', 'คอนกรีต', 'fc']):
+                        material_type = "Concrete"
+                    
+                    if hasattr(obj, 'MaterialType'):
+                        obj.MaterialType = material_type
+                    
+                    if 'yield_strength' in data and data['yield_strength']:
+                        obj.YieldStrength = f"{data['yield_strength']} MPa"
+                    
+                    if 'ultimate_strength' in data and data['ultimate_strength']:
+                        obj.UltimateStrength = f"{data['ultimate_strength']} MPa"
             else:
-                obj.addProperty("App::PropertyString", "MaterialType", "Material", "Material classification")
-                obj.MaterialType = data.get('type', 'Structural Steel')
-            
-            if hasattr(obj, 'Standard'):
-                obj.Standard = data.get('standard', 'Custom')
-            else:
-                obj.addProperty("App::PropertyString", "Standard", "Material", "Material standard")
-                obj.Standard = data.get('standard', 'Custom')
-            
-            # Add strength properties if available
-            if 'yield_strength' in data and data['yield_strength']:
-                if not hasattr(obj, 'YieldStrength'):
-                    obj.addProperty("App::PropertyPressure", "YieldStrength", "Strength", "Yield strength")
-                obj.YieldStrength = f"{data['yield_strength']} MPa"
-            
-            if 'ultimate_strength' in data and data['ultimate_strength']:
-                if not hasattr(obj, 'UltimateStrength'):
-                    obj.addProperty("App::PropertyPressure", "UltimateStrength", "Strength", "Ultimate strength")
-                obj.UltimateStrength = f"{data['ultimate_strength']} MPa"
+                # For basic Material objects or other types
+                # Update properties
+                modulus_mpa = data.get('modulus_elasticity', 200000)
+                obj.ModulusElasticity = f"{modulus_mpa} MPa"
+                
+                obj.PoissonRatio = data.get('poisson_ratio', 0.30)
+                
+                density_kg_m3 = data.get('density', 7850)
+                obj.Density = f"{density_kg_m3} kg/m^3"
+                
+                # Add additional properties if they exist
+                if hasattr(obj, 'MaterialType'):
+                    material_type = "Steel"  # Default
+                    if any(term in data.get('type', '').lower() + data.get('name', '').lower() 
+                          for term in ['concrete', 'คอนกรีต', 'fc']):
+                        material_type = "Concrete"
+                    obj.MaterialType = material_type
+                else:
+                    material_type = "Steel"  # Default
+                    if any(term in data.get('type', '').lower() + data.get('name', '').lower() 
+                          for term in ['concrete', 'คอนกรีต', 'fc']):
+                        material_type = "Concrete"
+                    obj.addProperty("App::PropertyString", "MaterialType", "Material", "Material classification")
+                    obj.MaterialType = material_type
+                
+                if hasattr(obj, 'Standard'):
+                    obj.Standard = data.get('standard', 'Custom')
+                else:
+                    obj.addProperty("App::PropertyString", "Standard", "Material", "Material standard")
+                    obj.Standard = data.get('standard', 'Custom')
+                
+                # Add strength properties if available
+                if 'yield_strength' in data and data['yield_strength']:
+                    if not hasattr(obj, 'YieldStrength'):
+                        obj.addProperty("App::PropertyPressure", "YieldStrength", "Strength", "Yield strength")
+                    obj.YieldStrength = f"{data['yield_strength']} MPa"
+                
+                if 'ultimate_strength' in data and data['ultimate_strength']:
+                    if not hasattr(obj, 'UltimateStrength'):
+                        obj.addProperty("App::PropertyPressure", "UltimateStrength", "Strength", "Ultimate strength")
+                    obj.UltimateStrength = f"{data['ultimate_strength']} MPa"
             
             obj.recompute()
             App.ActiveDocument.recompute()
@@ -795,8 +836,51 @@ class MaterialSelectionPanel:
             App.Console.PrintMessage(f"Material '{obj.Label}' updated successfully.\n")
             
         except Exception as e:
-            App.Console.PrintError(f"Error updating material: {str(e)}\n")
-    
+            FreeCAD.Console.PrintError(f"Error updating material: {str(e)}\n")
+
+    def find_matching_standard(self, data):
+        """Find matching database standard for material data"""
+        if not HAS_DATABASE:
+            return None
+        
+        # Try to match by name patterns
+        name_lower = data.get('name', '').lower()
+        type_lower = data.get('type', '').lower()
+        standard_lower = data.get('standard', '').lower()
+        
+        # Check for concrete materials
+        concrete_keywords = ['concrete', 'คอนกรีต', 'fc', 'aci_normal', 'en_c']
+        for keyword in concrete_keywords:
+            if keyword in name_lower or keyword in type_lower or keyword in standard_lower:
+                # Look for matching concrete standards
+                for standard_name in MATERIAL_STANDARDS:
+                    if 'Concrete' in standard_name or 'ACI_Normal' in standard_name or 'EN_C' in standard_name:
+                        # Try to match compressive strength if available
+                        if 'yield_strength' in data and data['yield_strength']:
+                            try:
+                                fc = float(data['yield_strength'])
+                                if standard_name in MATERIAL_STANDARDS:
+                                    std_props = MATERIAL_STANDARDS[standard_name]
+                                    if 'CompressiveStrength' in std_props:
+                                        std_fc = float(std_props['CompressiveStrength'].split()[0])
+                                        if abs(fc - std_fc) < 5:  # Within 5 MPa tolerance
+                                            return standard_name
+                            except:
+                                pass
+                        # If no strength match, return first concrete standard found
+                        return standard_name
+        
+        # Check for steel materials
+        steel_keywords = ['steel', 'stainless', 'astm', 'en_s', 'jis']
+        for keyword in steel_keywords:
+            if keyword in name_lower or keyword in type_lower or keyword in standard_lower:
+                # Look for matching steel standards
+                for standard_name in MATERIAL_STANDARDS:
+                    if 'ASTM' in standard_name or 'EN_S' in standard_name or 'JIS' in standard_name:
+                        return standard_name
+        
+        return None
+
     def create_new_material(self):
         """Create new material object"""
         try:
@@ -808,42 +892,89 @@ class MaterialSelectionPanel:
                 App.Console.PrintError("No active document. Please create or open a document.\n")
                 return
             
-            obj = doc.addObject("Part::FeaturePython", "Material")
-            
-            # Import and create material
-            from ..material import Material, ViewProviderMaterial
-            Material(obj)
-            ViewProviderMaterial(obj.ViewObject)
-            
-            # Set properties
-            obj.Label = data.get('name', 'Material')
-            
-            modulus_mpa = data.get('modulus_elasticity', 200000)
-            obj.ModulusElasticity = f"{modulus_mpa} MPa"
-            
-            obj.PoissonRatio = data.get('poisson_ratio', 0.30)
-            
-            density_kg_m3 = data.get('density', 7850)
-            obj.Density = f"{density_kg_m3} kg/m^3"
-            
-            # Add additional properties
-            obj.addProperty("App::PropertyString", "MaterialType", "Material", "Material classification")
-            obj.MaterialType = data.get('type', 'Structural Steel')
-            
-            obj.addProperty("App::PropertyString", "Standard", "Material", "Material standard")
-            obj.Standard = data.get('standard', 'Custom')
-            
-            if 'yield_strength' in data and data['yield_strength']:
-                obj.addProperty("App::PropertyPressure", "YieldStrength", "Strength", "Yield strength")
-                obj.YieldStrength = f"{data['yield_strength']} MPa"
-            
-            if 'ultimate_strength' in data and data['ultimate_strength']:
-                obj.addProperty("App::PropertyPressure", "UltimateStrength", "Strength", "Ultimate strength")
-                obj.UltimateStrength = f"{data['ultimate_strength']} MPa"
-            
-            doc.recompute()
-            
-            App.Console.PrintMessage(f"Material '{obj.Label}' created successfully.\n")
+            # Try to create StructuralMaterial first (enhanced material with standards support)
+            try:
+                from ..objects.StructuralMaterial import StructuralMaterial, ViewProviderStructuralMaterial
+                
+                obj = doc.addObject("App::DocumentObjectGroupPython", "StructuralMaterial")
+                
+                StructuralMaterial(obj)
+                ViewProviderStructuralMaterial(obj.ViewObject)
+                
+                # Set properties
+                obj.Label = data.get('name', 'Material')
+                
+                # Determine material type based on data
+                material_type = "Steel"  # Default
+                if any(term in data.get('type', '').lower() + data.get('name', '').lower() 
+                      for term in ['concrete', 'คอนกรีต', 'fc']):
+                    material_type = "Concrete"
+                
+                obj.MaterialType = material_type
+                
+                # Set standard if it matches a database standard
+                standard_name = self.find_matching_standard(data)
+                if standard_name:
+                    obj.MaterialStandard = standard_name
+                else:
+                    # Set custom properties
+                    modulus_mpa = data.get('modulus_elasticity', 200000)
+                    obj.ModulusElasticity = f"{modulus_mpa} MPa"
+                    
+                    obj.PoissonRatio = data.get('poisson_ratio', 0.30)
+                    
+                    density_kg_m3 = data.get('density', 7850)
+                    obj.Density = f"{density_kg_m3} kg/m^3"
+                    
+                    if 'yield_strength' in data and data['yield_strength']:
+                        obj.YieldStrength = f"{data['yield_strength']} MPa"
+                    
+                    if 'ultimate_strength' in data and data['ultimate_strength']:
+                        obj.UltimateStrength = f"{data['ultimate_strength']} MPa"
+                
+                doc.recompute()
+                
+                App.Console.PrintMessage(f"StructuralMaterial '{obj.Label}' created successfully.\n")
+                return
+                
+            except ImportError:
+                # Fallback to basic Material
+                obj = doc.addObject("Part::FeaturePython", "Material")
+                
+                # Import and create material
+                from ..material import Material, ViewProviderMaterial
+                Material(obj)
+                ViewProviderMaterial(obj.ViewObject)
+                
+                # Set properties
+                obj.Label = data.get('name', 'Material')
+                
+                modulus_mpa = data.get('modulus_elasticity', 200000)
+                obj.ModulusElasticity = f"{modulus_mpa} MPa"
+                
+                obj.PoissonRatio = data.get('poisson_ratio', 0.30)
+                
+                density_kg_m3 = data.get('density', 7850)
+                obj.Density = f"{density_kg_m3} kg/m^3"
+                
+                # Add additional properties
+                obj.addProperty("App::PropertyString", "MaterialType", "Material", "Material classification")
+                obj.MaterialType = data.get('type', 'Structural Steel')
+                
+                obj.addProperty("App::PropertyString", "Standard", "Material", "Material standard")
+                obj.Standard = data.get('standard', 'Custom')
+                
+                if 'yield_strength' in data and data['yield_strength']:
+                    obj.addProperty("App::PropertyPressure", "YieldStrength", "Strength", "Yield strength")
+                    obj.YieldStrength = f"{data['yield_strength']} MPa"
+                
+                if 'ultimate_strength' in data and data['ultimate_strength']:
+                    obj.addProperty("App::PropertyPressure", "UltimateStrength", "Strength", "Ultimate strength")
+                    obj.UltimateStrength = f"{data['ultimate_strength']} MPa"
+                
+                doc.recompute()
+                
+                App.Console.PrintMessage(f"Material '{obj.Label}' created successfully.\n")
             
         except Exception as e:
             App.Console.PrintError(f"Error creating material: {str(e)}\n")

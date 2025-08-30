@@ -53,6 +53,16 @@ def create_material_from_database(standard_name, material_name=None):
         App.Console.PrintError("No active document\n")
         return None
     
+    # Determine material type based on standard
+    material_type = "Steel"  # Default
+    props = MATERIAL_STANDARDS[standard_name]
+    if 'CompressiveStrength' in props:
+        material_type = "Concrete"
+    elif 'ACI_Normal' in standard_name or 'EN_C' in standard_name:
+        material_type = "Concrete"
+    
+    App.Console.PrintMessage(f"Creating {material_type} material from standard {standard_name}\n")
+    
     try:
         # Try new StructuralMaterial first
         from ..objects.StructuralMaterial import StructuralMaterial, ViewProviderStructuralMaterial
@@ -63,7 +73,11 @@ def create_material_from_database(standard_name, material_name=None):
         StructuralMaterial(obj)
         ViewProviderStructuralMaterial(obj.ViewObject)
         
-        # Set standard
+        # Set material type
+        if hasattr(obj, 'MaterialType'):
+            obj.MaterialType = material_type
+        
+        # Set standard - this will automatically update all properties
         obj.MaterialStandard = standard_name
         
         App.Console.PrintMessage(f"Created StructuralMaterial '{name}' with standard {standard_name}\n")
@@ -80,8 +94,21 @@ def create_material_from_database(standard_name, material_name=None):
         Material(obj)
         ViewProviderMaterial(obj.ViewObject)
         
-        # Set standard
+        # Set standard and properties
         obj.MaterialStandard = standard_name
+        
+        # Manually set properties from database
+        props = get_material_info(standard_name)
+        if 'ModulusElasticity' in props and hasattr(obj, 'ModulusElasticity'):
+            obj.ModulusElasticity = props['ModulusElasticity']
+        if 'PoissonRatio' in props and hasattr(obj, 'PoissonRatio'):
+            obj.PoissonRatio = props['PoissonRatio']
+        if 'Density' in props and hasattr(obj, 'Density'):
+            obj.Density = props['Density']
+        if 'YieldStrength' in props and hasattr(obj, 'YieldStrength'):
+            obj.YieldStrength = props['YieldStrength']
+        if 'UltimateStrength' in props and hasattr(obj, 'UltimateStrength'):
+            obj.UltimateStrength = props['UltimateStrength']
         
         App.Console.PrintMessage(f"Created Material '{name}' with standard {standard_name}\n")
         doc.recompute()

@@ -254,7 +254,7 @@ class StructuralGrid:
                 self._create_grid_visualization(obj, x_coords, y_coords, z_coords)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating grid geometry: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating grid geometry: {e}\n")
     
     def _calculate_grid_coordinates(self, spacing_list: List[float], origin: float) -> List[float]:
         """Calculate grid line coordinates from spacing list."""
@@ -334,7 +334,7 @@ class StructuralGrid:
             obj.ZLabels = z_labels
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating labels: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating labels: {e}\n")
     
     def _apply_building_template(self, obj) -> None:
         """Apply building template to grid."""
@@ -413,7 +413,7 @@ class StructuralGrid:
             self._update_statistics(obj)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error regenerating members: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error regenerating members: {e}\n")
     
     def _clear_generated_members(self, obj) -> None:
         """Clear previously generated members."""
@@ -471,9 +471,9 @@ class StructuralGrid:
             obj.GeneratedBeams = generated_beams
             
         except ImportError:
-            App.Console.PrintWarning("StructuralBeam not available for generation\n")
+            FreeCAD.Console.PrintWarning("StructuralBeam not available for generation\n")
         except Exception as e:
-            App.Console.PrintWarning(f"Error generating beams: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error generating beams: {e}\n")
     
     def _should_generate_x_beams(self, obj, level_idx: int) -> bool:
         """Check if X-direction beams should be generated."""
@@ -521,7 +521,7 @@ class StructuralGrid:
                         beams.append(beam)
                         
         except Exception as e:
-            App.Console.PrintWarning(f"Error generating X-direction beams: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error generating X-direction beams: {e}\n")
         
         return beams
     
@@ -554,7 +554,7 @@ class StructuralGrid:
                         beams.append(beam)
                         
         except Exception as e:
-            App.Console.PrintWarning(f"Error generating Y-direction beams: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error generating Y-direction beams: {e}\n")
         
         return beams
     
@@ -581,9 +581,9 @@ class StructuralGrid:
             obj.GeneratedColumns = generated_columns
             
         except ImportError:
-            App.Console.PrintWarning("StructuralColumn not available for generation\n")
+            FreeCAD.Console.PrintWarning("StructuralColumn not available for generation\n")
         except Exception as e:
-            App.Console.PrintWarning(f"Error generating columns: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error generating columns: {e}\n")
     
     def _should_generate_column_at(self, obj, x_idx: int, y_idx: int) -> bool:
         """Check if column should be generated at grid intersection."""
@@ -636,7 +636,7 @@ class StructuralGrid:
                     columns.append(column)
                     
         except Exception as e:
-            App.Console.PrintWarning(f"Error generating column stack: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error generating column stack: {e}\n")
         
         return columns
     
@@ -675,7 +675,7 @@ class StructuralGrid:
                 obj.Shape = compound
                 
         except Exception as e:
-            App.Console.PrintWarning(f"Error creating grid visualization: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error creating grid visualization: {e}\n")
     
     def _update_statistics(self, obj) -> None:
         """Update grid statistics."""
@@ -684,7 +684,7 @@ class StructuralGrid:
             obj.NumberOfBeams = len(obj.GeneratedBeams) if hasattr(obj, 'GeneratedBeams') else 0
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating statistics: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating statistics: {e}\n")
     
     def execute(self, obj) -> None:
         """
@@ -745,7 +745,7 @@ class ViewProviderStructuralGrid:
                 Gui.Control.showDialog(self.panel)
                 return True
             except ImportError:
-                App.Console.PrintWarning("GridPropertiesPanel not yet implemented\n")
+                FreeCAD.Console.PrintWarning("GridPropertiesPanel not yet implemented\n")
                 return False
         return False
     
@@ -775,7 +775,7 @@ def makeStructuralGrid(x_spacing=None, y_spacing=None, z_levels=None, name="Stru
     """
     doc = App.ActiveDocument
     if not doc:
-        App.Console.PrintError("No active document. Please create or open a document first.\n")
+        FreeCAD.Console.PrintError("No active document. Please create or open a document first.\n")
         return None
     
     # Create the object
@@ -798,5 +798,5 @@ def makeStructuralGrid(x_spacing=None, y_spacing=None, z_levels=None, name="Stru
     obj.recompute()
     doc.recompute()
     
-    App.Console.PrintMessage(f"Created StructuralGrid: {obj.Label}\n")
+    FreeCAD.Console.PrintMessage(f"Created StructuralGrid: {obj.Label}\n")
     return obj

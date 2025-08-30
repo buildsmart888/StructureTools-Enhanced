@@ -40,7 +40,7 @@ class SurfaceMesh:
         """Assess overall mesh quality."""
         try:
             if not self.mesh_data or "elements" not in self.mesh_data:
-                App.Console.PrintError("No mesh data available for quality assessment\n")
+                FreeCAD.Console.PrintError("No mesh data available for quality assessment\n")
                 return {}
             
             nodes = self.mesh_data["nodes"]
@@ -88,7 +88,7 @@ class SurfaceMesh:
             return quality_summary
             
         except Exception as e:
-            App.Console.PrintError(f"Error assessing mesh quality: {e}\n")
+            FreeCAD.Console.PrintError(f"Error assessing mesh quality: {e}\n")
             return {}
     
     def calculateElementQuality(self, element, nodes, elem_type):
@@ -318,11 +318,11 @@ class SurfaceMesh:
                         if aspect > aspect_threshold:
                             poor_elements[-1]["issues"].append("High aspect ratio")
             
-            App.Console.PrintMessage(f"Found {len(poor_elements)} poor quality elements\n")
+            FreeCAD.Console.PrintMessage(f"Found {len(poor_elements)} poor quality elements\n")
             return poor_elements
             
         except Exception as e:
-            App.Console.PrintError(f"Error identifying poor elements: {e}\n")
+            FreeCAD.Console.PrintError(f"Error identifying poor elements: {e}\n")
             return poor_elements
     
     def suggestRefinement(self, poor_elements):
@@ -358,18 +358,18 @@ class SurfaceMesh:
             return suggestions
             
         except Exception as e:
-            App.Console.PrintError(f"Error generating refinement suggestions: {e}\n")
+            FreeCAD.Console.PrintError(f"Error generating refinement suggestions: {e}\n")
             return suggestions
     
     def printQualityReport(self):
         """Print comprehensive quality report."""
         try:
-            App.Console.PrintMessage("\n" + "="*50 + "\n")
-            App.Console.PrintMessage("SURFACE MESH QUALITY REPORT\n")
-            App.Console.PrintMessage("="*50 + "\n")
+            FreeCAD.Console.PrintMessage("\n" + "="*50 + "\n")
+            FreeCAD.Console.PrintMessage("SURFACE MESH QUALITY REPORT\n")
+            FreeCAD.Console.PrintMessage("="*50 + "\n")
             
             if not self.quality_metrics:
-                App.Console.PrintMessage("No quality metrics available\n")
+                FreeCAD.Console.PrintMessage("No quality metrics available\n")
                 return
             
             total_elements = 0
@@ -377,50 +377,50 @@ class SurfaceMesh:
                 count = metrics["count"]
                 total_elements += count
                 
-                App.Console.PrintMessage(f"\n{elem_type} Elements: {count}\n")
-                App.Console.PrintMessage("-" * 30 + "\n")
+                FreeCAD.Console.PrintMessage(f"\n{elem_type} Elements: {count}\n")
+                FreeCAD.Console.PrintMessage("-" * 30 + "\n")
                 
                 # Quality metrics
                 quality = metrics["quality"]
-                App.Console.PrintMessage(f"Quality:      Min={quality['min']:.3f}, "
+                FreeCAD.Console.PrintMessage(f"Quality:      Min={quality['min']:.3f}, "
                                        f"Max={quality['max']:.3f}, "
                                        f"Avg={quality['avg']:.3f}\n")
                 
                 # Aspect ratio
                 aspect = metrics["aspect_ratio"]
-                App.Console.PrintMessage(f"Aspect Ratio: Min={aspect['min']:.2f}, "
+                FreeCAD.Console.PrintMessage(f"Aspect Ratio: Min={aspect['min']:.2f}, "
                                        f"Max={aspect['max']:.2f}, "
                                        f"Avg={aspect['avg']:.2f}\n")
                 
                 # Skewness
                 skew = metrics["skewness"]
-                App.Console.PrintMessage(f"Skewness:     Min={skew['min']:.3f}, "
+                FreeCAD.Console.PrintMessage(f"Skewness:     Min={skew['min']:.3f}, "
                                        f"Max={skew['max']:.3f}, "
                                        f"Avg={skew['avg']:.3f}\n")
             
-            App.Console.PrintMessage(f"\nTotal Elements: {total_elements}\n")
+            FreeCAD.Console.PrintMessage(f"\nTotal Elements: {total_elements}\n")
             
             # Overall assessment
-            App.Console.PrintMessage("\nOVERALL ASSESSMENT:\n")
-            App.Console.PrintMessage("-" * 20 + "\n")
+            FreeCAD.Console.PrintMessage("\nOVERALL ASSESSMENT:\n")
+            FreeCAD.Console.PrintMessage("-" * 20 + "\n")
             
             # Calculate overall quality score
             overall_quality = self.calculateOverallQuality()
             
             if overall_quality > 0.8:
-                App.Console.PrintMessage("✅ EXCELLENT mesh quality\n")
+                FreeCAD.Console.PrintMessage("✅ EXCELLENT mesh quality\n")
             elif overall_quality > 0.6:
-                App.Console.PrintMessage("✅ GOOD mesh quality\n")
+                FreeCAD.Console.PrintMessage("✅ GOOD mesh quality\n")
             elif overall_quality > 0.4:
-                App.Console.PrintMessage("⚠️  FAIR mesh quality - consider refinement\n")
+                FreeCAD.Console.PrintMessage("⚠️  FAIR mesh quality - consider refinement\n")
             else:
-                App.Console.PrintMessage("❌ POOR mesh quality - refinement recommended\n")
+                FreeCAD.Console.PrintMessage("❌ POOR mesh quality - refinement recommended\n")
             
-            App.Console.PrintMessage(f"Overall Quality Score: {overall_quality:.3f}\n")
-            App.Console.PrintMessage("="*50 + "\n")
+            FreeCAD.Console.PrintMessage(f"Overall Quality Score: {overall_quality:.3f}\n")
+            FreeCAD.Console.PrintMessage("="*50 + "\n")
             
         except Exception as e:
-            App.Console.PrintError(f"Error printing quality report: {e}\n")
+            FreeCAD.Console.PrintError(f"Error printing quality report: {e}\n")
     
     def calculateOverallQuality(self):
         """Calculate overall mesh quality score."""
@@ -473,11 +473,11 @@ class SurfaceMesh:
                 overall_quality = self.calculateOverallQuality()
                 f.write(f"Overall Quality Score: {overall_quality:.3f}\n")
             
-            App.Console.PrintMessage(f"Quality report exported to: {filename}\n")
+            FreeCAD.Console.PrintMessage(f"Quality report exported to: {filename}\n")
             return True
             
         except Exception as e:
-            App.Console.PrintError(f"Error exporting quality report: {e}\n")
+            FreeCAD.Console.PrintError(f"Error exporting quality report: {e}\n")
             return False
 
 
@@ -492,20 +492,20 @@ class MeshIntegrationManager:
     def registerMesh(self, mesh_id, surface_mesh):
         """Register a surface mesh."""
         self.meshes[mesh_id] = surface_mesh
-        App.Console.PrintMessage(f"Registered mesh: {mesh_id}\n")
+        FreeCAD.Console.PrintMessage(f"Registered mesh: {mesh_id}\n")
     
     def integratePynite(self, mesh_id):
         """Integrate mesh with Pynite analysis."""
         try:
             if mesh_id not in self.meshes:
-                App.Console.PrintError(f"Mesh {mesh_id} not found\n")
+                FreeCAD.Console.PrintError(f"Mesh {mesh_id} not found\n")
                 return False
             
             surface_mesh = self.meshes[mesh_id]
             mesh_data = surface_mesh.mesh_data
             
             # Convert to Pynite format
-            App.Console.PrintMessage(f"Integrating mesh {mesh_id} with Pynite\n")
+            FreeCAD.Console.PrintMessage(f"Integrating mesh {mesh_id} with Pynite\n")
             
             # This would integrate with the existing Pynite analysis system
             # Implementation would convert nodes/elements to Pynite format
@@ -513,14 +513,14 @@ class MeshIntegrationManager:
             return True
             
         except Exception as e:
-            App.Console.PrintError(f"Error integrating with Pynite: {e}\n")
+            FreeCAD.Console.PrintError(f"Error integrating with Pynite: {e}\n")
             return False
     
     def exportForAnalysis(self, mesh_id, format_type, filename):
         """Export mesh for external analysis."""
         try:
             if mesh_id not in self.meshes:
-                App.Console.PrintError(f"Mesh {mesh_id} not found\n")
+                FreeCAD.Console.PrintError(f"Mesh {mesh_id} not found\n")
                 return False
             
             surface_mesh = self.meshes[mesh_id]
@@ -531,11 +531,11 @@ class MeshIntegrationManager:
             elif format_type.lower() == "nastran":
                 return self.exportNastran(mesh_data, filename)
             else:
-                App.Console.PrintError(f"Unsupported format: {format_type}\n")
+                FreeCAD.Console.PrintError(f"Unsupported format: {format_type}\n")
                 return False
                 
         except Exception as e:
-            App.Console.PrintError(f"Error exporting mesh: {e}\n")
+            FreeCAD.Console.PrintError(f"Error exporting mesh: {e}\n")
             return False
     
     def exportCalculiX(self, mesh_data, filename):
@@ -559,11 +559,11 @@ class MeshIntegrationManager:
                         nodes_str = ", ".join(map(str, element["nodes"]))
                         f.write(f"{element['id']}, {nodes_str}\n")
             
-            App.Console.PrintMessage(f"Mesh exported to CalculiX format: {filename}\n")
+            FreeCAD.Console.PrintMessage(f"Mesh exported to CalculiX format: {filename}\n")
             return True
             
         except Exception as e:
-            App.Console.PrintError(f"Error exporting to CalculiX: {e}\n")
+            FreeCAD.Console.PrintError(f"Error exporting to CalculiX: {e}\n")
             return False
     
     def exportNastran(self, mesh_data, filename):
@@ -591,9 +591,9 @@ class MeshIntegrationManager:
                 
                 f.write("ENDDATA\n")
             
-            App.Console.PrintMessage(f"Mesh exported to Nastran format: {filename}\n")
+            FreeCAD.Console.PrintMessage(f"Mesh exported to Nastran format: {filename}\n")
             return True
             
         except Exception as e:
-            App.Console.PrintError(f"Error exporting to Nastran: {e}\n")
+            FreeCAD.Console.PrintError(f"Error exporting to Nastran: {e}\n")
             return False

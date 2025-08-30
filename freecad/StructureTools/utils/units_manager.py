@@ -7,6 +7,12 @@ across all StructureTools functionality.
 """
 
 import FreeCAD as App
+try:
+    # Define FreeCAD globally for backward compatibility
+    global FreeCAD
+    FreeCAD = App
+except Exception:
+    pass
 import os
 import json
 
@@ -96,15 +102,16 @@ class UnitsManager:
         },
         THAI_UNITS: {
             "name": "Thai Traditional",
-            "description": "kgf-cm-ksc system for Thai engineering",
+            "description": "kgf-m-ksc system for Thai engineering (consistent units with meters)",
             "base_units": {
-                "length": "cm",
+                "length": "m",
                 "force": "kgf",
                 "stress": "ksc",
-                "moment": "kgf·cm",
-                "area": "cm²", 
-                "volume": "cm³",
-                "unit_weight": "kgf/cm³",
+                "moment": "kgf·m",
+                "area": "m²", 
+                "volume": "m³",
+                "unit_weight": "kgf/m³",
+                "density": "kg/m³"
             }
         }
     }
@@ -128,6 +135,17 @@ class UnitsManager:
             "tf": 9806.65,
             "lb": 4.44822,
             "kip": 4448.22
+        },
+        
+        # Moment conversions (to N·m)
+        "moment": {
+            "N·m": 1.0,
+            "kN·m": 1000.0,
+            "kgf·m": 9.80665,
+            "tf·m": 9806.65,
+            "kip·ft": 1355.82,
+            "kgf·cm": 0.0980665,
+            "kN·cm": 10.0
         },
         
         # Stress conversions (to Pascals) 
@@ -211,6 +229,15 @@ class UnitsManager:
         except ImportError:
             self.thai_converter = None
             self.thai_available = False
+            
+        # Import force converter
+        try:
+            from .force_converter import ForceConverter
+            self.force_converter = ForceConverter()
+            self.force_converter_available = True
+        except ImportError:
+            self.force_converter = None
+            self.force_converter_available = False
     
     def load_settings(self):
         """Load units settings from file"""
@@ -223,7 +250,7 @@ class UnitsManager:
                 merged.update(settings)
                 return merged
         except Exception as e:
-            App.Console.PrintWarning(f"Warning loading units settings: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Warning loading units settings: {e}\n")
         
         return self.DEFAULT_SETTINGS.copy()
     
@@ -234,12 +261,34 @@ class UnitsManager:
             with open(self.settings_file, 'w', encoding='utf-8') as f:
                 json.dump(self.settings, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            App.Console.PrintWarning(f"Warning saving units settings: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Warning saving units settings: {e}\n")
     
     def get_unit_system(self):
         """Get current unit system"""
         return self.settings.get("unit_system", self.SI_UNITS)
     
+    def set_unit_system_by_display_name(self, display_name):
+        """Set unit system by display name (used by calc.py)"""
+        # Map display names to internal system names
+        name_mapping = {
+            "SI (kN, kN·m)": self.SI_UNITS,
+            "THAI (kgf, kgf·m)": self.THAI_UNITS,
+            "THAI_TF (tf, tf·m)": self.THAI_UNITS  # THAI_TF is still THAI units with different force units
+        }
+        
+        internal_name = name_mapping.get(display_name)
+        if internal_name:
+            self.set_unit_system(internal_name)
+            
+            # For THAI_TF, we need to override the force and moment units
+            if display_name == "THAI_TF (tf, tf·m)":
+                self.set_base_unit("force", "tf")
+                self.set_base_unit("moment", "tf·m")
+                self.set_report_unit("force", "tf")
+                self.set_report_unit("moment", "tf·m")
+        else:
+            FreeCAD.Console.PrintError(f"Invalid unit system: {display_name}\n")
+
     def set_unit_system(self, system):
         """Set unit system and apply preset"""
         if system in self.UNIT_PRESETS:
@@ -248,9 +297,9 @@ class UnitsManager:
             preset = self.UNIT_PRESETS[system]
             self.settings["base_units"].update(preset["base_units"])
             self.save_settings()
-            App.Console.PrintMessage(f"Unit system set to: {preset['name']}\n")
+            FreeCAD.Console.PrintMessage(f"Unit system set to: {preset['name']}\n")
         else:
-            App.Console.PrintError(f"Invalid unit system: {system}\n")
+            FreeCAD.Console.PrintError(f"Invalid unit system: {system}\n")
     
     def get_base_unit(self, unit_type):
         """Get base unit for a specific type"""
@@ -324,7 +373,7 @@ class UnitsManager:
         factors = self.CONVERSION_FACTORS.get(unit_type, {})
         
         if from_unit not in factors or to_unit not in factors:
-            App.Console.PrintWarning(f"Unknown units: {from_unit} or {to_unit} for {unit_type}\n")
+            FreeCAD.Console.PrintWarning(f"Unknown units: {from_unit} or {to_unit} for {unit_type}\n")
             return value
         
         # Convert: value -> SI base -> target unit
@@ -375,6 +424,37 @@ class UnitsManager:
         if self.show_both_units() and not use_report_units:
             si_unit = "kN"
             si_value = self.convert_value(value_n, "N", si_unit, "force")
+            if target_unit != si_unit:
+                formatted += f" ({si_value:.{precision}f} {si_unit})"
+        
+        return formatted
+    
+    def format_moment(self, value_nm, material_type=None, use_report_units=False):
+        """Format moment value according to current units"""
+        if not value_nm:
+            return "0"
+        
+        target_unit = self.get_report_unit("moment") if use_report_units else self.get_base_unit("moment")
+        converted_value = self.convert_value(value_nm, "N·m", target_unit, "moment")
+        precision = self.get_precision("moment")
+        
+        # Format large values nicely
+        if abs(converted_value) >= 1000:
+            if target_unit in ["kN·m", "kip·ft"]:
+                display_value = converted_value
+            else:
+                display_value = converted_value / 1000
+                if target_unit == "kgf·m":
+                    target_unit = "tf·m"
+        else:
+            display_value = converted_value
+        
+        formatted = f"{display_value:.{precision}f} {target_unit}"
+        
+        # Show both units if enabled
+        if self.show_both_units() and not use_report_units:
+            si_unit = "kN·m"
+            si_value = self.convert_value(value_nm, "N·m", si_unit, "moment")
             if target_unit != si_unit:
                 formatted += f" ({si_value:.{precision}f} {si_unit})"
         
@@ -488,6 +568,37 @@ class UnitsManager:
             return self.convert_value(value, base_unit, "kg/m³", "density")
         else:
             return value
+    
+    def convert_force_enhanced(self, value, from_unit, to_unit):
+        """Enhanced force conversion using the force converter"""
+        if self.force_converter_available:
+            try:
+                return self.force_converter.convert(value, from_unit, to_unit)
+            except Exception as e:
+                FreeCAD.Console.PrintWarning(f"Enhanced force conversion failed: {e}\n")
+        
+        # Fallback to basic conversion
+        return self.convert_value(value, from_unit, to_unit, "force")
+    
+    def get_common_force_conversions(self, value, from_unit):
+        """Get common force conversions for a value"""
+        if self.force_converter_available:
+            try:
+                return self.force_converter.get_common_conversions(value, from_unit)
+            except Exception as e:
+                FreeCAD.Console.PrintWarning(f"Common force conversions failed: {e}\n")
+        
+        # Fallback to basic conversions
+        conversions = {}
+        common_units = ["N", "kN", "MN", "kgf", "tf", "lbf", "kip", "tonf_us"]
+        for unit in common_units:
+            if unit != from_unit:
+                try:
+                    converted = self.convert_value(value, from_unit, unit, "force")
+                    conversions[unit] = f"{converted:.3f} {unit}"
+                except:
+                    pass
+        return conversions
     
     def get_material_recommendations(self):
         """Get material value recommendations based on current units"""
@@ -680,6 +791,11 @@ def format_force(value_n, material_type=None, use_report_units=False):
     """Global force formatting"""
     manager = get_units_manager()
     return manager.format_force(value_n, material_type, use_report_units)
+
+def format_moment(value_nm, material_type=None, use_report_units=False):
+    """Global moment formatting"""
+    manager = get_units_manager()
+    return manager.format_moment(value_nm, material_type, use_report_units)
 
 def format_stress(value_pa, material_type=None, use_report_units=False):
     """Global stress formatting"""

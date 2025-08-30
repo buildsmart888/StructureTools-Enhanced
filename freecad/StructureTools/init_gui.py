@@ -75,6 +75,9 @@ class StructureTools(Gui.Workbench):
 		from freecad.StructureTools import member
 		from freecad.StructureTools import calc
 		from freecad.StructureTools import diagram
+		from freecad.StructureTools import reaction_results
+		from freecad.StructureTools import reaction_table_panel
+		from freecad.StructureTools import command_reaction_table
 		# New Phase 1 components
 		from freecad.StructureTools import command_plate
 		from freecad.StructureTools import command_area_load
@@ -87,9 +90,17 @@ class StructureTools(Gui.Workbench):
 		# Phase 2 - Advanced Load Generation
 		from freecad.StructureTools import command_load_generator
 		# Phase 2 - Professional Wind Load GUI
-		from freecad.StructureTools.commands import command_wind_load_gui
+		try:
+			from freecad.StructureTools.commands import command_wind_load_gui
+			App.Console.PrintMessage("Wind Load GUI command loaded successfully\n")
+		except Exception as e:
+			App.Console.PrintError(f"Failed to load Wind Load GUI command: {e}\n")
 		# Phase 2 - Professional Seismic Load GUI
-		from freecad.StructureTools.commands import command_seismic_load_gui
+		try:
+			from freecad.StructureTools.commands import command_seismic_load_gui
+			App.Console.PrintMessage("Seismic Load GUI command loaded successfully\n")
+		except Exception as e:
+			App.Console.PrintError(f"Failed to load Seismic Load GUI command: {e}\n")
 		# Phase 2 - Design Optimization
 		from freecad.StructureTools import command_design_optimizer
 		# Phase 2 - Comprehensive Reporting
@@ -105,12 +116,12 @@ class StructureTools(Gui.Workbench):
 
 		self.appendToolbar('StructureLoad', ["load_distributed","load_nodal", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui"])
 		self.appendToolbar('StructureTools', ["member", "suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate"])
-		self.appendToolbar('StructureResults', ["calc","diagram", "GenerateStructuralReport"])
+		self.appendToolbar('StructureResults', ["calc","diagram", "ReactionResults", "ReactionTablePanel", "ViewReactionTable", "GenerateStructuralReport"])
 		self.appendToolbar('AdvancedAnalysis', ["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
 		self.appendToolbar('DesignCodes', ["RunAISCDesign", "RunACIDesign"])
 		self.appendToolbar('BIMIntegration', ["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])
 		
-		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate", "calc", "diagram", "GenerateStructuralReport"])
+		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate", "calc", "diagram", "ReactionResults", "ViewReactionTable", "GenerateStructuralReport"])
 		self.appendMenu('Advanced Analysis',["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
 		self.appendMenu('Design Codes',["RunAISCDesign", "RunACIDesign"])
 		self.appendMenu('BIM Integration',["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])

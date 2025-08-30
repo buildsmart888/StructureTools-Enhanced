@@ -28,7 +28,7 @@ class FEMStructuralBridge:
             import Fem
             import femtools.femutils as femutils
         except ImportError:
-            App.Console.PrintError("FEM workbench not available\n")
+            FreeCAD.Console.PrintError("FEM workbench not available\n")
             return None
         
         # Create FEM analysis container
@@ -85,7 +85,7 @@ class FEMStructuralBridge:
             return mesh_obj
             
         except Exception as e:
-            App.Console.PrintError(f"Failed to create FEM mesh: {e}\n")
+            FreeCAD.Console.PrintError(f"Failed to create FEM mesh: {e}\n")
             return None
     
     def convert_materials_to_fem(self, structural_objects):
@@ -128,7 +128,7 @@ class FEMStructuralBridge:
                 self.fem_analysis.addObject(fem_material)
                 
         except Exception as e:
-            App.Console.PrintError(f"Failed to convert materials to FEM: {e}\n")
+            FreeCAD.Console.PrintError(f"Failed to convert materials to FEM: {e}\n")
     
     def convert_loads_to_fem(self, structural_objects):
         """Convert structural loads to FEM loads"""
@@ -141,7 +141,7 @@ class FEMStructuralBridge:
             try:
                 self.convert_single_load_to_fem(load_obj)
             except Exception as e:
-                App.Console.PrintWarning(f"Failed to convert load {load_obj.Label}: {e}\n")
+                FreeCAD.Console.PrintWarning(f"Failed to convert load {load_obj.Label}: {e}\n")
     
     def convert_single_load_to_fem(self, load_obj):
         """Convert a single load object to FEM load"""
@@ -170,7 +170,7 @@ class FEMStructuralBridge:
                     self.fem_analysis.addObject(fem_pressure)
                     
         except Exception as e:
-            App.Console.PrintError(f"Failed to create FEM load: {e}\n")
+            FreeCAD.Console.PrintError(f"Failed to create FEM load: {e}\n")
     
     def convert_constraints_to_fem(self, structural_objects):
         """Convert structural supports to FEM constraints"""
@@ -183,7 +183,7 @@ class FEMStructuralBridge:
             try:
                 self.convert_single_constraint_to_fem(support_obj)
             except Exception as e:
-                App.Console.PrintWarning(f"Failed to convert support {support_obj.Label}: {e}\n")
+                FreeCAD.Console.PrintWarning(f"Failed to convert support {support_obj.Label}: {e}\n")
     
     def convert_single_constraint_to_fem(self, support_obj):
         """Convert a single support to FEM constraint"""
@@ -204,7 +204,7 @@ class FEMStructuralBridge:
             self.fem_analysis.addObject(fem_fixed)
             
         except Exception as e:
-            App.Console.PrintError(f"Failed to create FEM constraint: {e}\n")
+            FreeCAD.Console.PrintError(f"Failed to create FEM constraint: {e}\n")
     
     def add_fem_solver(self):
         """Add FEM solver to the analysis"""
@@ -222,12 +222,12 @@ class FEMStructuralBridge:
             self.fem_analysis.addObject(solver)
             
         except Exception as e:
-            App.Console.PrintError(f"Failed to add FEM solver: {e}\n")
+            FreeCAD.Console.PrintError(f"Failed to add FEM solver: {e}\n")
     
     def run_fem_analysis(self):
         """Run FEM analysis"""
         if not self.fem_analysis:
-            App.Console.PrintError("No FEM analysis to run\n")
+            FreeCAD.Console.PrintError("No FEM analysis to run\n")
             return False
         
         try:
@@ -240,11 +240,11 @@ class FEMStructuralBridge:
             # Run analysis
             femutils.run_analysis(self.fem_analysis)
             
-            App.Console.PrintMessage("FEM analysis completed successfully\n")
+            FreeCAD.Console.PrintMessage("FEM analysis completed successfully\n")
             return True
             
         except Exception as e:
-            App.Console.PrintError(f"FEM analysis failed: {e}\n")
+            FreeCAD.Console.PrintError(f"FEM analysis failed: {e}\n")
             return False
     
     def import_fem_results(self):
@@ -257,11 +257,11 @@ class FEMStructuralBridge:
             result_objects = [obj for obj in self.fem_analysis.Group if 'Result' in obj.Name]
             
             for result_obj in result_objects:
-                App.Console.PrintMessage(f"FEM Result available: {result_obj.Label}\n")
+                FreeCAD.Console.PrintMessage(f"FEM Result available: {result_obj.Label}\n")
                 # Here you would extract specific results and update StructureTools objects
                 
         except Exception as e:
-            App.Console.PrintError(f"Failed to import FEM results: {e}\n")
+            FreeCAD.Console.PrintError(f"Failed to import FEM results: {e}\n")
 
 
 class CommandExportToFEM:
@@ -277,7 +277,7 @@ class CommandExportToFEM:
     def Activated(self):
         doc = App.ActiveDocument
         if not doc:
-            App.Console.PrintError("No active document\n")
+            FreeCAD.Console.PrintError("No active document\n")
             return
         
         # Find structural objects
@@ -288,7 +288,7 @@ class CommandExportToFEM:
                 structural_objects.append(obj)
         
         if not structural_objects:
-            App.Console.PrintMessage("No structural objects found\n")
+            FreeCAD.Console.PrintMessage("No structural objects found\n")
             return
         
         # Create FEM bridge and export
@@ -296,7 +296,7 @@ class CommandExportToFEM:
         analysis = fem_bridge.export_to_fem(structural_objects)
         
         if analysis:
-            App.Console.PrintMessage(f"Exported to FEM analysis: {analysis.Label}\n")
+            FreeCAD.Console.PrintMessage(f"Exported to FEM analysis: {analysis.Label}\n")
             
             # Ask user if they want to switch to FEM workbench
             try:
@@ -308,9 +308,9 @@ class CommandExportToFEM:
                 if reply == QtWidgets.QMessageBox.Yes:
                     Gui.activateWorkbench("FemWorkbench")
             except:
-                App.Console.PrintMessage("Switch to FEM workbench manually to continue\n")
+                FreeCAD.Console.PrintMessage("Switch to FEM workbench manually to continue\n")
         else:
-            App.Console.PrintError("Failed to export to FEM\n")
+            FreeCAD.Console.PrintError("Failed to export to FEM\n")
     
     def IsActive(self):
         return App.ActiveDocument is not None

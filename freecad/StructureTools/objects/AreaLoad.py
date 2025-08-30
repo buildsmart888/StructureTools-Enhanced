@@ -268,7 +268,7 @@ class AreaLoad:
             return thai_results
             
         except Exception as e:
-            App.Console.PrintError(f"Error converting to Thai units: {e}\n")
+            FreeCAD.Console.PrintError(f"Error converting to Thai units: {e}\n")
             return None
     
     def updateThaiUnits(self, obj):
@@ -303,7 +303,7 @@ class AreaLoad:
                 self.updateThaiUnits(obj)
             
         except Exception as e:
-            App.Console.PrintError(f"Error calculating load properties: {e}\n")
+            FreeCAD.Console.PrintError(f"Error calculating load properties: {e}\n")
     
     def calculateLoadProperties(self, obj):
         """Calculate basic load properties."""
@@ -328,7 +328,7 @@ class AreaLoad:
             self.calculateCenterOfPressure(obj)
             
         except Exception as e:
-            App.Console.PrintError(f"Error calculating load properties: {e}\n")
+            FreeCAD.Console.PrintError(f"Error calculating load properties: {e}\n")
     
     def parseLoadIntensity(self, intensity_str):
         """Parse load intensity string to numerical value."""
@@ -363,7 +363,7 @@ class AreaLoad:
                 obj.CenterOfPressure = weighted_center / total_area
                 
         except Exception as e:
-            App.Console.PrintError(f"Error calculating center of pressure: {e}\n")
+            FreeCAD.Console.PrintError(f"Error calculating center of pressure: {e}\n")
     
     def applyBuildingCodeLoads(self, obj):
         """Apply building code specific loads."""
@@ -380,7 +380,7 @@ class AreaLoad:
                 self.applyEurocodeLoads(obj, load_type, occupancy)
                 
         except Exception as e:
-            App.Console.PrintError(f"Error applying building code loads: {e}\n")
+            FreeCAD.Console.PrintError(f"Error applying building code loads: {e}\n")
     
     def applyASCE7Loads(self, obj, load_type, occupancy):
         """Apply ASCE 7-16 loads."""
@@ -445,7 +445,7 @@ class AreaLoad:
                 self.createLoadDistribution(obj)
                 
         except Exception as e:
-            App.Console.PrintError(f"Error updating load visualization: {e}\n")
+            FreeCAD.Console.PrintError(f"Error updating load visualization: {e}\n")
     
     def createLoadVectors(self, obj):
         """Create load vector visualization."""
@@ -471,7 +471,7 @@ class AreaLoad:
                     self.createLoadArrow(doc, center, direction, obj, i)
                     
         except Exception as e:
-            App.Console.PrintError(f"Error creating load vectors: {e}\n")
+            FreeCAD.Console.PrintError(f"Error creating load vectors: {e}\n")
     
     def createLoadArrow(self, doc, position, direction, load_obj, index):
         """Create a single load arrow."""
@@ -519,7 +519,7 @@ class AreaLoad:
                 arrow_obj.ViewObject.LineColor = color
                 
         except Exception as e:
-            App.Console.PrintError(f"Error creating load arrow: {e}\n")
+            FreeCAD.Console.PrintError(f"Error creating load arrow: {e}\n")
     
     def calculateTotalLoad(self, obj):
         """Calculate total load and moments."""
@@ -549,7 +549,7 @@ class AreaLoad:
             obj.MomentY = moment_y
             
         except Exception as e:
-            App.Console.PrintError(f"Error calculating total load: {e}\n")
+            FreeCAD.Console.PrintError(f"Error calculating total load: {e}\n")
         
         # Load magnitude and direction
         obj.addProperty("App::PropertyPressure", "Magnitude", "Load",
@@ -734,7 +734,7 @@ class AreaLoad:
                     total_area += shape.Area
         
         obj.LoadedArea = f"{total_area} mm^2"
-        App.Console.PrintMessage(f"Updated loaded area: {total_area:.2f} mm²\n")
+        FreeCAD.Console.PrintMessage(f"Updated loaded area: {total_area:.2f} mm²\n")
     
     def _update_load_category(self, obj) -> None:
         """Update load category based on load type."""
@@ -778,10 +778,10 @@ class AreaLoad:
             direction_vector = self._get_direction_vector(obj)
             obj.LoadResultant = direction_vector * total_load
             
-            App.Console.PrintMessage(f"Total load calculated: {total_load:.2f} N\n")
+            FreeCAD.Console.PrintMessage(f"Total load calculated: {total_load:.2f} N\n")
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating total load: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating total load: {e}\n")
             obj.TotalLoad = 0.0
     
     def _get_distribution_factor(self, obj) -> float:
@@ -963,7 +963,7 @@ class AreaLoad:
                         continue  # Skip problematic points
         
         except Exception as e:
-            App.Console.PrintWarning(f"Error creating arrows on face: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error creating arrows on face: {e}\n")
         
         return arrows
     
@@ -1028,7 +1028,7 @@ class AreaLoad:
             return arrow_obj
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error creating arrow: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error creating arrow: {e}\n")
             return None
     
     def execute(self, obj) -> None:
@@ -1080,7 +1080,7 @@ class AreaLoad:
         obj.IsValid = is_valid
         
         if warnings:
-            App.Console.PrintWarning(f"Load {obj.Label} warnings: {'; '.join(warnings)}\n")
+            FreeCAD.Console.PrintWarning(f"Load {obj.Label} warnings: {'; '.join(warnings)}\n")
     
     def get_equivalent_nodal_loads(self, obj, target_nodes: List) -> Dict:
         """
@@ -1114,7 +1114,7 @@ class AreaLoad:
                     }
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating nodal loads: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating nodal loads: {e}\n")
         
         return nodal_loads
 
@@ -1169,7 +1169,7 @@ class ViewProviderAreaLoad:
                 Gui.Control.showDialog(self.panel)
                 return True
             except ImportError:
-                App.Console.PrintWarning("AreaLoadPanel not yet implemented\n")
+                FreeCAD.Console.PrintWarning("AreaLoadPanel not yet implemented\n")
                 return False
         return False
     
@@ -1205,7 +1205,7 @@ def makeAreaLoad(target_faces=None, magnitude="5.0 kN/m^2", load_type="Dead Load
     """
     doc = App.ActiveDocument
     if not doc:
-        App.Console.PrintError("No active document. Please create or open a document first.\n")
+        FreeCAD.Console.PrintError("No active document. Please create or open a document first.\n")
         return None
     
     # Create the object
@@ -1230,5 +1230,5 @@ def makeAreaLoad(target_faces=None, magnitude="5.0 kN/m^2", load_type="Dead Load
     obj.recompute()
     doc.recompute()
     
-    App.Console.PrintMessage(f"Created AreaLoad: {obj.Label} with ID: {obj.LoadID}\n")
+    FreeCAD.Console.PrintMessage(f"Created AreaLoad: {obj.Label} with ID: {obj.LoadID}\n")
     return obj

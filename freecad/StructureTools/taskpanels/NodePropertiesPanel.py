@@ -280,7 +280,7 @@ class NodePropertiesPanel:
             self._update_connection_stiffness()
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error populating node form: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error populating node form: {e}\n")
     
     def _connect_signals(self) -> None:
         """Connect UI signals."""
@@ -408,7 +408,7 @@ class NodePropertiesPanel:
             App.ActiveDocument.recompute()
             
         except Exception as e:
-            App.Console.PrintError(f"Error updating node: {e}\n")
+            FreeCAD.Console.PrintError(f"Error updating node: {e}\n")
         
         Gui.Control.closeDialog()
     

@@ -15,7 +15,10 @@
       "WebFetch(domain:manual.midasuser.com)",
       "WebFetch(domain:manual.midasuser.com)",
       "WebFetch(domain:manual.midasuser.com)",
-      "WebFetch(domain:manual.midasuser.com)"
+      "WebFetch(domain:manual.midasuser.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(python:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

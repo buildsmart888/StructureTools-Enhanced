@@ -20,7 +20,7 @@ try:
     GMSH_AVAILABLE = True
 except ImportError:
     GMSH_AVAILABLE = False
-    App.Console.PrintWarning("gmsh not available. Using basic meshing.\n")
+    FreeCAD.Console.PrintWarning("gmsh not available. Using basic meshing.\n")
 
 
 class PlateMesher:
@@ -99,7 +99,7 @@ class PlateMesher:
         if size <= 0:
             raise ValueError("Target size must be positive")
         self.target_size = size
-        App.Console.PrintMessage(f"PlateMesher: Set target size to {size} mm\n")
+        FreeCAD.Console.PrintMessage(f"PlateMesher: Set target size to {size} mm\n")
     
     def setElementType(self, element_type: str) -> None:
         """
@@ -112,7 +112,7 @@ class PlateMesher:
             raise ValueError(f"Unknown element type: {element_type}")
         
         self.element_type = element_type
-        App.Console.PrintMessage(f"PlateMesher: Set element type to {element_type}\n")
+        FreeCAD.Console.PrintMessage(f"PlateMesher: Set element type to {element_type}\n")
     
     def setQualityCriteria(self, criteria: Dict[str, float]) -> None:
         """
@@ -122,7 +122,7 @@ class PlateMesher:
             criteria: Dictionary of quality parameters
         """
         self.quality_criteria.update(criteria)
-        App.Console.PrintMessage("PlateMesher: Updated quality criteria\n")
+        FreeCAD.Console.PrintMessage("PlateMesher: Updated quality criteria\n")
     
     def meshFace(self, face, **kwargs) -> Optional[Dict]:
         """
@@ -136,11 +136,11 @@ class PlateMesher:
             Dictionary containing mesh data and quality metrics
         """
         if not face or not hasattr(face, 'Area'):
-            App.Console.PrintError("PlateMesher: Invalid face provided\n")
+            FreeCAD.Console.PrintError("PlateMesher: Invalid face provided\n")
             return None
         
         try:
-            App.Console.PrintMessage(f"PlateMesher: Starting mesh generation for face (Area: {face.Area:.2f} mm²)\n")
+            FreeCAD.Console.PrintMessage(f"PlateMesher: Starting mesh generation for face (Area: {face.Area:.2f} mm²)\n")
             
             # Update parameters from kwargs
             self._update_parameters(kwargs)
@@ -149,11 +149,11 @@ class PlateMesher:
             if self._is_gmsh_available():
                 return self._mesh_with_gmsh(face)
             else:
-                App.Console.PrintWarning("PlateMesher: gmsh not available, using FreeCAD native meshing\n")
+                FreeCAD.Console.PrintWarning("PlateMesher: gmsh not available, using FreeCAD native meshing\n")
                 return self._mesh_with_freecad(face)
                 
         except Exception as e:
-            App.Console.PrintError(f"PlateMesher: Mesh generation failed: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"PlateMesher: Mesh generation failed: {str(e)}\n")
             return None
     
     def _update_parameters(self, kwargs: Dict) -> None:
@@ -220,7 +220,7 @@ class PlateMesher:
                 'target_size': self.target_size
             }
             
-            App.Console.PrintMessage(f"PlateMesher: gmsh mesh generated successfully - {len(mesh_data['elements'])} elements\n")
+            FreeCAD.Console.PrintMessage(f"PlateMesher: gmsh mesh generated successfully - {len(mesh_data['elements'])} elements\n")
             
             return {
                 'nodes': mesh_data['nodes'],
@@ -400,7 +400,7 @@ class PlateMesher:
             Mesh data dictionary
         """
         try:
-            App.Console.PrintMessage("PlateMesher: Using FreeCAD native meshing\n")
+            FreeCAD.Console.PrintMessage("PlateMesher: Using FreeCAD native meshing\n")
             
             # Create mesh object
             mesh_obj = App.ActiveDocument.addObject("Mesh::Feature", "TempMesh")
@@ -424,7 +424,7 @@ class PlateMesher:
                 'target_size': self.target_size
             }
             
-            App.Console.PrintMessage(f"PlateMesher: FreeCAD mesh generated - {len(mesh_data['elements'])} elements\n")
+            FreeCAD.Console.PrintMessage(f"PlateMesher: FreeCAD mesh generated - {len(mesh_data['elements'])} elements\n")
             
             return {
                 'nodes': mesh_data['nodes'],
@@ -435,7 +435,7 @@ class PlateMesher:
             }
             
         except Exception as e:
-            App.Console.PrintError(f"PlateMesher: FreeCAD meshing failed: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"PlateMesher: FreeCAD meshing failed: {str(e)}\n")
             return None
     
     def _create_simple_mesh(self, face) -> Dict:
@@ -573,7 +573,7 @@ class PlateMesher:
                 element_count += 1
                 
             except Exception as e:
-                App.Console.PrintWarning(f"Error analyzing element {elem_id}: {e}\n")
+                FreeCAD.Console.PrintWarning(f"Error analyzing element {elem_id}: {e}\n")
                 continue
         
         # Calculate averages
@@ -728,11 +728,11 @@ class PlateMesher:
             elif format.lower() == "msh":
                 return self._export_to_gmsh_format(mesh_data, filename)
             else:
-                App.Console.PrintError(f"Unsupported export format: {format}\n")
+                FreeCAD.Console.PrintError(f"Unsupported export format: {format}\n")
                 return False
                 
         except Exception as e:
-            App.Console.PrintError(f"Export failed: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"Export failed: {str(e)}\n")
             return False
     
     def _export_to_vtk(self, mesh_data: Dict, filename: str) -> bool:
@@ -775,16 +775,16 @@ class PlateMesher:
                     else:
                         f.write("7\n")  # Polygon
             
-            App.Console.PrintMessage(f"Mesh exported to VTK: {filename}\n")
+            FreeCAD.Console.PrintMessage(f"Mesh exported to VTK: {filename}\n")
             return True
             
         except Exception as e:
-            App.Console.PrintError(f"VTK export failed: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"VTK export failed: {str(e)}\n")
             return False
     
     def _export_to_gmsh_format(self, mesh_data: Dict, filename: str) -> bool:
         """Export mesh to gmsh .msh format."""
         # This would implement gmsh format export
         # For now, just a placeholder
-        App.Console.PrintWarning("Gmsh format export not yet implemented\n")
+        FreeCAD.Console.PrintWarning("Gmsh format export not yet implemented\n")
         return False

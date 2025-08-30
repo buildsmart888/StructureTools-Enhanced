@@ -601,7 +601,7 @@ class AreaLoadApplicationPanel:
             self.updateLoadSummary()
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating surface properties: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating surface properties: {e}\n")
     
     def updateDistributionParameters(self):
         """Update distribution parameters based on selected pattern."""
@@ -711,7 +711,7 @@ class AreaLoadApplicationPanel:
             self.summary_direction_label.setText(self.direction_combo.currentText())
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating load summary: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating load summary: {e}\n")
     
     def convertToKnM2(self, value, unit):
         """Convert magnitude to kN/m² for display."""
@@ -978,7 +978,7 @@ class AreaLoadApplicationPanel:
                             continue
                             
         except Exception as e:
-            App.Console.PrintWarning(f"Error creating preview arrows: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error creating preview arrows: {e}\n")
         
         return arrows
     
@@ -1019,7 +1019,7 @@ class AreaLoadApplicationPanel:
             return arrow_obj
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error creating arrow: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error creating arrow: {e}\n")
             return None
     
     def getLoadDirection(self, face, point):
@@ -1104,7 +1104,7 @@ class AreaLoadApplicationPanel:
                     self.load_center_label.setText(f"({center.x:.1f}, {center.y:.1f}, {center.z:.1f})")
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating statistics: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating statistics: {e}\n")
     
     def updateStatus(self, message, color="blue"):
         """Update status message."""
@@ -1246,7 +1246,7 @@ class AreaLoadPanel:
                     if hasattr(obj, 'Shape'):
                         selected_faces.append(obj)
         except Exception as e:
-            App.Console.PrintWarning(f"Warning getting selected faces: {str(e)}\n")
+            FreeCAD.Console.PrintWarning(f"Warning getting selected faces: {str(e)}\n")
         
         # Remove duplicates while preserving order
         unique_faces = []
@@ -1441,7 +1441,7 @@ class AreaLoadEditPanel:
                         _safe_call_method(self.surfaces_list, "addItem", target.Label)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error populating from object: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error populating from object: {e}\n")
     
     def accept(self):
         """Accept changes and update the area load object."""
@@ -1482,11 +1482,11 @@ class AreaLoadEditPanel:
             obj.recompute()
             App.ActiveDocument.recompute()
             
-            App.Console.PrintMessage(f"Area load {obj.Label} updated successfully.\n")
+            FreeCAD.Console.PrintMessage(f"Area load {obj.Label} updated successfully.\n")
             return True
             
         except Exception as e:
-            App.Console.PrintError(f"Error updating area load: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"Error updating area load: {str(e)}\n")
             QtWidgets.QMessageBox.critical(None, "Error", f"Failed to update area load: {str(e)}")
             return False
     

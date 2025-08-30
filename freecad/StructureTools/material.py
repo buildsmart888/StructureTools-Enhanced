@@ -133,7 +133,7 @@ class Material:
             if hasattr(obj, 'PoissonRatio'):
                 nu = obj.PoissonRatio
                 if not (0.0 <= nu <= 0.5):
-                    App.Console.PrintError(f"Invalid Poisson ratio {nu:.3f}. Must be between 0.0 and 0.5\n")
+                    FreeCAD.Console.PrintError(f"Invalid Poisson ratio {nu:.3f}. Must be between 0.0 and 0.5\n")
                     obj.PoissonRatio = 0.3  # Reset to default
     
     def get_calc_properties(self, obj, unit_length='m', unit_force='kN'):
@@ -163,7 +163,7 @@ class Material:
             }
             
         except Exception as e:
-            App.Console.PrintError(f"Error getting calc properties for material: {e}\n")
+            FreeCAD.Console.PrintError(f"Error getting calc properties for material: {e}\n")
             # Return safe defaults
             return {
                 'name': getattr(obj, 'Name', getattr(obj, 'Label', 'Material')),
@@ -198,10 +198,10 @@ class Material:
                 if 'GradeDesignation' in props:
                     obj.GradeDesignation = props['GradeDesignation']
                 
-                App.Console.PrintMessage(f"Updated material properties for standard: {standard}\n")
+                FreeCAD.Console.PrintMessage(f"Updated material properties for standard: {standard}\n")
                 
             except Exception as e:
-                App.Console.PrintError(f"Error updating material properties: {e}\n")
+                FreeCAD.Console.PrintError(f"Error updating material properties: {e}\n")
     
     def get_available_standards(self):
         """Get list of available material standards."""
@@ -734,7 +734,7 @@ class CommandMaterial():
         # Properties will be auto-updated by onChanged handler
         doc.recompute()
         
-        App.Console.PrintMessage(f"Created material with standard: {standard_name}\n")
+        FreeCAD.Console.PrintMessage(f"Created material with standard: {standard_name}\n")
 
     def create_basic_material(self):
         """Create basic material (fallback)."""

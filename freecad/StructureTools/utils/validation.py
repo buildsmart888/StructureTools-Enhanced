@@ -98,7 +98,7 @@ class StructuralValidator:
             
             # Density validation
             if hasattr(material_obj, 'Density'):
-                rho = self.get_property_value(material_obj.Density, 'kg/m³')
+                rho = self.get_property_value(material_obj.Density, 'kg/m^3')
                 limits = self.material_limits['density']
                 if not (limits['min'] <= rho <= limits['max']):
                     warnings.append(

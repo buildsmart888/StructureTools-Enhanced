@@ -28,14 +28,14 @@ class BIMImportCommand:
             selected_objects = Gui.Selection.getSelection()
             
             if not selected_objects:
-                App.Console.PrintWarning("Please select BIM objects to import\n")
+                FreeCAD.Console.PrintWarning("Please select BIM objects to import\n")
                 return
             
             # Import objects
             imported_objects = bim_integration.import_from_bim(selected_objects)
             
             if imported_objects:
-                App.Console.PrintMessage(f"Successfully imported {len(imported_objects)} structural elements\n")
+                FreeCAD.Console.PrintMessage(f"Successfully imported {len(imported_objects)} structural elements\n")
                 
                 # Show simple summary
                 summary_msg = f"Imported structural elements:\n"
@@ -44,12 +44,12 @@ class BIMImportCommand:
                 if len(imported_objects) > 5:
                     summary_msg += f"... and {len(imported_objects) - 5} more\n"
                 
-                App.Console.PrintMessage(summary_msg)
+                FreeCAD.Console.PrintMessage(summary_msg)
             else:
-                App.Console.PrintWarning("No valid BIM objects found for import\n")
+                FreeCAD.Console.PrintWarning("No valid BIM objects found for import\n")
                 
         except Exception as e:
-            App.Console.PrintError(f"BIM import failed: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"BIM import failed: {str(e)}\n")
     
     def IsActive(self):
         """Command is active when document exists and objects are selected"""
@@ -72,7 +72,7 @@ class BIMExportResultsCommand:
             calc_objects = self.find_calc_objects_with_results()
             
             if not calc_objects:
-                App.Console.PrintWarning("No structural analysis results found to export\n")
+                FreeCAD.Console.PrintWarning("No structural analysis results found to export\n")
                 return
             
             # Use first calc object for now (could be enhanced with selection dialog)
@@ -84,12 +84,12 @@ class BIMExportResultsCommand:
             
             if structural_objects:
                 bim_integration.export_results_to_bim(structural_objects, results)
-                App.Console.PrintMessage(f"Results exported to {len(structural_objects)} BIM objects\n")
+                FreeCAD.Console.PrintMessage(f"Results exported to {len(structural_objects)} BIM objects\n")
             else:
-                App.Console.PrintWarning("No linked BIM objects found\n")
+                FreeCAD.Console.PrintWarning("No linked BIM objects found\n")
                     
         except Exception as e:
-            App.Console.PrintError(f"BIM export failed: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"BIM export failed: {str(e)}\n")
     
     def find_calc_objects_with_results(self):
         """Find calc objects that have analysis results"""
@@ -132,10 +132,10 @@ class BIMExportResultsCommand:
                                 'capacity_ratio': 0.75  # Placeholder - would calculate actual ratio
                             }
                         except Exception as e:
-                            App.Console.PrintWarning(f"Could not extract results for {member_name}: {str(e)}\n")
+                            FreeCAD.Console.PrintWarning(f"Could not extract results for {member_name}: {str(e)}\n")
                             
         except Exception as e:
-            App.Console.PrintWarning(f"Could not extract results: {str(e)}\n")
+            FreeCAD.Console.PrintWarning(f"Could not extract results: {str(e)}\n")
         
         return results
     
@@ -160,17 +160,17 @@ class BIMSyncCommand:
         try:
             # Check if there are linked objects
             if not bim_integration.bim_to_structural_map:
-                App.Console.PrintWarning("No BIM-Structural links found to synchronize\n")
+                FreeCAD.Console.PrintWarning("No BIM-Structural links found to synchronize\n")
                 return
             
             # Perform synchronization
             bim_integration.sync_geometry_changes()
             
-            App.Console.PrintMessage("BIM-Structural synchronization completed\n")
+            FreeCAD.Console.PrintMessage("BIM-Structural synchronization completed\n")
             App.ActiveDocument.recompute()
             
         except Exception as e:
-            App.Console.PrintError(f"BIM sync failed: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"BIM sync failed: {str(e)}\n")
     
     def IsActive(self):
         """Command is active when there are linked BIM-Structural objects"""
@@ -208,10 +208,10 @@ class BIMStatusCommand:
                 status_msg += "\nNo BIM-Structural links found.\n"
                 status_msg += "Use 'Import from BIM' to create links.\n"
             
-            App.Console.PrintMessage(status_msg)
+            FreeCAD.Console.PrintMessage(status_msg)
             
         except Exception as e:
-            App.Console.PrintError(f"Could not show BIM status: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"Could not show BIM status: {str(e)}\n")
     
     def IsActive(self):
         """Always active when document exists"""
@@ -237,7 +237,7 @@ class CreateStructuralDrawingCommand:
                                 obj.Proxy.Type in ['Member', 'StructuralBeam', 'StructuralColumn']]
             
             if not structural_objects:
-                App.Console.PrintWarning("No structural elements found for drawing\n")
+                FreeCAD.Console.PrintWarning("No structural elements found for drawing\n")
                 return
             
             # Create TechDraw page
@@ -255,11 +255,11 @@ class CreateStructuralDrawingCommand:
             plan_view.Scale = 0.01  # 1:100 scale
             page.addView(plan_view)
             
-            App.Console.PrintMessage(f"Created structural drawing with {len(structural_objects)} elements\n")
+            FreeCAD.Console.PrintMessage(f"Created structural drawing with {len(structural_objects)} elements\n")
             App.ActiveDocument.recompute()
             
         except Exception as e:
-            App.Console.PrintError(f"Could not create structural drawing: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"Could not create structural drawing: {str(e)}\n")
     
     def IsActive(self):
         """Active when document exists and has structural elements"""
@@ -288,7 +288,7 @@ class ExportToFEMCommand:
                 has_fem = True
             except ImportError:
                 has_fem = False
-                App.Console.PrintError("FEM workbench not available\n")
+                FreeCAD.Console.PrintError("FEM workbench not available\n")
                 return
             
             # Get structural objects
@@ -298,7 +298,7 @@ class ExportToFEMCommand:
                                 obj.Proxy.Type in ['Member', 'Calc']]
             
             if not structural_objects:
-                App.Console.PrintWarning("No structural model found for FEM export\n")
+                FreeCAD.Console.PrintWarning("No structural model found for FEM export\n")
                 return
             
             # Create FEM analysis
@@ -306,11 +306,11 @@ class ExportToFEMCommand:
             
             # Export geometry and create mesh
             # This would require more detailed FEM integration
-            App.Console.PrintMessage("Basic FEM analysis container created\n")
-            App.Console.PrintMessage("Advanced FEM export requires additional implementation\n")
+            FreeCAD.Console.PrintMessage("Basic FEM analysis container created\n")
+            FreeCAD.Console.PrintMessage("Advanced FEM export requires additional implementation\n")
             
         except Exception as e:
-            App.Console.PrintError(f"FEM export failed: {str(e)}\n")
+            FreeCAD.Console.PrintError(f"FEM export failed: {str(e)}\n")
     
     def IsActive(self):
         """Active when document exists and has structural model"""

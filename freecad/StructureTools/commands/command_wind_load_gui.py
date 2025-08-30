@@ -39,6 +39,9 @@ try:
 except ImportError:
     FREECAD_AVAILABLE = False
 
+# Define ICONPATH for accessing icons
+ICONPATH = os.path.join(os.path.dirname(__file__), "..", "resources", "icons")
+
 # Import GUI framework with fallbacks
 try:
     from PySide2 import QtWidgets, QtCore, QtGui
@@ -130,7 +133,7 @@ except ImportError:
             def __init__(self): self.text_content = ""
             def setMaximumHeight(self, height): pass
             def setPlainText(self, text): self.text_content = text
-            def append(self, text): self.text_content += "\\n" + text
+            def append(self, text): self.text_content += "\n" + text
         
         class QIcon:
             def __init__(self, path): pass
@@ -158,6 +161,33 @@ except ImportError:
                     self.currentTextChanged = MockSignal()
                 cls.__init__ = new_init
 
+# Import plotting library with fallback
+try:
+    import matplotlib
+    import matplotlib.pyplot as plt
+    matplotlib.use('Qt5Agg')  # Use Qt5Agg backend for FreeCAD
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.figure import Figure
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+    # Create mock classes for plotting
+    class Figure:
+        def __init__(self): pass
+        def add_subplot(self, *args): return MockAxes()
+        def tight_layout(self): pass
+    
+    class FigureCanvas:
+        def __init__(self, figure): pass
+    
+    class MockAxes:
+        def __init__(self): pass
+        def plot(self, *args, **kwargs): pass
+        def set_xlabel(self, label): pass
+        def set_ylabel(self, label): pass
+        def set_title(self, title): pass
+        def grid(self, *args, **kwargs): pass
+
 # Import wind analysis modules
 try:
     from .wind_asce7 import WindLoadASCE7, BuildingWindData, WindForces
@@ -168,11 +198,9 @@ except ImportError:
     # Create mock classes
     class WindLoadASCE7:
         def __init__(self): pass
-        def calculate_wind_loads(self, data): return {}
     
     class ThaiWindLoad:
         def __init__(self): pass
-        def calculate_wind_loads(self, data): return {}
 
 # Import calc system
 try:
@@ -217,8 +245,8 @@ class WindLoadGUI(QDialog):
         self.calc_model = None
         
         self.setWindowTitle("Wind Load Generator - Professional Interface")
-        self.setWindowIcon(QIcon(":/icons/wind.png") if FREECAD_AVAILABLE else None)
-        self.resize(800, 600)
+        self.setWindowIcon(QIcon(os.path.join(ICONPATH, "wind_load.svg")) if FREECAD_AVAILABLE else None)
+        self.resize(900, 700)
         
         self.setup_ui()
         self.connect_signals()
@@ -226,15 +254,23 @@ class WindLoadGUI(QDialog):
     
     def setup_ui(self):
         """Setup the user interface"""
-        layout = QVBoxLayout()
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(10)  # Add more spacing between main sections
         
-        # Title Header
+        # Title Header - reduced padding
         title_label = QLabel("Wind Load Analysis System")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #2E86AB; padding: 10px;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #2E86AB; padding: 5px;")
         title_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title_label)
+        main_layout.addWidget(title_label)
         
-        # Tab Widget for organized input
+        # Split the UI into top (tabs) and bottom (results) sections
+        splitter = QSplitter(Qt.Vertical)
+        
+        # Top section: Tab Widget for organized input
+        top_widget = QWidget()
+        top_layout = QVBoxLayout(top_widget)
+        top_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins to maximize space
+        
         self.tab_widget = QTabWidget()
         
         # Tab 1: Basic Parameters
@@ -245,25 +281,208 @@ class WindLoadGUI(QDialog):
         self.wind_tab = self.create_wind_parameters_tab()
         self.tab_widget.addTab(self.wind_tab, "Wind Parameters")
         
-        # Tab 3: Thai Standards
+        # Tab 3: Professional Wind Load Function (MIDAS-style)
+        self.wind_load_function_tab = self.create_wind_load_tab()
+        self.tab_widget.addTab(self.wind_load_function_tab, "Wind Load Function")
+        
+        # Tab 4: Thai Standards
         self.thai_tab = self.create_thai_standards_tab()
         self.tab_widget.addTab(self.thai_tab, "Thai Standards")
         
-        # Tab 4: Load Application
+        # Tab 5: Load Application
         self.application_tab = self.create_application_tab()
         self.tab_widget.addTab(self.application_tab, "Load Application")
         
-        layout.addWidget(self.tab_widget)
+        top_layout.addWidget(self.tab_widget)
         
-        # Results Preview
+        # Bottom section: Results Preview
+        bottom_widget = QWidget()
+        bottom_layout = QVBoxLayout(bottom_widget)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins to maximize space
+        
         self.results_group = self.create_results_preview()
-        layout.addWidget(self.results_group)
+        bottom_layout.addWidget(self.results_group)
+        
+        # Add widgets to splitter
+        splitter.addWidget(top_widget)
+        splitter.addWidget(bottom_widget)
+        
+        # Set initial sizes - give more space to results preview
+        splitter.setSizes([600, 400])  
+        
+        main_layout.addWidget(splitter, 1)  # Give splitter all available space
         
         # Action Buttons
         self.button_layout = self.create_action_buttons()
-        layout.addLayout(self.button_layout)
+        main_layout.addLayout(self.button_layout)
         
-        self.setLayout(layout)
+        self.setLayout(main_layout)
+        
+    def create_wind_load_tab(self):
+        """Create a professional wind load tab similar to MIDAS nGen"""
+        widget = QWidget()
+        layout = QGridLayout()
+        
+        # Function settings section
+        function_group = QGroupBox("Wind Load Function")
+        function_layout = QGridLayout()
+        
+        # Function Name
+        function_layout.addWidget(QLabel("Function Name:"), 0, 0)
+        self.wind_function_name_edit = QLineEdit("Wind Load Function-1")
+        function_layout.addWidget(self.wind_function_name_edit, 0, 1)
+        
+        # Design Wind Load
+        function_layout.addWidget(QLabel("Design Wind Load:"), 1, 0)
+        self.design_wind_combo = QComboBox()
+        self.design_wind_combo.addItems(["ASCE 7-22", "TIS 1311-50", "Custom"])
+        function_layout.addWidget(self.design_wind_combo, 1, 1)
+        
+        # Equation section
+        equation_group = QGroupBox("Equation")
+        equation_layout = QGridLayout()
+        
+        equation_layout.addWidget(QLabel("From:"), 0, 0)
+        self.height_from_edit = QLineEdit("1")
+        equation_layout.addWidget(self.height_from_edit, 0, 1)
+        
+        equation_layout.addWidget(QLabel("To:"), 0, 2)
+        self.height_to_edit = QLineEdit("50")
+        equation_layout.addWidget(self.height_to_edit, 0, 3)
+        
+        equation_layout.addWidget(QLabel("Inc:"), 0, 4)
+        self.height_inc_edit = QLineEdit("1")
+        equation_layout.addWidget(self.height_inc_edit, 0, 5)
+        
+        equation_layout.addWidget(QLabel("Value:"), 1, 0, 1, 4)
+        self.equation_value_edit = QLineEdit()
+        equation_layout.addWidget(self.equation_value_edit, 1, 4)
+        
+        self.calculate_wind_eq_btn = QPushButton("Calculate")
+        equation_layout.addWidget(self.calculate_wind_eq_btn, 1, 5)
+        
+        equation_group.setLayout(equation_layout)
+        function_layout.addWidget(equation_group, 2, 0, 1, 2)
+        
+        function_group.setLayout(function_layout)
+        layout.addWidget(function_group, 0, 0, 1, 2)
+        
+        # Direction tabs - simplified version
+        direction_tabs = QTabWidget()
+        x_tab = QWidget()
+        y_tab = QWidget()
+        direction_tabs.addTab(x_tab, "X")
+        direction_tabs.addTab(y_tab, "Y")
+        
+        # Table and plot layout for X direction (we'll implement just this for simplicity)
+        x_layout = QHBoxLayout()
+        
+        # Wind pressure table
+        wind_table_group = QGroupBox()
+        wind_table_layout = QVBoxLayout()
+        
+        self.wind_table = QTableWidget(10, 2)
+        self.wind_table.setHorizontalHeaderLabels(["Z (m)", "Wind Pressure (N/m²)"])
+        
+        # Populate with sample values
+        heights = [25.5, 26.0, 26.5, 27.0, 27.5, 28.0, 28.5, 29.0, 29.5, 30.0]
+        pressures = [1287.0, 1294.5, 1301.8, 1309.2, 1316.4, 1323.6, 1330.6, 1337.6, 1344.5, 1351.3]
+        
+        for i, (height, pressure) in enumerate(zip(heights, pressures)):
+            self.wind_table.setItem(i, 0, QTableWidgetItem(f"{height:.1f}"))
+            self.wind_table.setItem(i, 1, QTableWidgetItem(f"{pressure:.2f}"))
+        
+        wind_table_layout.addWidget(self.wind_table)
+        wind_table_group.setLayout(wind_table_layout)
+        x_layout.addWidget(wind_table_group)
+        
+        # Wind pressure plot
+        wind_plot_group = QGroupBox()
+        wind_plot_layout = QVBoxLayout()
+        
+        if MATPLOTLIB_AVAILABLE:
+            try:
+                self.wind_figure = Figure(figsize=(5, 4), dpi=100)
+                self.wind_canvas = FigureCanvas(self.wind_figure)
+                self.wind_axes = self.wind_figure.add_subplot(111)
+                self.wind_axes.set_xlabel('Wind Pressure (N/m²)')
+                self.wind_axes.set_ylabel('Z (m)')
+                self.wind_axes.grid(True, linestyle='--', alpha=0.7)
+                
+                # Plot initial data
+                self.wind_axes.plot(pressures, heights, 'b-', linewidth=2)
+                
+                # Add a data point marker with annotation
+                marker_idx = 0  # First point
+                self.wind_axes.plot(pressures[marker_idx], heights[marker_idx], 'bo', markersize=6)
+                self.wind_axes.annotate(
+                    f"{pressures[marker_idx]:.2f}",
+                    xy=(pressures[marker_idx], heights[marker_idx]),
+                    xytext=(10, 0), textcoords='offset points',
+                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="blue", alpha=0.7)
+                )
+                
+                # Configure figure to avoid tight_layout warning
+                self.configure_figure_layout(self.wind_figure)  # Apply consistent figure settings
+                wind_plot_layout.addWidget(self.wind_canvas)
+            except Exception as e:
+                fallback_label = QLabel("Plot not available: matplotlib error")
+                wind_plot_layout.addWidget(fallback_label)
+                print(f"Error creating wind plot: {e}")
+        else:
+            fallback_label = QLabel("Plot not available: matplotlib required")
+            wind_plot_layout.addWidget(fallback_label)
+        
+        wind_plot_group.setLayout(wind_plot_layout)
+        x_layout.addWidget(wind_plot_group)
+        
+        x_tab.setLayout(x_layout)
+        
+        # Simple layout for Y tab (placeholder)
+        y_tab.setLayout(QVBoxLayout())
+        y_tab.layout().addWidget(QLabel("Y direction parameters would be shown here"))
+        
+        layout.addWidget(direction_tabs, 1, 0, 1, 2)
+        
+        # Wind type section
+        type_group = QGroupBox("Type")
+        type_layout = QGridLayout()
+        
+        # Create a simplified type table
+        self.wind_type_table = QTableWidget(5, 2)
+        self.wind_type_table.setHorizontalHeaderLabels(["", "Wind Pressure (N/m²)"])
+        self.wind_type_table.setVerticalHeaderLabels(["Structure", "External", "Roof", "", "Internal"])
+        
+        # Add some type data
+        types = ["", "Windward", "Leeward", "Side", "Windward", "Leeward", "", ""]
+        values = ["", "1378.16", "-984.40", "-1378.16", "-1378.16", "-1378.16", "", "-738.30"]
+        
+        for i in range(len(types)):
+            if i < self.wind_type_table.rowCount()*2:
+                row = i // 2
+                col = i % 2
+                if types[i]:
+                    self.wind_type_table.setItem(row, col, QTableWidgetItem(types[i]))
+        
+        for i, value in enumerate(values):
+            if i < self.wind_type_table.rowCount() and value:
+                self.wind_type_table.setItem(i, 1, QTableWidgetItem(value))
+        
+        type_layout.addWidget(self.wind_type_table, 0, 0)
+        type_group.setLayout(type_layout)
+        layout.addWidget(type_group, 2, 0, 1, 2)
+        
+        # Description field
+        description_group = QGroupBox("Description")
+        description_layout = QVBoxLayout()
+        self.wind_description_edit = QTextEdit()
+        self.wind_description_edit.setMaximumHeight(50)
+        description_layout.addWidget(self.wind_description_edit)
+        description_group.setLayout(description_layout)
+        layout.addWidget(description_group, 3, 0, 1, 2)
+        
+        widget.setLayout(layout)
+        return widget
     
     def create_basic_parameters_tab(self):
         """Create basic building parameters tab"""
@@ -292,16 +511,18 @@ class WindLoadGUI(QDialog):
         geometry_group.setLayout(geo_layout)
         layout.addWidget(geometry_group, 0, 0, 1, 2)
         
-        # Design Code Selection
+        # Design Code Selection - Horizontal layout to save vertical space
         code_group = QGroupBox("Design Code")
-        code_layout = QGridLayout()
+        code_layout = QHBoxLayout()
+        code_layout.setContentsMargins(10, 5, 10, 5)  # Reduce vertical margins
         
-        code_layout.addWidget(QLabel("Design Standard:"), 0, 0)
+        code_layout.addWidget(QLabel("Design Standard:"))
         self.code_combo = QComboBox()
         self.code_combo.addItems(["ASCE 7-22", "TIS 1311-50", "Both"])
-        code_layout.addWidget(self.code_combo, 0, 1)
+        code_layout.addWidget(self.code_combo)
         
         code_group.setLayout(code_layout)
+        code_group.setMaximumHeight(60)  # Limit the height of the design code group
         layout.addWidget(code_group, 1, 0, 1, 2)
         
         widget.setLayout(layout)
@@ -312,9 +533,14 @@ class WindLoadGUI(QDialog):
         widget = QWidget()
         layout = QGridLayout()
         
-        # Wind Speed Group
+        # Use a more compact layout with 2 columns to save vertical space
+        main_layout = QGridLayout()
+        main_layout.setVerticalSpacing(5)  # Reduce vertical spacing
+        
+        # Wind Speed Group - more compact
         speed_group = QGroupBox("Wind Speed Parameters")
         speed_layout = QGridLayout()
+        speed_layout.setContentsMargins(5, 5, 5, 5)  # Smaller margins
         
         speed_layout.addWidget(QLabel("Basic Wind Speed (m/s):"), 0, 0)
         self.wind_speed_edit = QLineEdit(str(self.parameters.basic_wind_speed))
@@ -328,11 +554,13 @@ class WindLoadGUI(QDialog):
         speed_layout.addWidget(self.exposure_combo, 1, 1)
         
         speed_group.setLayout(speed_layout)
-        layout.addWidget(speed_group, 0, 0, 1, 2)
+        speed_group.setMaximumHeight(100)  # Limit the height
+        main_layout.addWidget(speed_group, 0, 0, 1, 2)
         
-        # Factors Group
+        # Factors Group - more compact
         factors_group = QGroupBox("Wind Load Factors")
         factors_layout = QGridLayout()
+        factors_layout.setContentsMargins(5, 5, 5, 5)  # Smaller margins
         
         factors_layout.addWidget(QLabel("Topographic Factor (Kzt):"), 0, 0)
         self.topo_edit = QLineEdit(str(self.parameters.topographic_factor))
@@ -343,8 +571,10 @@ class WindLoadGUI(QDialog):
         factors_layout.addWidget(self.direction_edit, 1, 1)
         
         factors_group.setLayout(factors_layout)
-        layout.addWidget(factors_group, 1, 0, 1, 2)
+        factors_group.setMaximumHeight(100)  # Limit the height
+        main_layout.addWidget(factors_group, 1, 0, 1, 2)
         
+        layout.addLayout(main_layout, 0, 0)
         widget.setLayout(layout)
         return widget
     
@@ -352,12 +582,16 @@ class WindLoadGUI(QDialog):
         """Create Thai standards specific tab"""
         widget = QWidget()
         layout = QGridLayout()
+        layout.setVerticalSpacing(10)  # Add spacing between sections
         
-        # Thai Location Group
+        # Thai Location Group - more compact
         location_group = QGroupBox("Thai Location Parameters")
-        location_layout = QGridLayout()
+        location_layout = QHBoxLayout()  # Use horizontal layout to save space
+        location_layout.setContentsMargins(5, 5, 5, 5)  # Smaller margins
         
-        location_layout.addWidget(QLabel("Province:"), 0, 0)
+        # First column
+        location_col1 = QGridLayout()
+        location_col1.addWidget(QLabel("Province:"), 0, 0)
         self.province_combo = QComboBox()
         # Add all 77 Thai provinces
         thai_provinces = [
@@ -378,32 +612,35 @@ class WindLoadGUI(QDialog):
         ]
         self.province_combo.addItems(thai_provinces)
         self.province_combo.setCurrentText(self.parameters.province)
-        location_layout.addWidget(self.province_combo, 0, 1)
+        location_col1.addWidget(self.province_combo, 0, 1)
         
-        location_layout.addWidget(QLabel("Wind Zone:"), 1, 0)
+        # Second column
+        location_col2 = QGridLayout()
+        location_col2.addWidget(QLabel("Wind Zone:"), 0, 0)
         self.wind_zone_combo = QComboBox()
         self.wind_zone_combo.addItems(["Zone_1", "Zone_2", "Zone_3", "Zone_4"])
-        location_layout.addWidget(self.wind_zone_combo, 1, 1)
+        location_col2.addWidget(self.wind_zone_combo, 0, 1)
+        
+        # Add columns to main layout
+        location_layout.addLayout(location_col1, 1)
+        location_layout.addLayout(location_col2, 1)
         
         location_group.setLayout(location_layout)
+        location_group.setMaximumHeight(80)  # Limit the height
         layout.addWidget(location_group, 0, 0, 1, 2)
         
-        # Thai Standards Info
+        # Thai Standards Info - more compact
         info_group = QGroupBox("TIS 1311-50 Information")
         info_layout = QVBoxLayout()
+        info_layout.setContentsMargins(5, 5, 5, 5)  # Smaller margins
         
-        info_text = """
-        Thai Standard TIS 1311-50:
-        • Covers wind loads for building design
-        • Provincial wind speed mapping
-        • Compatible with international standards
-        • Specific factors for Thai geography
-        """
+        info_text = "Thai Standard TIS 1311-50:\n• Covers wind loads for building design\n• Provincial wind speed mapping\n• Compatible with international standards\n• Specific factors for Thai geography"
         info_label = QLabel(info_text)
         info_label.setWordWrap(True)
         info_layout.addWidget(info_label)
         
         info_group.setLayout(info_layout)
+        info_group.setMaximumHeight(100)  # Limit the height
         layout.addWidget(info_group, 1, 0, 1, 2)
         
         widget.setLayout(layout)
@@ -412,51 +649,78 @@ class WindLoadGUI(QDialog):
     def create_application_tab(self):
         """Create load application tab"""
         widget = QWidget()
-        layout = QGridLayout()
+        layout = QVBoxLayout()  # Use vertical layout for better arrangement
+        layout.setSpacing(10)  # Add spacing between sections
         
-        # Load Case Group
-        loadcase_group = QGroupBox("Load Case Definition")
-        loadcase_layout = QGridLayout()
+        # Single layout for both groups to make more compact
+        form_layout = QFormLayout()  # Use form layout for cleaner look
+        form_layout.setContentsMargins(5, 5, 5, 5)  # Smaller margins
         
-        loadcase_layout.addWidget(QLabel("Load Case Name:"), 0, 0)
+        # Load Case Name
         self.loadcase_edit = QLineEdit(self.parameters.load_case_name)
-        loadcase_layout.addWidget(self.loadcase_edit, 0, 1)
+        form_layout.addRow("Load Case Name:", self.loadcase_edit)
         
-        # Application Options
+        # Application Options - check boxes in a row to save space
+        checkbox_layout = QHBoxLayout()
+        
         self.apply_checkbox = QCheckBox("Apply to Active Structure")
         self.apply_checkbox.setChecked(self.parameters.apply_to_structure)
-        loadcase_layout.addWidget(self.apply_checkbox, 1, 0, 1, 2)
+        checkbox_layout.addWidget(self.apply_checkbox)
         
-        loadcase_group.setLayout(loadcase_layout)
-        layout.addWidget(loadcase_group, 0, 0, 1, 2)
+        self.auto_calc_checkbox = QCheckBox("Run Analysis")
+        checkbox_layout.addWidget(self.auto_calc_checkbox)
         
-        # Integration Options
-        integration_group = QGroupBox("Analysis Integration")
-        integration_layout = QGridLayout()
+        self.generate_report_checkbox = QCheckBox("Generate Report")
+        checkbox_layout.addWidget(self.generate_report_checkbox)
         
-        self.auto_calc_checkbox = QCheckBox("Automatically run structural analysis")
-        integration_layout.addWidget(self.auto_calc_checkbox, 0, 0, 1, 2)
+        layout.addLayout(form_layout)
+        layout.addLayout(checkbox_layout)
         
-        self.generate_report_checkbox = QCheckBox("Generate wind load report")
-        integration_layout.addWidget(self.generate_report_checkbox, 1, 0, 1, 2)
-        
-        integration_group.setLayout(integration_layout)
-        layout.addWidget(integration_group, 1, 0, 1, 2)
+        # Add a spacer to push everything to the top
+        layout.addStretch(1)
         
         widget.setLayout(layout)
         return widget
     
+    def configure_figure_layout(self, figure):
+        """Configure figure margins to avoid tight_layout warnings"""
+        # These settings ensure enough space for axis labels, title and tick marks
+        figure.subplots_adjust(left=0.15, right=0.95, bottom=0.15, top=0.9)
+        return figure
+        
     def create_results_preview(self):
         """Create results preview group"""
         group = QGroupBox("Wind Load Results Preview")
         layout = QVBoxLayout()
+        layout.setContentsMargins(5, 10, 5, 10)  # Add more vertical space
         
+        # Use grid layout for better control of text and visualization areas
+        results_layout = QGridLayout()
+        results_layout.setVerticalSpacing(10)  # Add spacing between elements
+        
+        # Results summary text with reduced height
         self.results_text = QTextEdit()
-        self.results_text.setMaximumHeight(150)
+        self.results_text.setMaximumHeight(80)  # Reduce text area height
         self.results_text.setPlainText("Wind loads will be displayed here after calculation...")
+        results_layout.addWidget(self.results_text, 0, 0)
         
-        layout.addWidget(self.results_text)
+        # Add plot widget if matplotlib is available with increased size
+        if MATPLOTLIB_AVAILABLE:
+            try:
+                self.wind_figure = Figure(figsize=(6, 4), dpi=100)  # Increased figure size
+                self.configure_figure_layout(self.wind_figure)  # Apply consistent figure settings
+                self.wind_canvas = FigureCanvas(self.wind_figure)
+                self.wind_canvas.setMinimumHeight(150)  # Set minimum height for better visibility
+                self.wind_axes = self.wind_figure.add_subplot(111)
+                results_layout.addWidget(self.wind_canvas, 1, 0)
+            except Exception as e:
+                print(f"Error creating wind plot: {e}")
+        
+        layout.addLayout(results_layout)
         group.setLayout(layout)
+        
+        # Set minimum height for the entire group
+        group.setMinimumHeight(250)
         
         return group
     
@@ -495,8 +759,194 @@ class WindLoadGUI(QDialog):
         self.close_btn.clicked.connect(self.close)
         
         # Real-time updates
-        self.code_combo.currentTextChanged.connect(self.update_parameters)
-        self.province_combo.currentTextChanged.connect(self.update_thai_parameters)
+        # self.analysis_type_combo.currentTextChanged.connect(self.update_analysis_type)
+        # self.spectrum_type_combo.currentTextChanged.connect(self.update_spectrum_type)
+        # self.generate_spectrum_btn.clicked.connect(self.generate_asce_spectrum)
+        
+        # Wind Load Function tab connections
+        if hasattr(self, 'calculate_wind_eq_btn'):
+            self.calculate_wind_eq_btn.clicked.connect(self.calculate_wind_equation)
+        
+        if hasattr(self, 'design_wind_combo'):
+            self.design_wind_combo.currentTextChanged.connect(self.update_wind_design_code)
+
+    def update_wind_design_code(self):
+        """Update wind design code based on combo selection"""
+        if hasattr(self, 'design_wind_combo'):
+            design_code = self.design_wind_combo.currentText()
+            self.parameters.design_code = design_code
+            self.calculate_wind_loads()
+
+    def calculate_wind_equation(self):
+        """Calculate wind pressure values based on equation"""
+        try:
+            # Get height range
+            if not hasattr(self, 'height_from_edit') or not hasattr(self, 'height_to_edit') or not hasattr(self, 'height_inc_edit'):
+                return
+            
+            height_from = float(self.height_from_edit.text())
+            height_to = float(self.height_to_edit.text())
+            height_inc = float(self.height_inc_edit.text())
+            
+            # Generate heights
+            heights = []
+            current_height = height_from
+            while current_height <= height_to:
+                heights.append(current_height)
+                current_height += height_inc
+            
+            # Calculate pressures based on a simplified equation
+            # In a real implementation, this would use the proper wind pressure equation based on code
+            # For now, we'll use a simple increasing function with height
+            base_pressure = 1000.0  # Base pressure in N/m²
+            pressures = [base_pressure * (1 + 0.01 * h) for h in heights]
+            
+            # Update the table
+            if hasattr(self, 'wind_table'):
+                self.wind_table.setRowCount(len(heights))
+                for i, (height, pressure) in enumerate(zip(heights, pressures)):
+                    self.wind_table.setItem(i, 0, QTableWidgetItem(f"{height:.1f}"))
+                    self.wind_table.setItem(i, 1, QTableWidgetItem(f"{pressure:.2f}"))
+            
+            # Update the plot
+            self.plot_wind_pressure(heights, pressures)
+            
+            # Store the data for reference
+            self.wind_heights = heights
+            self.wind_pressures = pressures
+            
+            # Update results text
+            self.results_text.append(f"\n✅ Wind pressure calculated for heights {height_from}m to {height_to}m")
+            self.results_text.append(f"   Base pressure: {base_pressure:.2f} N/m², Height increment: {height_inc}m")
+            
+        except (ValueError, AttributeError) as e:
+            self.results_text.append(f"\n❌ Error calculating wind equation: {e}")
+
+    def plot_wind_pressure(self, heights=None, pressures=None):
+        """Plot wind pressure distribution with professional styling"""
+        try:
+            if not MATPLOTLIB_AVAILABLE:
+                return
+            
+            # Check if we have plot widgets
+            if not hasattr(self, 'wind_axes') or not hasattr(self, 'wind_figure'):
+                return
+            
+            # Use provided data or default values
+            if heights is None or pressures is None:
+                # Use stored data if available
+                if hasattr(self, 'wind_heights') and hasattr(self, 'wind_pressures'):
+                    heights = self.wind_heights
+                    pressures = self.wind_pressures
+                else:
+                    # Default sample data
+                    heights = [h for h in range(1, 31)]
+                    pressures = [1000 * (1 + 0.01 * h) for h in heights]
+            
+            # Clear the plot
+            self.wind_axes.clear()
+            
+            # Plot with professional styling
+            self.wind_axes.plot(pressures, heights, 'b-', linewidth=2.5)
+            
+            # Add markers at key points
+            marker_indices = [0, len(heights)//4, len(heights)//2, 3*len(heights)//4, -1]  # More markers for better visualization
+            marker_indices = [i for i in marker_indices if i < len(heights)]
+            
+            self.wind_axes.plot([pressures[i] for i in marker_indices], 
+                              [heights[i] for i in marker_indices], 
+                              'bo', markersize=6)
+            
+            # Add data point labels for better readability
+            # Choose multiple points to label to improve understanding of the plot
+            for idx in [0, len(heights)//2, -1]:  # Label first, middle, and last points
+                if idx < len(heights):
+                    self.wind_axes.annotate(
+                        f"{pressures[idx]:.2f}",
+                        xy=(pressures[idx], heights[idx]),
+                        xytext=(10, 0), textcoords='offset points',
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="blue", alpha=0.8)
+                    )
+            
+            # Enhanced labels and grid
+            self.wind_axes.set_xlabel('Wind Pressure (N/m²)', fontsize=10, fontweight='bold')
+            self.wind_axes.set_ylabel('Height (m)', fontsize=10, fontweight='bold')
+            self.wind_axes.set_title('Wind Pressure vs. Height', fontsize=12)
+            self.wind_axes.grid(True, linestyle='--', alpha=0.7)
+            
+            # Update x and y limits to show all data with better padding
+            x_min = min(pressures) * 0.9 if min(pressures) > 0 else 0
+            x_max = max(pressures) * 1.1
+            y_min = min(heights) * 0.9 if min(heights) > 0 else 0
+            y_max = max(heights) * 1.1
+            
+            self.wind_axes.set_xlim(x_min, x_max)
+            self.wind_axes.set_ylim(y_min, y_max)
+            
+            # Add horizontal grid lines at more intervals for better readability
+            self.wind_axes.yaxis.set_major_locator(plt.MaxNLocator(10))
+            
+            # Instead of tight_layout, use the pre-configured figure adjustments
+            # This prevents the "tight layout not applied" warning
+            # self.wind_figure.tight_layout()  # Commented out to avoid warning
+            self.wind_canvas.draw()
+            
+        except Exception as e:
+            print(f"Error plotting wind pressure: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def calculate_wind_loads(self):
+        """Calculate wind loads based on selected code"""
+        self.update_parameters()
+        
+        try:
+            if not WIND_MODULES_AVAILABLE:
+                self.results_text.setPlainText("Wind analysis modules not available - using mock calculation")
+                results_text = "Mock Wind Load Results:\n"
+                results_text += "="*40 + "\n\n"
+                results_text += f"Basic Wind Speed: {self.parameters.basic_wind_speed} m/s\n"
+                results_text += f"Building Height: {self.parameters.building_height} m\n"
+                results_text += f"Estimated Wind Pressure: {self.parameters.basic_wind_speed**2 * 0.6:.2f} Pa\n"
+                self.results_text.setPlainText(results_text)
+                return
+            
+            results_text = f"Wind Load Calculation Results\n"
+            results_text += "="*40 + "\n\n"
+            
+            # Calculate based on selected code
+            if "ASCE" in self.parameters.design_code:
+                self.calculate_asce_loads()
+                results_text += "ASCE 7-22 Wind Loads:\n"
+            
+            if "TIS" in self.parameters.design_code:
+                self.calculate_thai_loads()
+                results_text += "TIS 1311-50 Wind Loads:\n"
+            
+            if "Both" in self.parameters.design_code:
+                self.calculate_asce_loads()
+                self.calculate_thai_loads()
+                results_text += "Comparative Analysis (ASCE vs TIS):\n"
+            
+            # Display results
+            if self.wind_forces:
+                results_text += f"Building Height: {self.parameters.building_height} m\n"
+                results_text += f"Wind Speed: {self.parameters.basic_wind_speed} m/s\n"
+                results_text += f"Exposure: {self.parameters.exposure_category}\n"
+                results_text += f"Province: {self.parameters.province}\n\n"
+                results_text += "Calculated Wind Forces:\n"
+                results_text += f"• Along-wind force: {getattr(self.wind_forces, 'along_wind', 'N/A')} kN\n"
+                results_text += f"• Across-wind force: {getattr(self.wind_forces, 'across_wind', 'N/A')} kN\n"
+                results_text += f"• Base moment: {getattr(self.wind_forces, 'base_moment', 'N/A')} kN⋅m\n"
+            
+            self.results_text.setPlainText(results_text)
+            self.apply_btn.setEnabled(True)
+            
+            # Plot wind pressure distribution if available
+            self.plot_wind_pressure()
+            
+        except Exception as e:
+            self.results_text.setPlainText(f"Calculation error: {str(e)}")
     
     def load_defaults(self):
         """Load default values"""
@@ -533,48 +983,7 @@ class WindLoadGUI(QDialog):
             zone_index = ["Zone_1", "Zone_2", "Zone_3", "Zone_4"].index(province_zones[province])
             self.wind_zone_combo.setCurrentIndex(zone_index)
     
-    def calculate_wind_loads(self):
-        """Calculate wind loads based on selected code"""
-        self.update_parameters()
-        
-        try:
-            if not WIND_MODULES_AVAILABLE:
-                self.results_text.setPlainText("Wind analysis modules not available")
-                return
-            
-            results_text = f"Wind Load Calculation Results\\n"
-            results_text += f"{'='*40}\\n\\n"
-            
-            # Calculate based on selected code
-            if "ASCE" in self.parameters.design_code:
-                self.calculate_asce_loads()
-                results_text += "ASCE 7-22 Wind Loads:\\n"
-            
-            if "TIS" in self.parameters.design_code:
-                self.calculate_thai_loads()
-                results_text += "TIS 1311-50 Wind Loads:\\n"
-            
-            if "Both" in self.parameters.design_code:
-                self.calculate_asce_loads()
-                self.calculate_thai_loads()
-                results_text += "Comparative Analysis (ASCE vs TIS):\\n"
-            
-            # Display results
-            if self.wind_forces:
-                results_text += f"Building Height: {self.parameters.building_height} m\\n"
-                results_text += f"Wind Speed: {self.parameters.basic_wind_speed} m/s\\n"
-                results_text += f"Exposure: {self.parameters.exposure_category}\\n"
-                results_text += f"Province: {self.parameters.province}\\n\\n"
-                results_text += "Calculated Wind Forces:\\n"
-                results_text += f"• Along-wind force: {getattr(self.wind_forces, 'along_wind', 'N/A')} kN\\n"
-                results_text += f"• Across-wind force: {getattr(self.wind_forces, 'across_wind', 'N/A')} kN\\n"
-                results_text += f"• Base moment: {getattr(self.wind_forces, 'base_moment', 'N/A')} kN⋅m\\n"
-            
-            self.results_text.setPlainText(results_text)
-            self.apply_btn.setEnabled(True)
-            
-        except Exception as e:
-            self.results_text.setPlainText(f"Calculation error: {str(e)}")
+
     
     def calculate_asce_loads(self):
         """Calculate ASCE 7-22 wind loads"""
@@ -624,12 +1033,12 @@ class WindLoadGUI(QDialog):
     def apply_loads_to_structure(self):
         """Apply calculated wind loads to the structure"""
         if not self.wind_forces:
-            self.results_text.append("\\nNo wind forces calculated!")
+            self.results_text.append("\nNo wind forces calculated!")
             return
         
         try:
             if not CALC_AVAILABLE:
-                self.results_text.append("\\nStructural analysis system not available!")
+                self.results_text.append("\nStructural analysis system not available!")
                 return
             
             # Get active document and structure
@@ -644,17 +1053,17 @@ class WindLoadGUI(QDialog):
                     
                     # Apply wind loads to the structure
                     self.apply_wind_loads_to_model(analysis_obj)
-                    self.results_text.append(f"\\n✅ Wind loads applied to structure as '{self.parameters.load_case_name}'")
+                    self.results_text.append(f"\n✅ Wind loads applied to structure as '{self.parameters.load_case_name}'")
                     self.analyze_btn.setEnabled(True)
                 else:
-                    self.results_text.append("\\n❌ No structural analysis object found!")
+                    self.results_text.append("\n❌ No structural analysis object found!")
             else:
                 # Mock application for testing
-                self.results_text.append(f"\\n✅ Wind loads would be applied as '{self.parameters.load_case_name}'")
+                self.results_text.append(f"\n✅ Wind loads would be applied as '{self.parameters.load_case_name}'")
                 self.analyze_btn.setEnabled(True)
                 
         except Exception as e:
-            self.results_text.append(f"\\n❌ Error applying loads: {str(e)}")
+            self.results_text.append(f"\n❌ Error applying loads: {str(e)}")
     
     def apply_wind_loads_to_model(self, analysis_obj):
         """Apply wind forces to the structural model"""
@@ -679,10 +1088,10 @@ class WindLoadGUI(QDialog):
         """Run the structural analysis with applied wind loads"""
         try:
             if not CALC_AVAILABLE:
-                self.results_text.append("\\nStructural analysis system not available!")
+                self.results_text.append("\nStructural analysis system not available!")
                 return
             
-            self.results_text.append("\\n🔄 Running structural analysis...")
+            self.results_text.append("\n🔄 Running structural analysis...")
             
             # Run the analysis
             if FREECAD_AVAILABLE and App.ActiveDocument:
@@ -729,10 +1138,10 @@ class WindLoadGUI(QDialog):
             # Generate report
             report = report_gen.generate_wind_report(report_data)
             
-            self.results_text.append("\\n📄 Wind load report generated successfully!")
+            self.results_text.append("\n📄 Wind load report generated successfully!")
             
         except Exception as e:
-            self.results_text.append(f"\\n❌ Report generation error: {str(e)}")
+            self.results_text.append(f"\n❌ Report generation error: {str(e)}")
 
 def show_wind_load_gui():
     """Show the wind load GUI"""
@@ -758,7 +1167,7 @@ class WindLoadCommand:
     
     def GetResources(self):
         return {
-            'Pixmap': 'wind_load.png',
+            'Pixmap': os.path.join(ICONPATH, "wind_load.svg"),
             'MenuText': 'Wind Load Generator',
             'ToolTip': 'Professional wind load analysis and generation'
         }
@@ -772,9 +1181,12 @@ class WindLoadCommand:
     def IsActive(self):
         return True
 
-# Register command if FreeCAD is available
-if FREECAD_AVAILABLE and 'FreeCADGui' in globals():
+# Register command - Fixed to ensure proper registration
+try:
+    import FreeCADGui as Gui
     Gui.addCommand("wind_load_gui", WindLoadCommand())
+except Exception as e:
+    print(f"Failed to register wind_load_gui command: {e}")
 
 # Export for direct usage
 __all__ = ['WindLoadGUI', 'WindLoadParameters', 'show_wind_load_gui', 'WindLoadCommand']
