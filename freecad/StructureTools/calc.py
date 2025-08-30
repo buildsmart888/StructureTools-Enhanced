@@ -457,7 +457,7 @@ class Calc:
 								# Apply as distributed load in -Y direction (FY)
 								if abs(line_load) > 1e-10:  # Only apply if non-zero
 									_print_message(f"Member {memberName}: Applying self-weight of {line_load:.4f}\n")
-									model.add_member_dist_load(memberName, 'FY', -line_load, -line_load)
+									model.add_member_dist_load(memberName, 'FY', -line_load, -line_load, case='DL')
 								else:
 									_print_message(f"Member {memberName}: Self-weight calculation resulted in zero load\n")
 									_print_message(f"  Density: {density}, Area: {area}\n")
@@ -569,12 +569,9 @@ class Calc:
 			# Check if load has LoadType property, if not default to 'DL'
 			load_type = getattr(load, 'LoadType', 'DL')
 			
-			# Get load factor for this specific load type in the current combination
-			load_factor = self.getLoadFactors(load_combination, load_type)
-			
-			# Skip loads with zero factor (not applicable to this load combination)
-			if load_factor == 0.0:
-				continue
+			# Don't apply load factors here - let Pynite handle them via load combinations
+			# Just use factor 1.0 for all loads and specify the load case
+			load_factor = 1.0
 
 			if load.GlobalDirection == '+X':
 				axis = 'FX'
@@ -621,7 +618,7 @@ class Calc:
 				
 				subname = int(load.ObjectBase[0][1][0].split('Edge')[1]) - 1
 				name = load.ObjectBase[0][0].Name + '_' + str(subname)
-				model.add_member_dist_load(name, axis, factored_initial, factored_final)
+				model.add_member_dist_load(name, axis, factored_initial, factored_final, case=load_type)
 
 			# Valida se o carregamento é nodal
 			elif 'Vertex' in load.ObjectBase[0][1][0]:
@@ -635,7 +632,7 @@ class Calc:
 				factored_load = float(load.NodalLoading.getValueAs(unitForce)) * direction * load_factor
 				
 				name = str(indexNode)
-				model.add_node_load(name, axis, factored_load)
+				model.add_node_load(name, axis, factored_load, case=load_type)
 			
 
 					
@@ -1033,21 +1030,39 @@ class Calc:
 		
 		# Use the selected load combination
 		active_load_combination = obj.LoadCombination if hasattr(obj, 'LoadCombination') else '100_DL'
+		_print_message(f"Starting analysis with LoadCombination: {active_load_combination}\n")
 		
 		# Filter and organize loads by type for current load combination
 		organized_loads = self.organizeLoadsByType(loads, active_load_combination)
 		
-		# Filter loads to only include those active in the current load combination
-		active_loads = []
-		for load in loads:
-			load_type = getattr(load, 'LoadType', 'DL')
-			load_factor = self.getLoadFactors(active_load_combination, load_type)
-			# Include loads with non-zero factors
-			if load_factor != 0.0:
-				active_loads.append(load)
-		
-		model = self.setLoads(model, active_loads, nodes_map, obj.ForceUnit, obj.LengthUnit, active_load_combination)
+		# Load ALL loads regardless of combination - Pynite will handle factors via combinations
+		# We now load all loads with their LoadType as case names
+		model = self.setLoads(model, loads, nodes_map, obj.ForceUnit, obj.LengthUnit, active_load_combination)
 		model = self.setSuports(model, suports, nodes_map, obj.LengthUnit)
+
+		# Create individual load cases and combinations for Pynite
+		load_factors = {}
+		for load_type in ['DL', 'LL', 'W', 'E', 'H', 'F']:
+			factor = self.getLoadFactors(active_load_combination, load_type)
+			if factor != 0.0:
+				load_factors[load_type] = factor
+		
+		# Clear existing load combinations and add the current one
+		model.load_combos.clear()
+		
+		# Create load combination with proper factors for each load type
+		# Now loads are loaded with factor 1.0, so Pynite will apply the factors
+		model.add_load_combo(active_load_combination, load_factors)
+		
+		_print_message(f"Added load combination '{active_load_combination}' with factors: {load_factors}\n")
+		_print_message(f"Model now has load combinations: {list(model.load_combos.keys())}\n")
+		
+		# Debug: Show available load cases in model
+		if hasattr(model, 'load_cases'):
+			load_cases = model.load_cases
+			_print_message(f"Available load cases in model: {load_cases}\n")
+		else:
+			_print_message("No load_cases property found in model\n")
 
 		# Run analysis but don't let exceptions abort headless tests; capture and warn instead
 		try:
@@ -1095,15 +1110,29 @@ class Calc:
 			# Print magnitudes of self-weight loads for debugging
 			self_weight_total = 0
 			for member_name, member in model.members.items():
-				for load_case, loads in member.distributed_loads.items():
-					for load in loads:
-						if load[0] == 'FY':
-							load_w1 = load[1]
-							load_w2 = load[2]
-							avg_load = (abs(load_w1) + abs(load_w2)) / 2
-							self_weight_total += avg_load
+				# PhysMember contains sub_members, need to access through them
+				if hasattr(member, 'sub_members'):
+					for sub_member in member.sub_members.values():
+						if hasattr(sub_member, 'distributed_loads'):
+							for load_case, loads in sub_member.distributed_loads.items():
+								for load in loads:
+									if load[0] == 'FY':
+										load_w1 = load[1]
+										load_w2 = load[2]
+										avg_load = (abs(load_w1) + abs(load_w2)) / 2
+										self_weight_total += avg_load
 			
 			_print_message(f"Total self-weight load magnitude: {self_weight_total:.4f}\n")
+			
+			# Debug: Check if analysis results exist for the selected combination
+			if model.members:
+				first_member = list(model.members.values())[0]
+				if hasattr(first_member, 'moment_array'):
+					try:
+						test_result = first_member.moment_array('My', 2, combo_name=active_load_combination)
+						_print_message(f"Analysis successful - test moment result for first member: {test_result[1][0]:.6f}\n")
+					except Exception as test_e:
+						_print_warning(f"Could not get results for combo '{active_load_combination}': {test_e}\n")
 			
 		except Exception as e:
 			_print_warning(f"Model analysis failed (continuing): {str(e)}\n")
@@ -1118,7 +1147,7 @@ class Calc:
 		# Create load summary
 		load_summary = []
 		total_loads = 0
-		for load in active_loads:  # Use active_loads instead of loads
+		for load in loads:  # Use all loads for summary
 			load_type = getattr(load, 'LoadType', 'DL')
 			load_factor = self.getLoadFactors(active_load_combination, load_type)
 			load_summary.append(f"{load_type} (Factor: {load_factor}) - {load.Label}")
@@ -1320,85 +1349,116 @@ class Calc:
 				'torque': tq_vals,
 				'deflectionY': dy_vals,
 				'deflectionZ': dz_vals,
-				'minMomentY': m.min_moment('My'),
-				'maxMomentY': m.max_moment('My'),
-				'minMomentZ': m.min_moment('Mz'),
-				'maxMomentZ': m.max_moment('Mz'),
-				'minShearY': m.min_shear('Fy'),
-				'maxShearY': m.max_shear('Fy'),
-				'minShearZ': m.min_shear('Fz'),
-				'maxShearZ': m.max_shear('Fz'),
-				'minTorque': m.min_torque(),
-				'maxTorque': m.max_torque(),
-				'minDeflectionY': m.min_deflection('dy'),
-				'maxDeflectionY': m.max_deflection('dy'),
-				'minDeflectionZ': m.min_deflection('dz'),
-				'maxDeflectionZ': m.max_deflection('dz')
+				'minMomentY': m.min_moment('My', combo_name=active_load_combination),
+				'maxMomentY': m.max_moment('My', combo_name=active_load_combination),
+				'minMomentZ': m.min_moment('Mz', combo_name=active_load_combination),
+				'maxMomentZ': m.max_moment('Mz', combo_name=active_load_combination),
+				'minShearY': m.min_shear('Fy', combo_name=active_load_combination),
+				'maxShearY': m.max_shear('Fy', combo_name=active_load_combination),
+				'minShearZ': m.min_shear('Fz', combo_name=active_load_combination),
+				'maxShearZ': m.max_shear('Fz', combo_name=active_load_combination),
+				'minTorque': m.min_torque(combo_name=active_load_combination),
+				'maxTorque': m.max_torque(combo_name=active_load_combination),
+				'minDeflectionY': m.min_deflection('dy', combo_name=active_load_combination),
+				'maxDeflectionY': m.max_deflection('dy', combo_name=active_load_combination),
+				'minDeflectionZ': m.min_deflection('dz', combo_name=active_load_combination),
+				'maxDeflectionZ': m.max_deflection('dz', combo_name=active_load_combination)
 			}
 
-		for name in model.members.keys():			
-			momenty.append(','.join( str(value) for value in model.members[name].moment_array('My', getattr(obj, 'NumPointsMoment', 5))[1]))
-			momentz.append(','.join( str(value) for value in model.members[name].moment_array('Mz', getattr(obj, 'NumPointsMoment', 5))[1]))
+		for name in model.members.keys():
+			try:
+				momenty.append(','.join( str(value) for value in model.members[name].moment_array('My', getattr(obj, 'NumPointsMoment', 5), combo_name=active_load_combination)[1]))
+				momentz.append(','.join( str(value) for value in model.members[name].moment_array('Mz', getattr(obj, 'NumPointsMoment', 5), combo_name=active_load_combination)[1]))
+			except Exception as e:
+				_print_warning(f"Error getting moment arrays for member '{name}' with combo '{active_load_combination}': {e}\n")
+				momenty.append('0.0')
+				momentz.append('0.0')
 
-			sheary.append(','.join( str(value) for value in model.members[name].shear_array('Fy', getattr(obj, 'NumPointsShear', 4))[1]))
-			shearz.append(','.join( str(value) for value in model.members[name].shear_array('Fz', getattr(obj, 'NumPointsShear', 4))[1]))
+			try:
+				sheary.append(','.join( str(value) for value in model.members[name].shear_array('Fy', getattr(obj, 'NumPointsShear', 4), combo_name=active_load_combination)[1]))
+				shearz.append(','.join( str(value) for value in model.members[name].shear_array('Fz', getattr(obj, 'NumPointsShear', 4), combo_name=active_load_combination)[1]))
 
-			axial.append(','.join( str(value) for value in model.members[name].axial_array(getattr(obj, 'NumPointsAxial', 3))[1]))
-			
-			torque.append(','.join( str(value) for value in model.members[name].torque_array(getattr(obj, 'NumPointsTorque', 3))[1]))
+				axial.append(','.join( str(value) for value in model.members[name].axial_array(getattr(obj, 'NumPointsAxial', 3), combo_name=active_load_combination)[1]))
+				
+				torque.append(','.join( str(value) for value in model.members[name].torque_array(getattr(obj, 'NumPointsTorque', 3), combo_name=active_load_combination)[1]))
 
-			deflectiony.append(','.join( str(value) for value in model.members[name].deflection_array('dy', getattr(obj, 'NumPointsDeflection', 4))[1]))
-			deflectionz.append(','.join( str(value) for value in model.members[name].deflection_array('dz', getattr(obj, 'NumPointsDeflection', 4))[1]))
+				deflectiony.append(','.join( str(value) for value in model.members[name].deflection_array('dy', getattr(obj, 'NumPointsDeflection', 4), combo_name=active_load_combination)[1]))
+				deflectionz.append(','.join( str(value) for value in model.members[name].deflection_array('dz', getattr(obj, 'NumPointsDeflection', 4), combo_name=active_load_combination)[1]))
+			except Exception as e:
+				_print_warning(f"Error getting force/deflection arrays for member '{name}' with combo '{active_load_combination}': {e}\n")
+				sheary.append('0.0')
+				shearz.append('0.0')
+				axial.append('0.0')
+				torque.append('0.0')
+				deflectiony.append('0.0')
+				deflectionz.append('0.0')
 
-			mimMomenty.append(model.members[name].min_moment('My'))
-			mimMomentz.append(model.members[name].min_moment('Mz'))
-			maxMomenty.append(model.members[name].max_moment('My'))
-			maxMomentz.append(model.members[name].max_moment('Mz'))
+			try:
+				mimMomenty.append(model.members[name].min_moment('My', combo_name=active_load_combination))
+				mimMomentz.append(model.members[name].min_moment('Mz', combo_name=active_load_combination))
+				maxMomenty.append(model.members[name].max_moment('My', combo_name=active_load_combination))
+				maxMomentz.append(model.members[name].max_moment('Mz', combo_name=active_load_combination))
 
-			minSheary.append(model.members[name].min_shear('Fy'))
-			minShearz.append(model.members[name].min_shear('Fz'))
-			maxSheary.append(model.members[name].max_shear('Fy'))
-			maxShearz.append(model.members[name].max_shear('Fz'))
+				minSheary.append(model.members[name].min_shear('Fy', combo_name=active_load_combination))
+				minShearz.append(model.members[name].min_shear('Fz', combo_name=active_load_combination))
+				maxSheary.append(model.members[name].max_shear('Fy', combo_name=active_load_combination))
+				maxShearz.append(model.members[name].max_shear('Fz', combo_name=active_load_combination))
 
-			minTorque.append(model.members[name].min_torque())
-			maxTorque.append(model.members[name].max_torque())
+				minTorque.append(model.members[name].min_torque(combo_name=active_load_combination))
+				maxTorque.append(model.members[name].max_torque(combo_name=active_load_combination))
 
-			minDeflectiony.append(model.members[name].min_deflection('dy'))
-			minDeflectionz.append(model.members[name].min_deflection('dz'))
-			maxDeflectiony.append(model.members[name].max_deflection('dy'))
-			maxDeflectionz.append(model.members[name].max_deflection('dz'))
+				minDeflectiony.append(model.members[name].min_deflection('dy', combo_name=active_load_combination))
+				minDeflectionz.append(model.members[name].min_deflection('dz', combo_name=active_load_combination))
+				maxDeflectiony.append(model.members[name].max_deflection('dy', combo_name=active_load_combination))
+				maxDeflectionz.append(model.members[name].max_deflection('dz', combo_name=active_load_combination))
+			except Exception as e:
+				_print_warning(f"Error getting min/max values for member '{name}' with combo '{active_load_combination}': {e}\n")
+				mimMomenty.append(0.0)
+				mimMomentz.append(0.0)
+				maxMomenty.append(0.0)
+				maxMomentz.append(0.0)
+				minSheary.append(0.0)
+				minShearz.append(0.0)
+				maxSheary.append(0.0)
+				maxShearz.append(0.0)
+				minTorque.append(0.0)
+				maxTorque.append(0.0)
+				minDeflectiony.append(0.0)
+				minDeflectionz.append(0.0)
+				maxDeflectiony.append(0.0)
+				maxDeflectionz.append(0.0)
 
 			# Also collect structured numeric results for this member (lists of floats)
 			try:
-				my_vals = [float(v) for v in model.members[name].moment_array('My', getattr(obj, 'NumPointsMoment', 3))[1]]
+				my_vals = [float(v) for v in model.members[name].moment_array('My', getattr(obj, 'NumPointsMoment', 3), combo_name=active_load_combination)[1]]
 			except Exception:
 				my_vals = []
 			try:
-				mz_vals = [float(v) for v in model.members[name].moment_array('Mz', getattr(obj, 'NumPointsMoment', 3))[1]]
+				mz_vals = [float(v) for v in model.members[name].moment_array('Mz', getattr(obj, 'NumPointsMoment', 3), combo_name=active_load_combination)[1]]
 			except Exception:
 				mz_vals = []
 			try:
-				fy_vals = [float(v) for v in model.members[name].shear_array('Fy', getattr(obj, 'NumPointsShear', 3))[1]]
+				fy_vals = [float(v) for v in model.members[name].shear_array('Fy', getattr(obj, 'NumPointsShear', 3), combo_name=active_load_combination)[1]]
 			except Exception:
 				fy_vals = []
 			try:
-				fz_vals = [float(v) for v in model.members[name].shear_array('Fz', getattr(obj, 'NumPointsShear', 3))[1]]
+				fz_vals = [float(v) for v in model.members[name].shear_array('Fz', getattr(obj, 'NumPointsShear', 3), combo_name=active_load_combination)[1]]
 			except Exception:
 				fz_vals = []
 			try:
-				ax_vals = [float(v) for v in model.members[name].axial_array(getattr(obj, 'NumPointsAxial', 2))[1]]
+				ax_vals = [float(v) for v in model.members[name].axial_array(getattr(obj, 'NumPointsAxial', 2), combo_name=active_load_combination)[1]]
 			except Exception:
 				ax_vals = []
 			try:
-				tq_vals = [float(v) for v in model.members[name].torque_array(getattr(obj, 'NumPointsTorque', 2))[1]]
+				tq_vals = [float(v) for v in model.members[name].torque_array(getattr(obj, 'NumPointsTorque', 2), combo_name=active_load_combination)[1]]
 			except Exception:
 				tq_vals = []
 			try:
-				dy_vals = [float(v) for v in model.members[name].deflection_array('dy', getattr(obj, 'NumPointsDeflection', 2))[1]]
+				dy_vals = [float(v) for v in model.members[name].deflection_array('dy', getattr(obj, 'NumPointsDeflection', 2), combo_name=active_load_combination)[1]]
 			except Exception:
 				dy_vals = []
 			try:
-				dz_vals = [float(v) for v in model.members[name].deflection_array('dz', getattr(obj, 'NumPointsDeflection', 2))[1]]
+				dz_vals = [float(v) for v in model.members[name].deflection_array('dz', getattr(obj, 'NumPointsDeflection', 2), combo_name=active_load_combination)[1]]
 			except Exception:
 				dz_vals = []
 
