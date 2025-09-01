@@ -573,34 +573,38 @@ class Calc:
 			# Just use factor 1.0 for all loads and specify the load case
 			load_factor = 1.0
 
-			if load.GlobalDirection == '+X':
-				axis = 'FX'
-				direction = 1
+			# Determine axis and direction based on GlobalDirection
+			axis = 'FX'  # Default
+			direction = 1  # Default
 
-			elif load.GlobalDirection == '-X':
-				axis = 'FX'
+			# Handle force directions (forces and moments)
+			if load.GlobalDirection in ['+X', '+x']:
+				axis = 'FX' if load.GlobalDirection[1].isupper() else 'Fx'
+				direction = 1
+			elif load.GlobalDirection in ['-X', '-x']:
+				axis = 'FX' if load.GlobalDirection[1].isupper() else 'Fx'
 				direction = -1
-
-			elif load.GlobalDirection == '+Y':
-				axis = 'FZ'
+			elif load.GlobalDirection in ['+Y', '+y']:
+				axis = 'FZ' if load.GlobalDirection[1].isupper() else 'Fz'
 				direction = 1
-
-			elif load.GlobalDirection == '-Y':
-				axis = 'FZ'
+			elif load.GlobalDirection in ['-Y', '-y']:
+				axis = 'FZ' if load.GlobalDirection[1].isupper() else 'Fz'
 				direction = -1
-
-			elif load.GlobalDirection == '+Z':
-				axis = 'FY'
+			elif load.GlobalDirection in ['+Z', '+z']:
+				axis = 'FY' if load.GlobalDirection[1].isupper() else 'Fy'
 				direction = 1
-
-			elif load.GlobalDirection == '-Z':
-				axis = 'FY'
+			elif load.GlobalDirection in ['-Z', '-z']:
+				axis = 'FY' if load.GlobalDirection[1].isupper() else 'Fy'
 				direction = -1
-
-			else:
-				# Default case to prevent unbound variables
-				axis = 'FX'
-				direction = 1
+			elif load.GlobalDirection in ['+My', '-My']:
+				axis = 'Mz' if load.GlobalDirection[0] == '+' else '-Mz'
+				direction = 1 if load.GlobalDirection[0] == '+' else -1
+			elif load.GlobalDirection in ['+Mz', '-Mz']:
+				axis = 'My' if load.GlobalDirection[0] == '+' else '-My'
+				direction = 1 if load.GlobalDirection[0] == '+' else -1
+			elif load.GlobalDirection in ['+Mx', '-Mx']:
+				axis = 'Mx'
+				direction = 1 if load.GlobalDirection[0] == '+' else -1
 
 			# Check direction compatibility for wind and earthquake loads
 			if load_type in ['W', 'E']:
@@ -608,7 +612,7 @@ class Calc:
 					continue  # Skip loads that don't match the required direction
 			
 			# Valida se o carregamento é distribuido
-			if 'Edge' in load.ObjectBase[0][1][0]:
+			if 'Edge' in load.ObjectBase[0][1][0] and hasattr(load, 'InitialLoading'):
 				initial = float(load.InitialLoading.getValueAs(unitForce))
 				final = float(load.FinalLoading.getValueAs(unitForce))
 
@@ -618,7 +622,56 @@ class Calc:
 				
 				subname = int(load.ObjectBase[0][1][0].split('Edge')[1]) - 1
 				name = load.ObjectBase[0][0].Name + '_' + str(subname)
-				model.add_member_dist_load(name, axis, factored_initial, factored_final, case=load_type)
+				
+				# Check if start and end positions are specified, otherwise use full length
+				x1 = None
+				x2 = None
+				if hasattr(load, 'StartPosition') and hasattr(load, 'EndPosition'):
+					# Only use start/end positions if they are not both zero (which would indicate full length)
+					if load.StartPosition.Value != 0.0 or load.EndPosition.Value != 0.0:
+						x1 = float(load.StartPosition.getValueAs(unitLength))
+						x2 = float(load.EndPosition.getValueAs(unitLength))
+				
+				model.add_member_dist_load(name, axis, factored_initial, factored_final, x1, x2, case=load_type)
+
+			# Valida se o carregamento é pontual (point load) em membro
+			elif 'Edge' in load.ObjectBase[0][1][0] and hasattr(load, 'PointLoading'):
+				# This is a point load on a member
+				force = float(load.PointLoading.getValueAs(unitForce))
+				
+				# Apply load factor based on load combination and load type
+				factored_load = force * direction * load_factor
+				
+				subname = int(load.ObjectBase[0][1][0].split('Edge')[1]) - 1
+				name = load.ObjectBase[0][0].Name + '_' + str(subname)
+				
+				# Get position along member (default to 0.5 if not specified)
+				position_ratio = getattr(load, 'RelativePosition', 0.5)
+				# Clamp position between 0.0 and 1.0
+				position_ratio = max(0.0, min(1.0, position_ratio))
+				
+				# Calculate actual position in member length units
+				member_length = model.members[name].L()
+				x_position = position_ratio * member_length
+				
+				# For moments, we need to use the appropriate moment axis
+				load_axis = axis
+				if axis in ['My', '-My', 'Mz', '-Mz', 'Mx']:
+					# Moments use different axis notation
+					if axis == 'My':
+						load_axis = 'MZ'
+					elif axis == '-My':
+						load_axis = 'MZ'
+						factored_load *= -1
+					elif axis == 'Mz':
+						load_axis = 'MY'
+					elif axis == '-Mz':
+						load_axis = 'MY'
+						factored_load *= -1
+					elif axis == 'Mx':
+						load_axis = 'MX'
+				
+				model.add_member_pt_load(name, load_axis, factored_load, x_position, case=load_type)
 
 			# Valida se o carregamento é nodal
 			elif 'Vertex' in load.ObjectBase[0][1][0]:

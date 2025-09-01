@@ -72,6 +72,10 @@ class LoadDistributed:
         obj.addProperty("App::PropertyForce", "FinalLoading", "Distributed", "Final loading (load per unit length)").FinalLoading = 10000000
         obj.addProperty("App::PropertyFloat", "ScaleDraw", "Load", "Scale from drawing").ScaleDraw = 1
 
+        # Add properties for start and end positions of distributed load
+        obj.addProperty("App::PropertyLength", "StartPosition", "Distributed", "Start position of distributed load along member").StartPosition = 0.0
+        obj.addProperty("App::PropertyLength", "EndPosition", "Distributed", "End position of distributed load along member").EndPosition = 0.0
+
         # Add Thai units properties for distributed loads
         if THAI_UNITS_AVAILABLE:
             obj.addProperty("App::PropertyFloat", "InitialLoadingKgfM", "Thai Units", "Initial loading in kgf/m").InitialLoadingKgfM = 1000000  # N/m to kgf/m
@@ -167,54 +171,137 @@ class LoadDistributed:
             k = 1000000
             nArrow = int(k * (subelement.Length**(1/1.8))/(obj.ScaleDraw * ((obj.InitialLoading + obj.FinalLoading) / 2))) #calcula o numero de setas com base na distancia do menbro, escala do desenho e media das forças de inicio e fim
             
-            
+            # Limit the number of arrows to prevent performance issues
+            nArrow = min(nArrow, 50)
 
             FEend = obj.FinalLoading / obj.InitialLoading #fator de escala entre as forças 'end' e 'start'
             distEndStart = subelement.Length
 
+            # Calculate start and end positions for load visualization
+            start_pos = 0.0
+            end_pos = subelement.Length
+            
+            # Check if start and end positions are specified
+            if hasattr(obj, 'StartPosition') and hasattr(obj, 'EndPosition'):
+                # Convert to internal units (mm) for visualization
+                start_pos = float(obj.StartPosition.getValueAs('mm'))
+                end_pos = float(obj.EndPosition.getValueAs('mm'))
+                
+                # Ensure positions are within valid range
+                start_pos = max(0.0, min(start_pos, subelement.Length))
+                end_pos = max(0.0, min(end_pos, subelement.Length))
+                
+                # Ensure consistent ordering for visualization
+                if start_pos > end_pos:
+                    # Swap start and end positions
+                    temp = start_pos
+                    start_pos = end_pos
+                    end_pos = temp
+                
+                # Adjust distance for arrow placement
+                distEndStart = end_pos - start_pos
+                # If start and end are the same, use full length
+                if distEndStart == 0:
+                    start_pos = 0.0
+                    end_pos = subelement.Length
+                    distEndStart = subelement.Length
+
             # Gera a lista de pontos 
             pInit = subelement.Vertexes[0].Point
-            dist = subelement.Length / nArrow
-            distx = (subelement.Vertexes[1].Point.x - subelement.Vertexes[0].Point.x) / nArrow #Calcula a distancia entre cada seta no eixo x
-            disty = (subelement.Vertexes[1].Point.y - subelement.Vertexes[0].Point.y) / nArrow #Calcula a distancia entre cada seta no eixo y
-            distz = (subelement.Vertexes[1].Point.z - subelement.Vertexes[0].Point.z) / nArrow #Calcula a distancia entre cada seta no eixo z
+            dist = distEndStart / nArrow if nArrow > 0 else 0
+            
+            # Calculate direction vector for the edge
+            edge_vec = FreeCAD.Vector(
+                subelement.Vertexes[1].Point.x - subelement.Vertexes[0].Point.x,
+                subelement.Vertexes[1].Point.y - subelement.Vertexes[0].Point.y,
+                subelement.Vertexes[1].Point.z - subelement.Vertexes[0].Point.z
+            )
+            
+            # Normalize and scale by edge length
+            edge_length = edge_vec.Length
+            if edge_length > 0:
+                edge_vec.normalize()
+                edge_vec.multiply(subelement.Length)
+            
+            # Calculate start point based on start position
+            start_point = FreeCAD.Vector(
+                subelement.Vertexes[0].Point.x + (edge_vec.x * start_pos / subelement.Length) if subelement.Length > 0 else 0,
+                subelement.Vertexes[0].Point.y + (edge_vec.y * start_pos / subelement.Length) if subelement.Length > 0 else 0,
+                subelement.Vertexes[0].Point.z + (edge_vec.z * start_pos / subelement.Length) if subelement.Length > 0 else 0
+            )
+            
+            # Calculate step vector for arrow placement
+            step_vec = FreeCAD.Vector(
+                edge_vec.x / nArrow if nArrow > 0 else 0,
+                edge_vec.y / nArrow if nArrow > 0 else 0,
+                edge_vec.z / nArrow if nArrow > 0 else 0
+            )
+            
+            # Adjust step vector based on start and end positions
+            if distEndStart > 0 and subelement.Length > 0:
+                scale_factor = distEndStart / subelement.Length
+                step_vec.multiply(scale_factor)
+            
             listPoints = []
             for i in range(nArrow + 1):
-                x = distx * i 
-                y = disty * i 
-                z = distz * i 
-                listPoints.append(FreeCAD.Vector(x,y,z))
+                point = FreeCAD.Vector(
+                    start_point.x + step_vec.x * i,
+                    start_point.y + step_vec.y * i,
+                    start_point.z + step_vec.z * i
+                )
+                listPoints.append(point)
 
             # gera a lista de setas já em suas devidas escalas e nas devidas distancia posicionadas sobre o eixo X
             listArrow = []            
             for i in range(nArrow + 1):
-                arrowCopy = self.makeArrow(obj, obj.InitialLoading)
-                listArrow.append(arrowCopy)
-                Fe = ((dist * i * (FEend - 1)) / distEndStart)  + 1 #calculo do fator de escala               
+                # Calculate load value at this position for scaling
+                load_value = obj.InitialLoading
+                if distEndStart > 0:
+                    # Calculate position ratio between 0 and 1
+                    position_ratio = (i * dist) / distEndStart
+                    # Interpolate between initial and final loading
+                    load_value = obj.InitialLoading + (obj.FinalLoading - obj.InitialLoading) * position_ratio
                 
-                match obj.GlobalDirection:
-                    case '+X':
-                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
-                    case '-X':
-                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), 90)
-                    case '+Y':
-                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 90)
-                    case '-Y':
-                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), -90)
-                    case '+Z':
-                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 180)
-                    case '-Z':
-                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
+                arrowCopy = self.makeArrow(obj, load_value)
+                listArrow.append(arrowCopy)
+                Fe = 1.0
+                if obj.InitialLoading != 0:
+                    Fe = load_value / obj.InitialLoading  # calculo do fator de escala               
+                
+                # Replace match-case with if-elif for compatibility
+                if obj.GlobalDirection == '+X':
+                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
+                elif obj.GlobalDirection == '-X':
+                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), 90)
+                elif obj.GlobalDirection == '+Y':
+                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 90)
+                elif obj.GlobalDirection == '-Y':
+                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), -90)
+                elif obj.GlobalDirection == '+Z':
+                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 180)
+                elif obj.GlobalDirection == '-Z':
+                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
                 
                 arrowCopy.scale(Fe)
                 arrowCopy.translate(listPoints[i])
                 listArrow.append(arrowCopy)
 
             shape = Part.makeCompound(listArrow)
-            shape.translate(subelement.Vertexes[0].Point)
             obj.ViewObject.ShapeAppearance = (FreeCAD.Material(DiffuseColor=(0.00,0.00,1.00),AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
             if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
-                obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection})'
+                # If the load has start and end positions, include them in the label
+                if hasattr(obj, 'StartPosition') and hasattr(obj, 'EndPosition') and \
+                   (obj.StartPosition.Value > 0 or obj.EndPosition.Value > 0):
+                    # Get actual used positions after swapping if needed
+                    actual_start = min(obj.StartPosition.Value, obj.EndPosition.Value)
+                    actual_end = max(obj.StartPosition.Value, obj.EndPosition.Value)
+                    # Show positions in the label
+                    if actual_end > 0:
+                        obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection}) [{actual_start}-{actual_end}]'
+                    else:
+                        obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection}) [{actual_start}]'
+                else:
+                    obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection})'
             else:
                 obj.Label = 'distributed load'
 
@@ -234,7 +321,18 @@ class LoadDistributed:
             # Re-execute when direction changes
             if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
                 self.execute(obj)
-    
+        elif Parameter == 'StartPosition' or Parameter == 'EndPosition':
+            # Check if StartPosition is greater than EndPosition and warn user
+            if hasattr(obj, 'StartPosition') and hasattr(obj, 'EndPosition'):
+                if obj.StartPosition.Value > obj.EndPosition.Value and obj.EndPosition.Value > 0:
+                    try:
+                        import FreeCAD
+                        FreeCAD.Console.PrintWarning("StartPosition is greater than EndPosition. The visualization will swap them.\n")
+                    except:
+                        print("StartPosition is greater than EndPosition. The visualization will swap them.")
+            # Re-execute when start or end position changes
+            if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+                self.execute(obj)
 
 class ViewProviderLoadDistributed:
     def __init__(self, obj):
@@ -351,14 +449,7 @@ static char * load_distributed_xpm[] = {
 "    . + @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ # .     ",
 "    . $ % % % % % % % % % % % % % % % % % % % % % % % % & .     ",
 "    . $ % * = = = = = = = = - % % ; = = = = = = = = > % & .     ",
-"    . $ % , ' ) ) ) ) ) ) ) ! ~ % { ] ) ) ) ) ) ) ^ / % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
+"    . $ % , ' ) ) ) ) ) ) ) ! ~ % { ] ) ) ) ) ) ^ / % & .     ",
 "    . $ % (                 _ ~ % :                 < % & .     ",
 "    . $ % (                 _ ~ % :                 < % & .     ",
 "    . $ % (                 _ ~ % :                 < % & .     ",
