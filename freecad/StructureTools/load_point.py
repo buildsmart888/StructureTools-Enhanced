@@ -118,17 +118,23 @@ except ImportError:
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
-def show_error_message(msg):
+def show_error_message(msg, english_msg=None):
+    # If both Thai and English messages are provided, show both
+    if english_msg:
+        full_msg = f"{msg}\n{english_msg}"
+    else:
+        full_msg = msg
+        
     try:
         msg_box = QtWidgets.QMessageBox()
-        msg_box.setIcon(QtWidgets.QMessageBox.Critical)  # Ícone de erro
-        msg_box.setWindowTitle("Erro")
-        msg_box.setText(msg)
+        msg_box.setIcon(QtWidgets.QMessageBox.Critical)
+        msg_box.setWindowTitle("Error")
+        msg_box.setText(full_msg)
         msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
         msg_box.exec_()
     except Exception:
         # Fallback if QMessageBox is not available
-        print("ERROR:", msg)
+        print("ERROR:", full_msg)
 
 
 class LoadPoint:
@@ -326,74 +332,74 @@ class ViewProviderLoadPoint:
         return """
 /* XPM */
 static char * load_point_xpm[] = {
-"32 32 49 1",
+"32 32 36 1",
 " 	c None",
-".	c #000000",
-"+	c #008000",
-"@	c #008400",
-"#	c #009000",
-"$	c #009C00",
-"%	c #00A800",
-"&	c #00B400",
-"*	c #00C000",
-"=	c #00CC00",
-"-	c #00D800",
-";	c #00E400",
-">	c #00F000",
-",	c #00FC00",
-"'	c #00FF04",
-")	c #00FF10",
-"!	c #00FF1C",
-"~	c #00FF28",
-"{	c #00FF34",
-"]	c #00FF40",
-"^	c #00FF4C",
-"/	c #00FF58",
-"(	c #00FF64",
-"_	c #00FF70",
-":	c #00FF7C",
-"<	c #00FF88",
-"[	c #00FF94",
-"}	c #00FFA0",
-"|	c #00FFAC",
-"1	c #00FFB8",
-"2	c #00FFC4",
-"3	c #00FFD0",
-"4	c #00FFDC",
-"5	c #00FFE8",
-"6	c #00FFF4",
-"7	c #00FFFF",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
-"                                ",
+".	c #110101",
+"+	c #220303",
+"@	c #1C0303",
+"#	c #190303",
+"$	c #200303",
+"%	c #008000",
+"&	c #006600",
+"*	c #1A0303",
+"=	c #1D0303",
+"-	c #190202",
+";	c #007700",
+">	c #100101",
+",	c #160202",
+"'	c #008800",
+")	c #007700",
+"!	c #009900",
+"~	c #790C0C",
+"{	c #00AA00",
+"]	c #00BB00",
+"^	c #180202",
+"/	c #5D0A0A",
+"(	c #5D0909",
+"_	c #1B0202",
+":	c #00CC00",
+"<	c #00DD00",
+"[	c #1A0202",
+"}	c #420707",
+"|	c #420606",
+"1	c #00EE00",
+"2	c #00FF00",
+"3	c #2D0404",
+"4	c #008000",
+"5	c #2E0404",
+"6	c #A91010",
+"7	c #210303",
+"             .+++@#             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"             $%%%&$             ",
+"          *==-%%%;>==*          ",
+"          ,')!%%%%;)',          ",
+"           ~%%%%%%%%~           ",
+"           -{%%%%%%]^           ",
+"            /%%%%%%(            ",
+"            _:%%%%<[            ",
+"             }%%%%|             ",
+"             #1%%2@             ",
+"              34%5              ",
+"              ^66*              ",
+"               77               ",
 "                                "};
         """
 
@@ -411,18 +417,36 @@ class CommandLoadPoint():
         try:
             selections = list(FreeCADGui.Selection.getSelectionEx())
         
+            # Check if any selections were made
+            if not selections:
+                show_error_message("กรุณาเลือกเส้น (line) ก่อนสร้างภาระจุด", "Please select a line before creating a point load")
+                return
+                
             for selection in selections:
                 if selection.HasSubObjects: #Valida se a seleção possui sub objetos
                     for subSelectionname in selection.SubElementNames:
-                        if 'Edge' in subSelectionname:  # Only create point loads on edges
-                            doc = App.activeDocument()
-                            obj = doc.addObject("Part::FeaturePython", "Load_Point")
-                            objLoad = LoadPoint(obj,(selection.Object, subSelectionname))
-                            ViewProviderLoadPoint(obj.ViewObject)
+                        # Check if the selection is an Edge before creating the object
+                        if 'Edge' not in subSelectionname:
+                            show_error_message("กรุณาเลือกเส้น (line) เท่านั้น สำหรับภาระจุดนี้", "Please select only lines for this point load")
+                            continue  # Skip this selection and continue with others
+                            
+                        doc = App.activeDocument()
+                        obj = doc.addObject("Part::FeaturePython", "Load_Point")
+                        objLoad = LoadPoint(obj,(selection.Object, subSelectionname))
+                        ViewProviderLoadPoint(obj.ViewObject)
                 else:
+                    # Check if the selection is a valid object with edges
+                    if not hasattr(selection.Object, 'Shape') or not selection.Object.Shape:
+                        show_error_message("วัตถุที่เลือกไม่มีรูปร่างที่ถูกต้องสำหรับภาระจุด", "Selected object does not have a valid shape for point load")
+                        continue
+                        
                     # If no subobjects selected, create point loads on all edges
                     line = selection.Object
                     edges = line.Shape.Edges
+                    if not edges:
+                        show_error_message("วัตถุที่เลือกไม่มีเส้น (edges) สำหรับสร้างภาระจุด", "Selected object has no edges to create point load")
+                        continue
+                        
                     for i in range(len(edges)):
                         doc = App.activeDocument()
                         obj = doc.addObject("Part::FeaturePython", "Load_Point")
@@ -431,7 +455,7 @@ class CommandLoadPoint():
 
             App.activeDocument().recompute()
         except Exception as e:
-            show_error_message(f"Error creating point load: {str(e)}")
+            show_error_message(f"เกิดข้อผิดพลาดในการสร้างภาระจุด: {str(e)}", f"Error creating point load: {str(e)}")
         return
 
     def IsActive(self):

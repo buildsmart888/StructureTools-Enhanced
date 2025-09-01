@@ -55,11 +55,17 @@ except ImportError:
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
-def show_error_message(msg):
+def show_error_message(msg, english_msg=None):
+    # If both Thai and English messages are provided, show both
+    if english_msg:
+        full_msg = f"{msg}\n{english_msg}"
+    else:
+        full_msg = msg
+        
     msg_box = QtWidgets.QMessageBox()
-    msg_box.setIcon(QtWidgets.QMessageBox.Critical)  # Ícone de erro
-    msg_box.setWindowTitle("Erro")
-    msg_box.setText(msg)
+    msg_box.setIcon(QtWidgets.QMessageBox.Critical)
+    msg_box.setWindowTitle("Error")
+    msg_box.setText(full_msg)
     msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
     msg_box.exec_()
 
@@ -73,8 +79,8 @@ class LoadDistributed:
         obj.addProperty("App::PropertyFloat", "ScaleDraw", "Load", "Scale from drawing").ScaleDraw = 1
 
         # Add properties for start and end positions of distributed load
-        obj.addProperty("App::PropertyLength", "StartPosition", "Distributed", "Start position of distributed load along member").StartPosition = 0.0
-        obj.addProperty("App::PropertyLength", "EndPosition", "Distributed", "End position of distributed load along member").EndPosition = 0.0
+        obj.addProperty("App::PropertyLength", "StartPosition", "Distributed", "Start position of distributed load along member (0 = start, measured from member start)").StartPosition = 0.0
+        obj.addProperty("App::PropertyLength", "EndPosition", "Distributed", "End position of distributed load along member (0 = use full member length to end)").EndPosition = 0.0
 
         # Add Thai units properties for distributed loads
         if THAI_UNITS_AVAILABLE:
@@ -187,12 +193,23 @@ class LoadDistributed:
                 start_pos = float(obj.StartPosition.getValueAs('mm'))
                 end_pos = float(obj.EndPosition.getValueAs('mm'))
                 
+                # Special case: if both are explicitly 0, use full length
+                if start_pos == 0.0 and end_pos == 0.0:
+                    # Both are explicitly set to 0, which means use full length
+                    start_pos = 0.0
+                    end_pos = subelement.Length
+                else:
+                    # If only EndPosition is 0, interpret it as end of member
+                    if end_pos == 0.0:
+                        end_pos = subelement.Length
+                
                 # Ensure positions are within valid range
                 start_pos = max(0.0, min(start_pos, subelement.Length))
                 end_pos = max(0.0, min(end_pos, subelement.Length))
                 
                 # Ensure consistent ordering for visualization
                 if start_pos > end_pos:
+                    FreeCAD.Console.PrintWarning(f"StartPosition ({start_pos}) is greater than EndPosition ({end_pos}). The visualization will swap them.\n")
                     # Swap start and end positions
                     temp = start_pos
                     start_pos = end_pos
@@ -217,58 +234,94 @@ class LoadDistributed:
                 subelement.Vertexes[1].Point.z - subelement.Vertexes[0].Point.z
             )
             
-            # Normalize and scale by edge length
+            # Normalize and calculate unit direction vector
             edge_length = edge_vec.Length
             if edge_length > 0:
-                edge_vec.normalize()
-                edge_vec.multiply(subelement.Length)
+                unit_dir_vec = FreeCAD.Vector(
+                    edge_vec.x / edge_length,
+                    edge_vec.y / edge_length,
+                    edge_vec.z / edge_length
+                )
+            else:
+                unit_dir_vec = FreeCAD.Vector(0,0,0)
             
             # Calculate start point based on start position
             start_point = FreeCAD.Vector(
-                subelement.Vertexes[0].Point.x + (edge_vec.x * start_pos / subelement.Length) if subelement.Length > 0 else 0,
-                subelement.Vertexes[0].Point.y + (edge_vec.y * start_pos / subelement.Length) if subelement.Length > 0 else 0,
-                subelement.Vertexes[0].Point.z + (edge_vec.z * start_pos / subelement.Length) if subelement.Length > 0 else 0
+                subelement.Vertexes[0].Point.x + (unit_dir_vec.x * start_pos),
+                subelement.Vertexes[0].Point.y + (unit_dir_vec.y * start_pos),
+                subelement.Vertexes[0].Point.z + (unit_dir_vec.z * start_pos)
             )
             
-            # Calculate step vector for arrow placement
-            step_vec = FreeCAD.Vector(
-                edge_vec.x / nArrow if nArrow > 0 else 0,
-                edge_vec.y / nArrow if nArrow > 0 else 0,
-                edge_vec.z / nArrow if nArrow > 0 else 0
-            )
-            
-            # Adjust step vector based on start and end positions
-            if distEndStart > 0 and subelement.Length > 0:
-                scale_factor = distEndStart / subelement.Length
-                step_vec.multiply(scale_factor)
-            
-            listPoints = []
-            for i in range(nArrow + 1):
-                point = FreeCAD.Vector(
-                    start_point.x + step_vec.x * i,
-                    start_point.y + step_vec.y * i,
-                    start_point.z + step_vec.z * i
+            # Only generate arrows if there's a valid distance to place them on
+            if distEndStart > 0:
+                # Generate the actual number of arrows to display between start_pos and end_pos
+                nArrow = min(max(int(nArrow * (distEndStart / subelement.Length)), 3), 50)
+                
+                # Calculate step vector for arrow placement - only along the specified section
+                step_length = distEndStart / max(1, nArrow - 1)  # Ensure we don't divide by zero
+                step_vec = FreeCAD.Vector(
+                    unit_dir_vec.x * step_length,
+                    unit_dir_vec.y * step_length,
+                    unit_dir_vec.z * step_length
                 )
-                listPoints.append(point)
+                
+                listPoints = []
+                # Create points from start_pos to end_pos
+                for i in range(nArrow):
+                    point = FreeCAD.Vector(
+                        start_point.x + step_vec.x * i,
+                        start_point.y + step_vec.y * i,
+                        start_point.z + step_vec.z * i
+                    )
+                    listPoints.append(point)
 
-            # gera a lista de setas já em suas devidas escalas e nas devidas distancia posicionadas sobre o eixo X
-            listArrow = []            
-            for i in range(nArrow + 1):
-                # Calculate load value at this position for scaling
-                load_value = obj.InitialLoading
-                if distEndStart > 0:
-                    # Calculate position ratio between 0 and 1
-                    position_ratio = (i * dist) / distEndStart
-                    # Interpolate between initial and final loading
-                    load_value = obj.InitialLoading + (obj.FinalLoading - obj.InitialLoading) * position_ratio
+                # gera a lista de setas já em suas devidas escalas e nas devidas distancia posicionadas sobre o eixo X
+                listArrow = []            
+                for i in range(len(listPoints)):
+                    # Calculate load value at this position for scaling
+                    load_value = obj.InitialLoading
+                    if distEndStart > 0:
+                        # Calculate position ratio between 0 and 1 based on position in the array
+                        position_ratio = float(i) / max(1, len(listPoints) - 1)  # Avoid division by zero
+                        # Interpolate between initial and final loading
+                        load_value = obj.InitialLoading + (obj.FinalLoading - obj.InitialLoading) * position_ratio
                 
-                arrowCopy = self.makeArrow(obj, load_value)
-                listArrow.append(arrowCopy)
-                Fe = 1.0
-                if obj.InitialLoading != 0:
-                    Fe = load_value / obj.InitialLoading  # calculo do fator de escala               
+                    arrowCopy = self.makeArrow(obj, load_value)
+                    listArrow.append(arrowCopy)
+                    Fe = 1.0
+                    if obj.InitialLoading != 0:
+                        Fe = load_value / obj.InitialLoading  # calculo do fator de escala               
+                    
+                    # Replace match-case with if-elif for compatibility
+                    if obj.GlobalDirection == '+X':
+                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
+                    elif obj.GlobalDirection == '-X':
+                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), 90)
+                    elif obj.GlobalDirection == '+Y':
+                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 90)
+                    elif obj.GlobalDirection == '-Y':
+                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), -90)
+                    elif obj.GlobalDirection == '+Z':
+                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 180)
+                    elif obj.GlobalDirection == '-Z':
+                        arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
+                    
+                    arrowCopy.scale(Fe)
+                    arrowCopy.translate(listPoints[i])
+            else:
+                # Create a single arrow at the midpoint of the member if no valid range is specified
+                midpoint = FreeCAD.Vector(
+                    subelement.Vertexes[0].Point.x + (unit_dir_vec.x * subelement.Length * 0.5),
+                    subelement.Vertexes[0].Point.y + (unit_dir_vec.y * subelement.Length * 0.5),
+                    subelement.Vertexes[0].Point.z + (unit_dir_vec.z * subelement.Length * 0.5)
+                )
+                listPoints = [midpoint]
+                listArrow = []
                 
-                # Replace match-case with if-elif for compatibility
+                # Create a single arrow
+                arrowCopy = self.makeArrow(obj, obj.InitialLoading)
+                
+                # Apply rotation based on direction
                 if obj.GlobalDirection == '+X':
                     arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
                 elif obj.GlobalDirection == '-X':
@@ -282,10 +335,7 @@ class LoadDistributed:
                 elif obj.GlobalDirection == '-Z':
                     arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
                 
-                arrowCopy.scale(Fe)
-                arrowCopy.translate(listPoints[i])
-                listArrow.append(arrowCopy)
-
+                arrowCopy.translate(midpoint)
             shape = Part.makeCompound(listArrow)
             obj.ViewObject.ShapeAppearance = (FreeCAD.Material(DiffuseColor=(0.00,0.00,1.00),AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
             if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
@@ -322,16 +372,20 @@ class LoadDistributed:
             if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
                 self.execute(obj)
         elif Parameter == 'StartPosition' or Parameter == 'EndPosition':
-            # Check if StartPosition is greater than EndPosition and warn user
-            if hasattr(obj, 'StartPosition') and hasattr(obj, 'EndPosition'):
-                if obj.StartPosition.Value > obj.EndPosition.Value and obj.EndPosition.Value > 0:
-                    try:
-                        import FreeCAD
-                        FreeCAD.Console.PrintWarning("StartPosition is greater than EndPosition. The visualization will swap them.\n")
-                    except:
-                        print("StartPosition is greater than EndPosition. The visualization will swap them.")
             # Re-execute when start or end position changes
             if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+                # Validate that start position is not beyond end of member
+                if hasattr(obj, 'StartPosition'):
+                    if obj.StartPosition.Value < 0:
+                        obj.StartPosition = 0.0
+                        FreeCAD.Console.PrintWarning("StartPosition cannot be negative. Set to 0.\n")
+                    
+                # Handle special case for EndPosition = 0
+                if hasattr(obj, 'EndPosition'):
+                    if obj.EndPosition.Value < 0:
+                        obj.EndPosition = 0.0
+                        FreeCAD.Console.PrintWarning("EndPosition cannot be negative. Set to 0.\n")
+                
                 self.execute(obj)
 
 class ViewProviderLoadDistributed:
@@ -343,131 +397,59 @@ class ViewProviderLoadDistributed:
         return """
 /* XPM */
 static char * load_distributed_xpm[] = {
-"32 32 99 2",
-"  	c None",
-". 	c #030D22",
-"+ 	c #0E3B93",
-"@ 	c #1144AA",
-"# 	c #0E398F",
-"$ 	c #1658DD",
-"% 	c #1966FF",
-"& 	c #1556D6",
-"* 	c #1860F0",
-"= 	c #1452CC",
-"- 	c #1555D5",
-"; 	c #175EEA",
-"> 	c #1861F2",
-", 	c #0D3483",
-"' 	c #030A17",
-") 	c #030E26",
-"! 	c #020611",
-"~ 	c #1966FE",
-"{ 	c #09255B",
-"] 	c #030C1D",
-"^ 	c #030917",
-"/ 	c #0E388C",
-"( 	c #0D337F",
-"_ 	c #020C1E",
-": 	c #092256",
-"< 	c #0E3789",
-"[ 	c #030918",
-"} 	c #040D20",
-"| 	c #165BE4",
-"1 	c #0D398D",
-"2 	c #020917",
-"3 	c #030914",
-"4 	c #020B1C",
-"5 	c #01060F",
-"6 	c #0A2863",
-"7 	c #020916",
-"8 	c #020A18",
-"9 	c #020712",
-"0 	c #01050F",
-"a 	c #010815",
-"b 	c #030D1F",
-"c 	c #165AE1",
-"d 	c #0E3687",
-"e 	c #020B1D",
-"f 	c #1862F6",
-"g 	c #0A2966",
-"h 	c #0E3C96",
-"i 	c #1659DF",
-"j 	c #030C1E",
-"k 	c #0C317A",
-"l 	c #031026",
-"m 	c #1042A5",
-"n 	c #1864F9",
-"o 	c #020B1E",
-"p 	c #04122D",
-"q 	c #0C3078",
-"r 	c #1965FD",
-"s 	c #1450C8",
-"t 	c #061637",
-"u 	c #020A19",
-"v 	c #1554D2",
-"w 	c #030C1F",
-"x 	c #030C1C",
-"y 	c #134CBE",
-"z 	c #092459",
-"A 	c #165AE0",
-"B 	c #06173B",
-"C 	c #0B2A69",
-"D 	c #124ABA",
-"E 	c #020C1D",
-"F 	c #081F4E",
-"G 	c #0C3179",
-"H 	c #1964FA",
-"I 	c #081E49",
-"J 	c #040C1E",
-"K 	c #1760EF",
-"L 	c #0F40A0",
-"M 	c #1146AE",
-"N 	c #020C1F",
-"O 	c #041433",
-"P 	c #020A1B",
-"Q 	c #134CBD",
-"R 	c #030F24",
-"S 	c #07193F",
-"T 	c #0E3A91",
-"U 	c #04132F",
-"V 	c #1659DE",
-"W 	c #081F4D",
-"X 	c #134DC1",
-"Y 	c #030B1D",
-"Z 	c #030D1E",
-"` 	c #175CE6",
-" .	c #041129",
-"..	c #071E4C",
-"+.	c #061B44",
-"@.	c #082155",
-"#.	c #01040B",
-"$.	c #020815",
-"%.	c #010307",
-"                                                                ",
-"                                                                ",
-"                                                                ",
-"    . + @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ @ # .     ",
-"    . $ % % % % % % % % % % % % % % % % % % % % % % % % & .     ",
-"    . $ % * = = = = = = = = - % % ; = = = = = = = = > % & .     ",
-"    . $ % , ' ) ) ) ) ) ) ) ! ~ % { ] ) ) ) ) ) ^ / % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"    . $ % (                 _ ~ % :                 < % & .     ",
-"[ } ! | % 1 2 }         3 4 5 ~ % 6 7 4       8 4 9 + % $ 0 4 a ",
-"b c % % % % % d         e f % % % % % g         h % % % % % i j ",
-"  k % % % % % l           m % % % % n o         p % % % % % q   ",
-"  . r % % % s j           t % % % % @ u         b v % % % r w   ",
-"  x y % % % z             b A % % % B             C % % % D E   ",
-"    F % % f _               G % % | b             b H % % I     ",
-"    J K % L                 . r % (               7 M % * N     ",
-"      h % O                 P Q % R                 S % T       ",
-"      U V w                   W X Y                 Z `  .      ",
-"      b ..                    _ +.                    @.Z       ",
-"        #.                      $.                    %.        "};
+"32 32 17 1",
+" 	c None",
+".	c #1966FF",
+"+	c #000000",
+"#	c #1966FE",
+"$	c #1966FD",
+"%	c #1966FC",
+"&	c #1966FB",
+"*	c #1966FA",
+"=	c #1966F9",
+"-	c #1966F8",
+";	c #1966F7",
+">	c #1966F6",
+",	c #1966F5",
+"'	c #1966F4",
+")	c #1966F3",
+"!	c #1966F2",
+"~	c #1966F1",
+"                                ",
+"                                ",
+"      ......................    ",
+"     .++++++++++++++++++++++.   ",
+"    .++....................++  ",
+"   .++......................++ ",
+"  .++........................++",
+" .++..........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .+...........................+",
+" .++........................++ ",
+"  .++......................++  ",
+"   .++....................++   ",
+"    .++++++++++++++++++++++.    ",
+"     ......................     ",
+"                                ",
+"                                ",
+"                                ",
+"                                ",
+"                                ",
+"                                ",
+"                                "};
         """
 
 
@@ -481,33 +463,51 @@ class CommandLoadDistributed():
                 "ToolTip" : "Adds loads to the structure"}
 
     def Activated(self):
-        # try:
-        selections = list(FreeCADGui.Selection.getSelectionEx())
+        try:
+            selections = list(FreeCADGui.Selection.getSelectionEx())
+            
+            # Check if any selections were made
+            if not selections:
+                show_error_message("กรุณาเลือกเส้น (line) ก่อนสร้างภาระกระจาย", "Please select a line before creating a distributed load")
+                return
     
-        for selection in selections:
-            if selection.HasSubObjects: #Valida se a seleção possui sub objetos
-                for subSelectionname in selection.SubElementNames:
+            for selection in selections:
+                if selection.HasSubObjects: #Valida se a seleção possui sub objetos
+                    for subSelectionname in selection.SubElementNames:
+                        # Check if the selection is an Edge before creating the object
+                        if 'Edge' not in subSelectionname:
+                            show_error_message("กรุณาเลือกเส้น (line) เท่านั้น สำหรับภาระกระจายนี้", "Please select only lines for this distributed load")
+                            continue  # Skip this selection and continue with others
 
-                    doc = FreeCAD.ActiveDocument
-                    obj = doc.addObject("Part::FeaturePython", "Load_Distributed")
+                        doc = FreeCAD.ActiveDocument
+                        obj = doc.addObject("Part::FeaturePython", "Load_Distributed")
 
-                    print(subSelectionname)
-                    objLoad = LoadDistributed(obj,(selection.Object, subSelectionname))
-                    ViewProviderLoadDistributed(obj.ViewObject)
-            else:
-                # pass
-                line = selection.Object
-                edges = line.Shape.Edges
-                for i in range(len(edges)):
-                    doc = FreeCAD.ActiveDocument
-                    obj = doc.addObject("Part::FeaturePython", "Load_Distributed")
-                    LoadDistributed(obj,(selection.Object, 'Edge'+str(i+1)))
-                    ViewProviderLoadDistributed(obj.ViewObject)
+                        print(subSelectionname)
+                        objLoad = LoadDistributed(obj,(selection.Object, subSelectionname))
+                        ViewProviderLoadDistributed(obj.ViewObject)
+                else:
+                    # Check if the selection is a valid object with edges
+                    if not hasattr(selection.Object, 'Shape') or not selection.Object.Shape:
+                        show_error_message("วัตถุที่เลือกไม่มีรูปร่างที่ถูกต้องสำหรับภาระกระจาย", "Selected object does not have a valid shape for distributed load")
+                        continue
+                        
+                    # pass
+                    line = selection.Object
+                    edges = line.Shape.Edges
+                    if not edges:
+                        show_error_message("วัตถุที่เลือกไม่มีเส้น (edges) สำหรับสร้างภาระกระจาย", "Selected object has no edges to create distributed load")
+                        continue
+                        
+                    for i in range(len(edges)):
+                        doc = FreeCAD.ActiveDocument
+                        obj = doc.addObject("Part::FeaturePython", "Load_Distributed")
+                        LoadDistributed(obj,(selection.Object, 'Edge'+str(i+1)))
+                        ViewProviderLoadDistributed(obj.ViewObject)
 
         
-        FreeCAD.ActiveDocument.recompute()
-        # except:
-        #     show_error_message("Seleciona uma barra para adicionar um carregamento distribuido.")
+            FreeCAD.ActiveDocument.recompute()
+        except Exception as e:
+            show_error_message(f"เกิดข้อผิดพลาดในการสร้างภาระกระจาย: {str(e)}", f"Error creating distributed load: {str(e)}")
         return
 
     def IsActive(self):

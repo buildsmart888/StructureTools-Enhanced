@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to verify that the fixes for plate and area load objects work correctly.
+Final test script to verify that the fixes for plate and area load objects work correctly.
 """
 
 import sys
@@ -27,9 +27,6 @@ def test_plate_creation():
     try:
         # Create a new document
         doc = App.newDocument("TestPlate")
-        
-        # Create a simple rectangular face
-        rect = Part.makePlane(1000, 500, App.Vector(0, 0, 0))  # 1m x 0.5m plate
         
         # Create a plate object
         plate = doc.addObject("App::FeaturePython", "TestPlate")
@@ -83,10 +80,10 @@ def main():
     area_load_success = test_area_load_creation()
     
     if plate_success and area_load_success:
-        print("✓ All tests PASSED! The fixes are working correctly.")
+        print("\n✓ All tests PASSED! The fixes are working correctly.")
         return 0
     else:
-        print("✗ Some tests FAILED! Please check the implementation.")
+        print("\n✗ Some tests FAILED! Please check the implementation.")
         return 1
 
 if __name__ == "__main__":

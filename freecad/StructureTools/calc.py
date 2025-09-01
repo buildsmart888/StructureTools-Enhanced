@@ -791,10 +791,13 @@ class Calc:
 	
 	def execute(self, obj):
 		model = FEModel3D()
+		# Store the model as an attribute so tests can access it
+		self.model = model
 		# Initialize materials list to track processed materials
 		materiais = []
 		
 		# Ensure there's a default material so meshed quads can be assigned a material name
+
 		# Tests and minimal workflows may not define materials; create a light default.
 		try:
 			if 'default' not in model.materials:
@@ -1050,11 +1053,19 @@ class Calc:
 				except Exception:
 					pass
 
-			# Determine pressure magnitude (in force per area units) - assume Magnitude property
+			# Determine pressure magnitude (in force per area units)
 			pressure_value = None
-			if hasattr(aload, 'Magnitude'):
+			
+			# First try LoadIntensity property (preferred)
+			if hasattr(aload, 'LoadIntensity'):
 				try:
-					# Try to convert FreeCAD.Quantity to model units
+					pressure_value = qty_val(aload.LoadIntensity, 'N/m^2', obj.ForceUnit + '/' + obj.LengthUnit + '^2')
+				except Exception as e:
+					_print_warning(f"Could not convert LoadIntensity for AreaLoad '{aload.Name}': {e}\n")
+
+			# Fall back to Magnitude property if needed
+			if pressure_value is None and hasattr(aload, 'Magnitude'):
+				try:
 					pressure_value = qty_val(aload.Magnitude, 'N/m^2', obj.ForceUnit + '/' + obj.LengthUnit + '^2')
 				except Exception:
 					try:
@@ -1062,23 +1073,210 @@ class Calc:
 					except Exception:
 						pressure_value = None
 
+			# Get load direction vector
+			load_direction = App.Vector(0, 0, -1)  # Default downward
+			if hasattr(aload, 'LoadDirection'):
+				load_direction = aload.LoadDirection
+			elif hasattr(aload, 'Direction'):
+				# Use the Direction property if LoadDirection is not available
+				direction_map = {
+					"+X Global": App.Vector(1, 0, 0),
+					"-X Global": App.Vector(-1, 0, 0),
+					"+Y Global": App.Vector(0, 1, 0),
+					"-Y Global": App.Vector(0, -1, 0),
+					"+Z Global": App.Vector(0, 0, 1),
+					"-Z Global": App.Vector(0, 0, -1),
+					"Normal": App.Vector(0, 0, -1)  # Default
+				}
+				if aload.Direction in direction_map:
+					load_direction = direction_map[aload.Direction]
+				elif aload.Direction == "Custom" and hasattr(aload, 'CustomDirection'):
+					load_direction = aload.CustomDirection
+
+			# Normalize the direction vector
+			try:
+				length = math.sqrt(load_direction.x**2 + load_direction.y**2 + load_direction.z**2)
+				if length > 0:
+					load_direction = App.Vector(load_direction.x/length, load_direction.y/length, load_direction.z/length)
+			except Exception as e:
+				_print_warning(f"Error normalizing load direction for AreaLoad '{aload.Name}': {e}\n")
+				load_direction = App.Vector(0, 0, -1)
+
+			# Apply coordinate system mapping (FreeCAD X→Solver X, FreeCAD Y→Solver Z, FreeCAD Z→Solver Y)
+			load_direction = App.Vector(load_direction.x, load_direction.z, load_direction.y)
+
+			# Determine load distribution method (one-way vs two-way)
+			distribution_method = "TwoWay"  # Default to two-way distribution
+			if hasattr(aload, 'LoadDistribution'):
+				distribution_method = aload.LoadDistribution
+
+			# Get load case from load category
+			load_case = "DL"  # Default to dead load
+			if hasattr(aload, 'LoadCategory'):
+				load_case = aload.LoadCategory
+
+			_print_message(f"Processing AreaLoad '{aload.Name}' with {distribution_method} distribution, pressure: {pressure_value} {obj.ForceUnit}/{obj.LengthUnit}²\n")
+
 			for tgt in targets:
 				# try to find the plate we added by name
 				plate_name = getattr(tgt, 'Name', None)
-				# Map to rectangular plates
-				if plate_name and plate_name in model.plates and pressure_value is not None:
-					try:
-						model.add_plate_surface_pressure(plate_name, pressure_value, case='Case 1')
-					except Exception as e:
+				
+				# Process each face of the target to calculate effective pressure
+				if hasattr(tgt, 'Shape') and hasattr(tgt.Shape, 'Faces'):
+					face_count = len(tgt.Shape.Faces)
+					for i, face in enumerate(tgt.Shape.Faces):
+						try:
+							# Calculate face normal at center
+							u_range = face.ParameterRange[0:2]
+							v_range = face.ParameterRange[2:4]
+							u_center = (u_range[0] + u_range[1]) / 2
+							v_center = (v_range[0] + v_range[1]) / 2
+							face_normal = face.normalAt(u_center, v_center)
+							
+							# Normalize face normal
+							normal_length = math.sqrt(face_normal.x**2 + face_normal.y**2 + face_normal.z**2)
+							if normal_length > 0:
+								face_normal = App.Vector(face_normal.x/normal_length, face_normal.y/normal_length, face_normal.z/normal_length)
+							
+							# Apply coordinate system mapping (FreeCAD X→Solver X, FreeCAD Y→Solver Z, FreeCAD Z→Solver Y)
+							face_normal = App.Vector(face_normal.x, face_normal.z, face_normal.y)
+							
+							# Calculate dot product between load direction and face normal
+							# This gives us the effective pressure considering the angle
+							dot_product = load_direction.x * face_normal.x + load_direction.y * face_normal.y + load_direction.z * face_normal.z
+							
+							# Calculate effective pressure
+							effective_pressure = pressure_value * dot_product if pressure_value is not None else 0.0
+							
+							# For plates or directly mapped quads
+							face_plate_name = f"{plate_name}_{i}" if face_count > 1 else plate_name
+
+							# Get edge factors based on distribution method
+							edge_factors = [0.25, 0.25, 0.25, 0.25]  # Default equal distribution
+							
+							if distribution_method == "OneWay":
+								# One-way distribution - load goes to two parallel edges
+								one_way_direction = App.Vector(1, 0, 0)  # Default X direction
+								
+								if hasattr(aload, 'OneWayDirection'):
+									if aload.OneWayDirection == "X":
+										one_way_direction = App.Vector(1, 0, 0)
+									elif aload.OneWayDirection == "Y":
+										one_way_direction = App.Vector(0, 1, 0)
+									elif aload.OneWayDirection == "Custom" and hasattr(aload, 'CustomDistributionDirection'):
+										one_way_direction = aload.CustomDistributionDirection
+								
+								# Reset factors to 0
+								edge_factors = [0.0, 0.0, 0.0, 0.0]
+								
+								# Find edges perpendicular to distribution direction
+								edges = face.Edges
+								perpendicular_edges = []
+								
+								for j, edge in enumerate(edges):
+									if edge.Length > 0:
+										edge_dir = edge.Vertexes[1].Point - edge.Vertexes[0].Point
+										edge_length = math.sqrt(edge_dir.x**2 + edge_dir.y**2 + edge_dir.z**2)
+										if edge_length > 0:
+											edge_dir = App.Vector(edge_dir.x/edge_length, edge_dir.y/edge_length, edge_dir.z/edge_length)
+											# Check if edge is perpendicular to direction (using dot product)
+											edge_dot = abs(edge_dir.x * one_way_direction.x + edge_dir.y * one_way_direction.y + edge_dir.z * one_way_direction.z)
+											if edge_dot < 0.3:  # If dot product is close to 0, they're perpendicular
+												perpendicular_edges.append(j)
+								
+								# Set perpendicular edges to 0.5 each (shared load)
+								if len(perpendicular_edges) >= 2:
+									for j in perpendicular_edges[:2]:  # Use first two perpendicular edges
+										if j < len(edge_factors):
+											edge_factors[j] = 0.5
+							
+							elif distribution_method == "TwoWay":
+								# Two-way distribution - load is distributed based on relative span lengths
+								edges = face.Edges
+								
+								if len(edges) >= 4:
+									# Get edge lengths
+									edge_lengths = [edge.Length for edge in edges[:4]]  # Use first 4 edges
+									
+									# Calculate edge factors based on relative lengths
+									# For a rectangle, longer edges get more load
+									total_length = sum(edge_lengths)
+									
+									if total_length > 0:
+										edge_factors = [length/total_length for length in edge_lengths]
+										
+										# Pad to 4 elements if needed
+										while len(edge_factors) < 4:
+											edge_factors.append(0.0)
+							
+							elif distribution_method == "OpenStructure":
+								# Open structure - load is distributed based on projected area
+								# Calculate edge factors based on projection and edge orientation
+								edges = face.Edges
+								
+								if len(edges) >= 4:
+									# Project load direction onto each edge normal
+									for j, edge in enumerate(edges[:4]):
+										if edge.Length > 0:
+											# Get edge normal (perpendicular to edge, in plane of face)
+											edge_dir = edge.Vertexes[1].Point - edge.Vertexes[0].Point
+											edge_normal = App.Vector(edge_dir.y, -edge_dir.x, edge_dir.z)  # Simplified 2D normal
+											
+											# Normalize edge normal
+											normal_length = math.sqrt(edge_normal.x**2 + edge_normal.y**2 + edge_normal.z**2)
+											if normal_length > 0:
+												edge_normal = App.Vector(edge_normal.x/normal_length, edge_normal.y/normal_length, edge_normal.z/normal_length)
+											
+											# Get projection factor (dot product with load direction)
+											proj_factor = abs(edge_normal.x * load_direction.x + 
+																edge_normal.y * load_direction.y + 
+																edge_normal.z * load_direction.z)
+											
+											# Use projection factor to adjust edge factor
+											edge_factors[j] = proj_factor
+									
+									# Normalize edge factors to sum to 1.0
+									factor_sum = sum(edge_factors)
+									if factor_sum > 0:
+										edge_factors = [factor / factor_sum for factor in edge_factors]
+							
+							# Apply pressure to plates/quads with edge factors
+							if plate_name and face_plate_name in model.plates and effective_pressure is not None:
+								try:
+									model.add_plate_surface_pressure(face_plate_name, effective_pressure, case=load_case)
+									_print_message(f"  Applied pressure {effective_pressure:.4f} to plate {face_plate_name} with edge factors: {[f'{ef:.2f}' for ef in edge_factors]}\n")
+								except Exception as e:
+									_print_warning(f"Could not map AreaLoad '{aload.Name}' to plate '{face_plate_name}': {e}\n")
+									
+							# Map to meshed quads created for this plate (if any)
+							if hasattr(self, '_plate_mesh_elements') and plate_name in getattr(self, '_plate_mesh_elements', {}):
+								for qname in self._plate_mesh_elements.get(plate_name, []):
+									if qname in model.quads and effective_pressure is not None:
+										try:
+											model.add_quad_surface_pressure(qname, effective_pressure, case=load_case)
+											_print_message(f"  Applied pressure {effective_pressure:.4f} to quad {qname} with edge factors: {[f'{ef:.2f}' for ef in edge_factors]}\n")
+										except Exception as e:
+											_print_warning(f"Could not map AreaLoad '{aload.Name}' to quad '{qname}': {e}\n")
+						except Exception as e:
+							_print_warning(f"Error processing face {i} of AreaLoad '{aload.Name}': {e}\n")
+				else:
+					# Fallback to original method if no face information available
+					if plate_name and plate_name in model.plates and pressure_value is not None:
+						try:
+							model.add_plate_surface_pressure(plate_name, pressure_value, case=load_case)
+							_print_message(f"  Applied pressure {pressure_value:.4f} to plate {plate_name} (fallback method)\n")
+						except Exception as e:
 							_print_warning(f"Could not map AreaLoad '{aload.Name}' to plate '{plate_name}': {e}\n")
-				# Map to meshed quads created for this plate (if any)
-				if hasattr(self, '_plate_mesh_elements') and plate_name in getattr(self, '_plate_mesh_elements', {}):
-					for qname in self._plate_mesh_elements.get(plate_name, []):
-						if qname in model.quads and pressure_value is not None:
-							try:
-								model.add_quad_surface_pressure(qname, pressure_value, case='Case 1')
-							except Exception as e:
-								_print_warning(f"Could not map AreaLoad '{aload.Name}' to quad '{qname}': {e}\n")
+							
+					# Map to meshed quads created for this plate (if any)
+					if hasattr(self, '_plate_mesh_elements') and plate_name in getattr(self, '_plate_mesh_elements', {}):
+						for qname in self._plate_mesh_elements.get(plate_name, []):
+							if qname in model.quads and pressure_value is not None:
+								try:
+									model.add_quad_surface_pressure(qname, pressure_value, case=load_case)
+									_print_message(f"  Applied pressure {pressure_value:.4f} to quad {qname} (fallback method)\n")
+								except Exception as e:
+									_print_warning(f"Could not map AreaLoad '{aload.Name}' to quad '{qname}': {e}\n")
 
 		
 		# Use the selected load combination

@@ -55,11 +55,17 @@ except ImportError:
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
-def show_error_message(msg):
+def show_error_message(msg, english_msg=None):
+    # If both Thai and English messages are provided, show both
+    if english_msg:
+        full_msg = f"{msg}\n{english_msg}"
+    else:
+        full_msg = msg
+        
     msg_box = QtWidgets.QMessageBox()
-    msg_box.setIcon(QtWidgets.QMessageBox.Critical)  # Ícone de erro
-    msg_box.setWindowTitle("Erro")
-    msg_box.setText(msg)
+    msg_box.setIcon(QtWidgets.QMessageBox.Critical)
+    msg_box.setWindowTitle("Error")
+    msg_box.setText(full_msg)
     msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
     msg_box.exec_()
 
@@ -177,14 +183,16 @@ class LoadNodal:
             else:
                 obj.Label = 'nodal load'
 
-        obj.Placement = shape.Placement
-        obj.Shape = shape
-        obj.ViewObject.DisplayMode = 'Shaded'
-        
-        
-       
-
-
+            # Set shape properties only when shape is defined
+            obj.Placement = shape.Placement
+            obj.Shape = shape
+            obj.ViewObject.DisplayMode = 'Shaded'
+        else:
+            # If selection is not a Vertex (e.g., Edge), show error and don't create shape
+            show_error_message("กรุณาเลือกจุด (point) เท่านั้น สำหรับภาระจุดนี้", "Please select only points for this nodal load")
+            # Clear any existing shape
+            obj.Shape = Part.Shape()
+    
     def onChanged(self,obj,Parameter):
         if Parameter == 'edgeLength':
             self.execute(obj)
@@ -290,10 +298,20 @@ class CommandLoadNodal():
 
     def Activated(self):
         try:
-            selections = list(FreeCADGui.Selection.getSelectionEx())        
+            selections = list(FreeCADGui.Selection.getSelectionEx())   
+            
+            # Check if any selections were made
+            if not selections:
+                show_error_message("กรุณาเลือกจุด (point) ก่อนสร้างภาระจุด", "Please select a point before creating a nodal load")
+                return
+            
             for selection in selections:
                 for subSelectionname in selection.SubElementNames:
-
+                    # Check if the selection is a Vertex (point) before creating the object
+                    if 'Vertex' not in subSelectionname:
+                        show_error_message("กรุณาเลือกจุด (point) เท่านั้น สำหรับภาระจุดนี้", "Please select only points for this nodal load")
+                        continue  # Skip this selection and continue with others
+                        
                     doc = FreeCAD.ActiveDocument
                     obj = doc.addObject("Part::FeaturePython", "Load_Nodal")
 
@@ -302,7 +320,7 @@ class CommandLoadNodal():
             
             FreeCAD.ActiveDocument.recompute()
         except:
-            show_error_message("Seleciona um ponto ou uma barra para adicionar um carregamento.")
+            show_error_message("กรุณาเลือกจุด (point) สำหรับเพิ่มภาระจุด", "Please select a point to add a nodal load")
         return
 
     def IsActive(self):
