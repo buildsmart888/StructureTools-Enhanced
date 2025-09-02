@@ -23,6 +23,7 @@ class ReactionTablePanel:
         self.reaction_obj = reaction_obj
         self.form = self.create_ui()
         self.setup_connections()
+        self._populating = False  # Recursion guard
         self.populate_reaction_table()
     
     def create_ui(self):
@@ -162,18 +163,32 @@ class ReactionTablePanel:
             if hasattr(calc_obj, 'LoadCombination'):
                 available_combos = calc_obj.LoadCombination
                 
+                # Handle both list and single string cases
                 if isinstance(available_combos, list):
-                    self.load_combo_dropdown.addItems(available_combos)
+                    if available_combos:  # Check if list is not empty
+                        self.load_combo_dropdown.addItems(available_combos)
+                    else:
+                        # Add default if list is empty
+                        self.load_combo_dropdown.addItem("100_DL")
+                elif isinstance(available_combos, str):
+                    # If it's a single string, add it
+                    self.load_combo_dropdown.addItem(available_combos)
                 else:
+                    # Handle other cases by converting to string
                     self.load_combo_dropdown.addItem(str(available_combos))
                 
                 # Set current selection to match object property
                 if hasattr(self.reaction_obj, 'ActiveLoadCombination'):
                     current_combo = self.reaction_obj.ActiveLoadCombination
-                    index = self.load_combo_dropdown.findText(current_combo)
-                    if index >= 0:
-                        self.load_combo_dropdown.setCurrentIndex(index)
-                return
+                    if current_combo:  # Only set if not empty
+                        index = self.load_combo_dropdown.findText(current_combo)
+                        if index >= 0:
+                            self.load_combo_dropdown.setCurrentIndex(index)
+                        elif self.load_combo_dropdown.count() > 0:
+                            # Set to first item if current combo not found
+                            self.load_combo_dropdown.setCurrentIndex(0)
+                            # Update object property to match
+
             
             # If no combinations found, add default
             self.load_combo_dropdown.addItem("100_DL")
@@ -187,7 +202,12 @@ class ReactionTablePanel:
     
     def populate_reaction_table(self):
         """Populate the reaction table with data."""
+        # Recursion guard to prevent infinite loops
+        if self._populating:
+            return
+        
         try:
+            self._populating = True
             # Clear existing table
             self.table_widget.clear()
             
@@ -418,6 +438,9 @@ class ReactionTablePanel:
             FreeCAD.Console.PrintError(f"Error populating reaction table: {str(e)}\n")
             self.status_label.setText(f"Error: {str(e)}")
             self.status_label.setStyleSheet("color: #e74c3c;")
+        finally:
+            # Reset recursion guard
+            self._populating = False
     
     def is_node_supported(self, node) -> bool:
         """Check if a node has any support conditions."""
@@ -426,7 +449,9 @@ class ReactionTablePanel:
     
     def on_load_combination_changed(self, combo_name):
         """Handle load combination selection change."""
-        self.populate_reaction_table()
+        # Only update if not already populating to prevent recursion
+        if not self._populating:
+            self.populate_reaction_table()
     
     def export_to_format(self, format_type: str):
         """Export reaction results to specified format."""

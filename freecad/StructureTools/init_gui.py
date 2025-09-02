@@ -79,6 +79,9 @@ class StructureTools(Gui.Workbench):
 		from freecad.StructureTools import reaction_results
 		from freecad.StructureTools import reaction_table_panel
 		from freecad.StructureTools import command_reaction_table
+		# New text-based visualization command
+		from freecad.StructureTools import command_text_visualization
+		
 		# New Phase 1 components
 		from freecad.StructureTools import command_plate
 		from freecad.StructureTools import command_area_load
@@ -117,12 +120,12 @@ class StructureTools(Gui.Workbench):
 
 		self.appendToolbar('StructureLoad', ["load_distributed","load_nodal", "load_point", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui"])
 		self.appendToolbar('StructureTools', ["member", "suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate"])
-		self.appendToolbar('StructureResults', ["calc","diagram", "ReactionResults", "ReactionTablePanel", "ViewReactionTable", "GenerateStructuralReport"])
+		self.appendToolbar('StructureResults', ["calc","diagram", "ReactionResults", "ReactionTablePanel", "ViewReactionTable", "GenerateStructuralReport", "TextVisualization"])
 		self.appendToolbar('AdvancedAnalysis', ["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
 		self.appendToolbar('DesignCodes', ["RunAISCDesign", "RunACIDesign"])
 		self.appendToolbar('BIMIntegration', ["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])
 		
-		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "load_point", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate", "calc", "diagram", "ReactionResults", "ViewReactionTable", "GenerateStructuralReport"])
+		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "load_point", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate", "calc", "diagram", "ReactionResults", "ViewReactionTable", "TextVisualization", "GenerateStructuralReport"])
 		self.appendMenu('Advanced Analysis',["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
 		self.appendMenu('Design Codes',["RunAISCDesign", "RunACIDesign"])
 		self.appendMenu('BIM Integration',["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])

@@ -209,12 +209,46 @@ class LoadPoint:
     
     # Retorna o subelemento asociado
     def getSubelement(self, obj, nameSubElement):
-        if 'Edge' in  nameSubElement:
-            index = int(nameSubElement.split('Edge')[1]) - 1
-            return obj.ObjectBase[0][0].Shape.Edges[index]
-        else:
-            index = int(nameSubElement.split('Vertex')[1]) - 1
-            return obj.ObjectBase[0][0].Shape.Vertexes[index]
+        try:
+            if not nameSubElement:
+                FreeCAD.Console.PrintWarning(f"Warning: Invalid subelement name in point load: {nameSubElement}\n")
+                return None
+                
+            if 'Edge' in nameSubElement:
+                index = int(nameSubElement.split('Edge')[1]) - 1
+                # Check if index is valid
+                if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
+                    FreeCAD.Console.PrintWarning(f"Warning: Missing ObjectBase in point load\n")
+                    return None
+                if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 1 or not obj.ObjectBase[0][0]:
+                    FreeCAD.Console.PrintWarning(f"Warning: Invalid ObjectBase structure in point load\n")
+                    return None
+                if not hasattr(obj.ObjectBase[0][0], 'Shape') or not hasattr(obj.ObjectBase[0][0].Shape, 'Edges'):
+                    FreeCAD.Console.PrintWarning(f"Warning: ObjectBase has no Shape or Edges in point load\n")
+                    return None
+                if index < 0 or index >= len(obj.ObjectBase[0][0].Shape.Edges):
+                    FreeCAD.Console.PrintWarning(f"Warning: Edge index {index} out of range in point load\n")
+                    return None
+                return obj.ObjectBase[0][0].Shape.Edges[index]
+            else:
+                index = int(nameSubElement.split('Vertex')[1]) - 1
+                # Check if index is valid
+                if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
+                    FreeCAD.Console.PrintWarning(f"Warning: Missing ObjectBase in point load\n")
+                    return None
+                if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 1 or not obj.ObjectBase[0][0]:
+                    FreeCAD.Console.PrintWarning(f"Warning: Invalid ObjectBase structure in point load\n")
+                    return None
+                if not hasattr(obj.ObjectBase[0][0], 'Shape') or not hasattr(obj.ObjectBase[0][0].Shape, 'Vertexes'):
+                    FreeCAD.Console.PrintWarning(f"Warning: ObjectBase has no Shape or Vertexes in point load\n")
+                    return None
+                if index < 0 or index >= len(obj.ObjectBase[0][0].Shape.Vertexes):
+                    FreeCAD.Console.PrintWarning(f"Warning: Vertex index {index} out of range in point load\n")
+                    return None
+                return obj.ObjectBase[0][0].Shape.Vertexes[index]
+        except Exception as e:
+            FreeCAD.Console.PrintWarning(f"Error in getSubelement: {str(e)}\n")
+            return None
 
     # Desenha a forma da seta levando em conta a escala informada
     def makeArrow(self, obj, load):
@@ -231,97 +265,113 @@ class LoadPoint:
     
     def execute(self, obj):
         # Safety check for ObjectBase
-        if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
-            return
-        if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 2 or not obj.ObjectBase[0][1]:
-            return
-            
-        subelement = self.getSubelement(obj, obj.ObjectBase[0][1][0])
-        if 'Edge' in obj.ObjectBase[0][1][0]:
-            # Desenha carregamento pontual 
-            shape = self.makeArrow(obj, obj.PointLoading)
-            
-            # Calculate position along the edge based on RelativePosition (0.0 to 1.0)
-            position_ratio = max(0.0, min(1.0, obj.RelativePosition))  # Clamp between 0.0 and 1.0
-            
-            # Calculate point along edge
-            start_point = subelement.Vertexes[0].Point
-            end_point = subelement.Vertexes[1].Point
-            
-            # Calculate edge length
-            edge_length = subelement.Length
-            
-            # Linear interpolation between start and end points
-            load_point = App.Vector(
-                start_point.x + (end_point.x - start_point.x) * position_ratio,
-                start_point.y + (end_point.y - start_point.y) * position_ratio,
-                start_point.z + (end_point.z - start_point.z) * position_ratio
-            )
-            
-            # Replace match-case with if-elif for compatibility
-            # Handle force directions
-            if obj.GlobalDirection == '+X':
-                shape.rotate(App.Vector(0,0,0),App.Vector(0,1,0), -90)
-            elif obj.GlobalDirection == '-X':
-                shape.rotate(App.Vector(0,0,0),App.Vector(0,1,0), 90)
-            elif obj.GlobalDirection == '+Y':
-                shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 90)
-            elif obj.GlobalDirection == '-Y':
-                shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), -90)
-            elif obj.GlobalDirection == '+Z':
-                shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 180)
-            elif obj.GlobalDirection == '-Z':
-                shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 0)
-            elif obj.GlobalDirection == '+x':
-                shape.rotate(App.Vector(0,0,0),App.Vector(0,1,0), -90)
-            elif obj.GlobalDirection == '-x':
-                shape.rotate(App.Vector(0,0,0),App.Vector(0,1,0), 90)
-            elif obj.GlobalDirection == '+y':
-                shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 90)
-            elif obj.GlobalDirection == '-y':
-                shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), -90)
-            elif obj.GlobalDirection == '+z':
-                shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 180)
-            elif obj.GlobalDirection == '-z':
-                shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 0)
-            # Handle moment directions (no rotation needed for moments, just position)
-            elif obj.GlobalDirection in ['+My', '-My', '+Mz', '-Mz', '+Mx', '-Mx']:
-                # For moments, we'll use a different visualization
-                # For now, we'll just position it without rotation
-                pass
-            
-            shape.translate(load_point)
-            obj.ViewObject.ShapeAppearance = (App.Material(DiffuseColor=(0.00,1.00,0.00),AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
-            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
-                obj.Label = f'{obj.LoadType} point load ({obj.GlobalDirection}) at {obj.RelativePosition*100:.0f}%'
-            else:
-                obj.Label = 'point load'
+        try:
+            if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
+                return
+            if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 2 or not obj.ObjectBase[0][1]:
+                return
+                
+            try:
+                # Get the subelement with enhanced error handling
+                subelement = self.getSubelement(obj, obj.ObjectBase[0][1][0])
+                if not subelement:
+                    FreeCAD.Console.PrintWarning(f"Warning: Could not get subelement for point load. Skipping execution.\n")
+                    return
+                    
+                if 'Edge' in obj.ObjectBase[0][1][0]:
+                    # Desenha carregamento pontual 
+                    try:
+                        shape = self.makeArrow(obj, obj.PointLoading)
+                        
+                        # Calculate position along the edge based on RelativePosition (0.0 to 1.0)
+                        position_ratio = max(0.0, min(1.0, obj.RelativePosition))  # Clamp between 0.0 and 1.0
+                        
+                        # Calculate point along edge
+                        start_point = subelement.Vertexes[0].Point
+                        end_point = subelement.Vertexes[1].Point
+                        
+                        # Calculate edge length
+                        edge_length = subelement.Length
+                        
+                        # Linear interpolation between start and end points
+                        load_point = App.Vector(
+                            start_point.x + (end_point.x - start_point.x) * position_ratio,
+                            start_point.y + (end_point.y - start_point.y) * position_ratio,
+                            start_point.z + (end_point.z - start_point.z) * position_ratio
+                        )
+                        
+                        # Replace match-case with if-elif for compatibility
+                        # Handle force directions
+                        if obj.GlobalDirection == '+X':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(0,1,0), -90)
+                        elif obj.GlobalDirection == '-X':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(0,1,0), 90)
+                        elif obj.GlobalDirection == '+Y':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 90)
+                        elif obj.GlobalDirection == '-Y':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), -90)
+                        elif obj.GlobalDirection == '+Z':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 180)
+                        elif obj.GlobalDirection == '-Z':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 0)
+                        elif obj.GlobalDirection == '+x':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(0,1,0), -90)
+                        elif obj.GlobalDirection == '-x':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(0,1,0), 90)
+                        elif obj.GlobalDirection == '+y':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 90)
+                        elif obj.GlobalDirection == '-y':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), -90)
+                        elif obj.GlobalDirection == '+z':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 180)
+                        elif obj.GlobalDirection == '-z':
+                            shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0), 0)
+                        # Handle moment directions (no rotation needed for moments, just position)
+                        elif obj.GlobalDirection in ['+My', '-My', '+Mz', '-Mz', '+Mx', '-Mx']:
+                            # For moments, we'll use a different visualization
+                            # For now, we'll just position it without rotation
+                            pass
+                        
+                        shape.translate(load_point)
+                        obj.ViewObject.ShapeAppearance = (App.Material(DiffuseColor=(0.00,1.00,0.00),AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
+                        if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                            obj.Label = f'{obj.LoadType} point load ({obj.GlobalDirection}) at {obj.RelativePosition*100:.0f}%'
+                        else:
+                            obj.Label = 'point load'
 
-        obj.Placement = shape.Placement
-        obj.Shape = shape
-        obj.ViewObject.DisplayMode = 'Shaded'
-        
+                        obj.Placement = shape.Placement
+                        obj.Shape = shape
+                        obj.ViewObject.DisplayMode = 'Shaded'
+                    except Exception as e:
+                        FreeCAD.Console.PrintError(f"Error setting point load properties: {str(e)}\n")
+            except Exception as e:
+                FreeCAD.Console.PrintError(f"Error executing point load: {str(e)}\n")
+        except Exception as e:
+            FreeCAD.Console.PrintError(f"Error in point load execute: {str(e)}\n")
         
     def onChanged(self,obj,Parameter):
-        if Parameter == 'edgeLength':
-            self.execute(obj)
-        elif Parameter == 'LoadType':
-            # Update label when load type changes
-            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
-                position = getattr(obj, 'RelativePosition', 0.5) if hasattr(obj, 'RelativePosition') else 0.5
-                obj.Label = f'{obj.LoadType} point load ({obj.GlobalDirection}) at {position*100:.0f}%'
-        elif Parameter == 'GlobalDirection':
-            # Re-execute when direction changes
-            if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+        try:
+            if Parameter == 'edgeLength':
                 self.execute(obj)
-        elif Parameter == 'RelativePosition':
-            # Re-execute when position changes
-            if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
-                self.execute(obj)
-            # Update label
-            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
-                position = getattr(obj, 'RelativePosition', 0.5) if hasattr(obj, 'RelativePosition') else 0.5
-                obj.Label = f'{obj.LoadType} point load ({obj.GlobalDirection}) at {position*100:.0f}%'
+            elif Parameter == 'LoadType':
+                # Update label when load type changes
+                if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                    position = getattr(obj, 'RelativePosition', 0.5) if hasattr(obj, 'RelativePosition') else 0.5
+                    obj.Label = f'{obj.LoadType} point load ({obj.GlobalDirection}) at {position*100:.0f}%'
+            elif Parameter == 'GlobalDirection':
+                # Re-execute when direction changes
+                if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+                    self.execute(obj)
+            elif Parameter == 'RelativePosition':
+                # Re-execute when position changes
+                if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+                    self.execute(obj)
+                # Update label
+                if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                    position = getattr(obj, 'RelativePosition', 0.5) if hasattr(obj, 'RelativePosition') else 0.5
+                    obj.Label = f'{obj.LoadType} point load ({obj.GlobalDirection}) at {position*100:.0f}%'
+        except Exception as e:
+            FreeCAD.Console.PrintError(f"Error in onChanged for point load: {str(e)}\n")
 
 class ViewProviderLoadPoint:
     def __init__(self, obj):

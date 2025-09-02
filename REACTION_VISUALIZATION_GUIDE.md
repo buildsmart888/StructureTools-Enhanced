@@ -44,13 +44,30 @@ In the Reaction Results dialog:
    - Click "Moment Color" button and select green
    - Adjust "Moment Scale" slider to control arrow size
 
-3. **Display Options**
-   - Check "Show Labels" to display numerical values
+3. **Resultant Reactions**
+   - Check "Show Resultant Forces" to display combined force vectors
+   - Check "Show Resultant Moments" to display combined moment vectors
+   - Adjust "Resultant Force Scale" and "Resultant Moment Scale" as needed
+
+4. **Display Options**
+   - Check "Show Values" to display numerical labels
    - Set "Precision" to control decimal places (e.g., 2)
    - Adjust "Font Size" to control label size
    - Set "Arrow Thickness" for better visibility
+   - Select "Language" for label language (English or Thai)
+   - Check "Auto-Scale Reactions" to automatically scale arrows based on model size
 
-4. **Load Combinations**
+5. **Color Gradient Options**
+   - Check "Use Color Gradient" to enable color coding based on reaction magnitude
+   - Set "Min Gradient Color" for minimum reaction values (default green)
+   - Set "Max Gradient Color" for maximum reaction values (default red)
+
+6. **Specialized Visualization**
+   - Check "Show Only Maximum Reactions" to display only the largest reaction at each support
+   - Check "Show Only Significant Reactions" to filter out small reactions
+   - Adjust "Significance Threshold" to control what's considered significant (ratio of max reaction)
+
+7. **Load Combinations**
    - Use the dropdown to select different load cases
    - Each combination will display its specific reaction values
 
@@ -65,10 +82,22 @@ For additional customization:
    - `MomentArrowColor`: Set to (0.0, 1.0, 0.0) for green
    - `ScaleReactionForces`: Control force arrow scale
    - `ScaleReactionMoments`: Control moment arrow scale
+   - `ShowResultantForces`: Toggle resultant force display
+   - `ShowResultantMoments`: Toggle resultant moment display
+   - `ScaleResultantForces`: Control resultant force arrow scale
+   - `ScaleResultantMoments`: Control resultant moment arrow scale
    - `ShowLabels`: Toggle value labels on/off
    - `Precision`: Set decimal places for values
    - `LabelFontSize`: Control text size
    - `ArrowThickness`: Set arrow line thickness
+   - `MinReactionThreshold`: Minimum reaction magnitude to display
+   - `AutoScaleReactions`: Automatically scale reactions based on model size
+   - `UseColorGradient`: Use color gradient based on reaction magnitude
+   - `MinGradientColor`: Color for minimum reaction values
+   - `MaxGradientColor`: Color for maximum reaction values
+   - `ShowOnlyMaximumReactions`: Show only maximum reactions at each node
+   - `ShowOnlySignificantReactions`: Show only reactions above significance threshold
+   - `SignificanceThreshold`: Threshold for significant reactions (ratio of max reaction)
 
 ## Method 2: Using Python
 
@@ -115,6 +144,14 @@ reaction_obj.ShowLabels = True
 reaction_obj.Precision = 2
 reaction_obj.LabelFontSize = 8
 
+# Advanced features
+reaction_obj.ShowResultantForces = True
+reaction_obj.ShowResultantMoments = True
+reaction_obj.AutoScaleReactions = True
+reaction_obj.UseColorGradient = True
+reaction_obj.ShowOnlyMaximumReactions = False
+reaction_obj.ShowOnlySignificantReactions = False
+
 # Update display
 FreeCAD.ActiveDocument.recompute()
 ```
@@ -132,6 +169,11 @@ reaction_obj.ShowReactionFX = True
 reaction_obj.ShowReactionMX = True
 reaction_obj.ScaleReactionForces = 1.5  # Increase force scale
 reaction_obj.Precision = 3  # More decimal places
+
+# Advanced features
+reaction_obj.AutoScaleReactions = True  # Auto-scale based on model size
+reaction_obj.UseColorGradient = True    # Enable color gradient
+reaction_obj.MinReactionThreshold = 1e-5  # Filter small reactions
 
 # Update display
 FreeCAD.ActiveDocument.recompute()
@@ -192,22 +234,23 @@ Common issues and solutions:
    - Adjust ScaleReactionForces and ScaleReactionMoments
    - Check magnitude of reaction values
    - Consider model unit scale
+   - Use AutoScaleReactions for automatic scaling
 
 3. **Missing components**:
    - Ensure all desired checkboxes are checked
    - Verify if specific reactions exist in the model
-   - Check if reaction magnitudes are significant (> 1e-6)
+   - Check if reaction magnitudes are significant (> MinReactionThreshold)
 
 ## Enhancement Ideas
 
 Potential improvements to consider:
 
-1. Add support for displaying resultant reactions
-2. Implement filtering for minimum reaction threshold
-3. Add auto-scaling option based on model size
-4. Include color gradient based on reaction magnitude
-5. Add support for localized labeling (Thai/English)
-6. Create specialized visualization for specific reaction types
+1. ~~Add support for displaying resultant reactions~~ (IMPLEMENTED)
+2. ~~Implement filtering for minimum reaction threshold~~ (IMPLEMENTED)
+3. ~~Add auto-scaling option based on model size~~ (IMPLEMENTED)
+4. ~~Include color gradient based on reaction magnitude~~ (IMPLEMENTED)
+5. ~~Add support for localized labeling (Thai/English)~~ (IMPLEMENTED)
+6. ~~Create specialized visualization for specific reaction types~~ (IMPLEMENTED)
 
 ## Thai Language Support
 

@@ -99,6 +99,25 @@ class ReactionResultsPanel:
         self.mz_checkbox.setChecked(True)
         self.mz_checkbox.setIcon(QtGui.QIcon(os.path.join(ICONPATH, "icons", "moment_z.svg")) if os.path.exists(os.path.join(ICONPATH, "icons", "moment_z.svg")) else QtGui.QIcon())
         
+        # Resultant reaction controls
+        self.resultant_forces_checkbox = QtWidgets.QCheckBox("Show Resultant Forces")
+        self.resultant_forces_checkbox.setChecked(False)
+        
+        self.resultant_moments_checkbox = QtWidgets.QCheckBox("Show Resultant Moments")
+        self.resultant_moments_checkbox.setChecked(False)
+        
+        self.resultant_force_scale_spinbox = QtWidgets.QDoubleSpinBox()
+        self.resultant_force_scale_spinbox.setRange(0.1, 10.0)
+        self.resultant_force_scale_spinbox.setValue(1.0)
+        self.resultant_force_scale_spinbox.setSingleStep(0.1)
+        self.resultant_force_scale_spinbox.setDecimals(1)
+        
+        self.resultant_moment_scale_spinbox = QtWidgets.QDoubleSpinBox()
+        self.resultant_moment_scale_spinbox.setRange(0.1, 10.0)
+        self.resultant_moment_scale_spinbox.setValue(1.0)
+        self.resultant_moment_scale_spinbox.setSingleStep(0.1)
+        self.resultant_moment_scale_spinbox.setDecimals(1)
+        
         moments_layout.addWidget(self.mx_checkbox)
         moments_layout.addWidget(self.my_checkbox)
         moments_layout.addWidget(self.mz_checkbox)
@@ -117,6 +136,83 @@ class ReactionResultsPanel:
         
         moments_group.setLayout(moments_layout)
         main_layout.addWidget(moments_group)
+        
+        # Resultant Forces Group
+        resultant_forces_group = QtWidgets.QGroupBox("Resultant Forces")
+        resultant_forces_layout = QtWidgets.QVBoxLayout()
+        
+        # Create checkbox for resultant forces
+        self.resultant_forces_checkbox = QtWidgets.QCheckBox("Show Resultant Forces")
+        self.resultant_forces_checkbox.setChecked(False)
+        resultant_forces_layout.addWidget(self.resultant_forces_checkbox)
+        
+        # Resultant force scale control
+        resultant_force_scale_layout = QtWidgets.QHBoxLayout()
+        resultant_force_scale_layout.addWidget(QtWidgets.QLabel("Scale:"))
+        self.resultant_force_scale_spinbox = QtWidgets.QDoubleSpinBox()
+        self.resultant_force_scale_spinbox.setRange(0.1, 10.0)
+        self.resultant_force_scale_spinbox.setValue(1.0)
+        self.resultant_force_scale_spinbox.setSingleStep(0.1)
+        self.resultant_force_scale_spinbox.setDecimals(1)
+        resultant_force_scale_layout.addWidget(self.resultant_force_scale_spinbox)
+        resultant_force_scale_layout.addStretch()
+        resultant_forces_layout.addLayout(resultant_force_scale_layout)
+        
+        resultant_forces_group.setLayout(resultant_forces_layout)
+        main_layout.addWidget(resultant_forces_group)
+        
+        # Resultant Moments Group
+        resultant_moments_group = QtWidgets.QGroupBox("Resultant Moments")
+        resultant_moments_layout = QtWidgets.QVBoxLayout()
+        
+        # Create checkbox for resultant moments
+        self.resultant_moments_checkbox = QtWidgets.QCheckBox("Show Resultant Moments")
+        self.resultant_moments_checkbox.setChecked(False)
+        resultant_moments_layout.addWidget(self.resultant_moments_checkbox)
+        
+        # Resultant moment scale control
+        resultant_moment_scale_layout = QtWidgets.QHBoxLayout()
+        resultant_moment_scale_layout.addWidget(QtWidgets.QLabel("Scale:"))
+        self.resultant_moment_scale_spinbox = QtWidgets.QDoubleSpinBox()
+        self.resultant_moment_scale_spinbox.setRange(0.1, 10.0)
+        self.resultant_moment_scale_spinbox.setValue(1.0)
+        self.resultant_moment_scale_spinbox.setSingleStep(0.1)
+        self.resultant_moment_scale_spinbox.setDecimals(1)
+        resultant_moment_scale_layout.addWidget(self.resultant_moment_scale_spinbox)
+        resultant_moment_scale_layout.addStretch()
+        resultant_moments_layout.addLayout(resultant_moment_scale_layout)
+        
+        resultant_moments_group.setLayout(resultant_moments_layout)
+        main_layout.addWidget(resultant_moments_group)
+        
+        # Specialized Visualization Group
+        specialized_group = QtWidgets.QGroupBox("Specialized Visualization")
+        specialized_layout = QtWidgets.QVBoxLayout()
+        
+        # Show only maximum reactions
+        self.max_reactions_checkbox = QtWidgets.QCheckBox("Show Only Maximum Reactions")
+        self.max_reactions_checkbox.setChecked(False)
+        specialized_layout.addWidget(self.max_reactions_checkbox)
+        
+        # Show only significant reactions
+        self.significant_reactions_checkbox = QtWidgets.QCheckBox("Show Only Significant Reactions")
+        self.significant_reactions_checkbox.setChecked(False)
+        specialized_layout.addWidget(self.significant_reactions_checkbox)
+        
+        # Significance threshold control
+        threshold_layout = QtWidgets.QHBoxLayout()
+        threshold_layout.addWidget(QtWidgets.QLabel("Significance Threshold:"))
+        self.threshold_spinbox = QtWidgets.QDoubleSpinBox()
+        self.threshold_spinbox.setRange(0.01, 1.0)
+        self.threshold_spinbox.setValue(0.1)
+        self.threshold_spinbox.setSingleStep(0.05)
+        self.threshold_spinbox.setDecimals(2)
+        threshold_layout.addWidget(self.threshold_spinbox)
+        threshold_layout.addStretch()
+        specialized_layout.addLayout(threshold_layout)
+        
+        specialized_group.setLayout(specialized_layout)
+        main_layout.addWidget(specialized_group)
         
         # Display Options Group
         display_group = QtWidgets.QGroupBox("Display Options")
@@ -150,6 +246,17 @@ class ReactionResultsPanel:
         self.thickness_spinbox.setDecimals(1)
         display_layout.addWidget(self.thickness_spinbox, 3, 1)
         
+        # Auto-scaling option
+        self.auto_scale_checkbox = QtWidgets.QCheckBox("Auto-Scale Reactions")
+        self.auto_scale_checkbox.setChecked(False)
+        display_layout.addWidget(self.auto_scale_checkbox, 4, 0, 1, 2)
+        
+        # Language selection
+        display_layout.addWidget(QtWidgets.QLabel("Language:"), 5, 0)
+        self.language_combo = QtWidgets.QComboBox()
+        self.language_combo.addItems(["English", "Thai"])
+        display_layout.addWidget(self.language_combo, 5, 1)
+        
         display_group.setLayout(display_layout)
         main_layout.addWidget(display_group)
         
@@ -168,8 +275,27 @@ class ReactionResultsPanel:
         color_layout.addWidget(QtWidgets.QLabel("Moment Color:"), 1, 0)
         self.moment_color_button = QtWidgets.QPushButton()
         self.moment_color_button.setMaximumSize(50, 25)
-        self.moment_color_button.setStyleSheet("background-color: blue; border: 1px solid gray;")
+        self.moment_color_button.setStyleSheet("background-color: green; border: 1px solid gray;")
         color_layout.addWidget(self.moment_color_button, 1, 1)
+        
+        # Color gradient options
+        self.use_gradient_checkbox = QtWidgets.QCheckBox("Use Color Gradient")
+        self.use_gradient_checkbox.setChecked(False)
+        color_layout.addWidget(self.use_gradient_checkbox, 2, 0, 1, 2)
+        
+        # Min gradient color
+        color_layout.addWidget(QtWidgets.QLabel("Min Gradient Color:"), 3, 0)
+        self.min_gradient_color_button = QtWidgets.QPushButton()
+        self.min_gradient_color_button.setMaximumSize(50, 25)
+        self.min_gradient_color_button.setStyleSheet("background-color: green; border: 1px solid gray;")
+        color_layout.addWidget(self.min_gradient_color_button, 3, 1)
+        
+        # Max gradient color
+        color_layout.addWidget(QtWidgets.QLabel("Max Gradient Color:"), 4, 0)
+        self.max_gradient_color_button = QtWidgets.QPushButton()
+        self.max_gradient_color_button.setMaximumSize(50, 25)
+        self.max_gradient_color_button.setStyleSheet("background-color: red; border: 1px solid gray;")
+        color_layout.addWidget(self.max_gradient_color_button, 4, 1)
         
         color_group.setLayout(color_layout)
         main_layout.addWidget(color_group)
@@ -219,9 +345,20 @@ class ReactionResultsPanel:
         self.my_checkbox.toggled.connect(self.on_moment_checkbox_changed)
         self.mz_checkbox.toggled.connect(self.on_moment_checkbox_changed)
         
+        # Resultant reaction checkboxes
+        self.resultant_forces_checkbox.toggled.connect(self.on_resultant_forces_changed)
+        self.resultant_moments_checkbox.toggled.connect(self.on_resultant_moments_changed)
+        
         # Scale controls
         self.force_scale_spinbox.valueChanged.connect(self.on_force_scale_changed)
         self.moment_scale_spinbox.valueChanged.connect(self.on_moment_scale_changed)
+        self.resultant_force_scale_spinbox.valueChanged.connect(self.on_resultant_force_scale_changed)
+        self.resultant_moment_scale_spinbox.valueChanged.connect(self.on_resultant_moment_scale_changed)
+        
+        # Specialized visualization options
+        self.max_reactions_checkbox.toggled.connect(self.on_max_reactions_changed)
+        self.significant_reactions_checkbox.toggled.connect(self.on_significant_reactions_changed)
+        self.threshold_spinbox.valueChanged.connect(self.on_threshold_changed)
         
         # Display options
         self.labels_checkbox.toggled.connect(self.on_display_option_changed)
@@ -232,6 +369,15 @@ class ReactionResultsPanel:
         # Color buttons
         self.force_color_button.clicked.connect(self.on_force_color_clicked)
         self.moment_color_button.clicked.connect(self.on_moment_color_clicked)
+        self.use_gradient_checkbox.toggled.connect(self.on_use_gradient_changed)
+        self.min_gradient_color_button.clicked.connect(self.on_min_gradient_color_clicked)
+        self.max_gradient_color_button.clicked.connect(self.on_max_gradient_color_clicked)
+        
+        # Language selection
+        self.language_combo.currentTextChanged.connect(self.on_language_changed)
+        
+        # Auto-scaling option
+        self.auto_scale_checkbox.toggled.connect(self.on_auto_scale_changed)
         
         # Control buttons
         self.refresh_button.clicked.connect(self.on_refresh_clicked)
@@ -306,6 +452,40 @@ class ReactionResultsPanel:
                 self.font_size_spinbox.setValue(self.reaction_obj.LabelFontSize)
             if hasattr(self.reaction_obj, 'ArrowThickness'):
                 self.thickness_spinbox.setValue(self.reaction_obj.ArrowThickness)
+            
+            # Update resultant reaction options
+            if hasattr(self.reaction_obj, 'ShowResultantForces'):
+                self.resultant_forces_checkbox.setChecked(self.reaction_obj.ShowResultantForces)
+            if hasattr(self.reaction_obj, 'ShowResultantMoments'):
+                self.resultant_moments_checkbox.setChecked(self.reaction_obj.ShowResultantMoments)
+            if hasattr(self.reaction_obj, 'ScaleResultantForces'):
+                self.resultant_force_scale_spinbox.setValue(self.reaction_obj.ScaleResultantForces)
+            if hasattr(self.reaction_obj, 'ScaleResultantMoments'):
+                self.resultant_moment_scale_spinbox.setValue(self.reaction_obj.ScaleResultantMoments)
+                
+            # Update auto-scale option
+            if hasattr(self.reaction_obj, 'AutoScaleReactions'):
+                self.auto_scale_checkbox.setChecked(self.reaction_obj.AutoScaleReactions)
+                
+            # Update color gradient options
+            if hasattr(self.reaction_obj, 'UseColorGradient'):
+                self.use_gradient_checkbox.setChecked(self.reaction_obj.UseColorGradient)
+                
+            # Update specialized visualization options
+            if hasattr(self.reaction_obj, 'ShowOnlyMaximumReactions'):
+                self.max_reactions_checkbox.setChecked(self.reaction_obj.ShowOnlyMaximumReactions)
+            if hasattr(self.reaction_obj, 'ShowOnlySignificantReactions'):
+                self.significant_reactions_checkbox.setChecked(self.reaction_obj.ShowOnlySignificantReactions)
+            if hasattr(self.reaction_obj, 'SignificanceThreshold'):
+                self.threshold_spinbox.setValue(self.reaction_obj.SignificanceThreshold)
+            if hasattr(self.reaction_obj, 'MinGradientColor'):
+                min_color = self.reaction_obj.MinGradientColor
+                color = QtGui.QColor.fromRgbF(min_color[0], min_color[1], min_color[2])
+                self.min_gradient_color_button.setStyleSheet(f"background-color: {color.name()}; border: 1px solid gray;")
+            if hasattr(self.reaction_obj, 'MaxGradientColor'):
+                max_color = self.reaction_obj.MaxGradientColor
+                color = QtGui.QColor.fromRgbF(max_color[0], max_color[1], max_color[2])
+                self.max_gradient_color_button.setStyleSheet(f"background-color: {color.name()}; border: 1px solid gray;")
                 
         except Exception as e:
             FreeCAD.Console.PrintWarning(f"Warning: Could not update UI from object: {str(e)}\n")
@@ -349,6 +529,30 @@ class ReactionResultsPanel:
             self.reaction_obj.ScaleReactionMoments = value
             self.update_display()
     
+    def on_resultant_forces_changed(self):
+        """Handle resultant forces checkbox change."""
+        if self.reaction_obj:
+            self.reaction_obj.ShowResultantForces = self.resultant_forces_checkbox.isChecked()
+            self.update_display()
+    
+    def on_resultant_moments_changed(self):
+        """Handle resultant moments checkbox change."""
+        if self.reaction_obj:
+            self.reaction_obj.ShowResultantMoments = self.resultant_moments_checkbox.isChecked()
+            self.update_display()
+    
+    def on_resultant_force_scale_changed(self, value):
+        """Handle resultant force scale change."""
+        if self.reaction_obj:
+            self.reaction_obj.ScaleResultantForces = value
+            self.update_display()
+    
+    def on_resultant_moment_scale_changed(self, value):
+        """Handle resultant moment scale change."""
+        if self.reaction_obj:
+            self.reaction_obj.ScaleResultantMoments = value
+            self.update_display()
+    
     def on_display_option_changed(self):
         """Handle display option changes."""
         if not self.reaction_obj:
@@ -371,11 +575,83 @@ class ReactionResultsPanel:
     
     def on_moment_color_clicked(self):
         """Handle moment color button click."""
-        color = QtWidgets.QColorDialog.getColor(QtCore.Qt.blue, self.form, "Select Moment Color")
+        color = QtWidgets.QColorDialog.getColor(QtCore.Qt.green, self.form, "Select Moment Color")
         if color.isValid():
             rgb = color.getRgbF()
             self.reaction_obj.MomentArrowColor = (rgb[0], rgb[1], rgb[2], 0.0)
             self.moment_color_button.setStyleSheet(f"background-color: {color.name()}; border: 1px solid gray;")
+            self.update_display()
+    
+    def on_language_changed(self, language):
+        """Handle language selection change."""
+        if self.reaction_obj:
+            self.reaction_obj.Language = language
+            self.update_display()
+    
+    def on_auto_scale_changed(self):
+        """Handle auto-scale checkbox change."""
+        if self.reaction_obj:
+            self.reaction_obj.AutoScaleReactions = self.auto_scale_checkbox.isChecked()
+            self.update_display()
+    
+    def on_use_gradient_changed(self):
+        """Handle use gradient checkbox change."""
+        if self.reaction_obj:
+            self.reaction_obj.UseColorGradient = self.use_gradient_checkbox.isChecked()
+            self.update_display()
+    
+    def on_min_gradient_color_clicked(self):
+        """Handle min gradient color button click."""
+        if not self.reaction_obj:
+            return
+            
+        # Get current color
+        current_color = QtCore.Qt.green
+        if hasattr(self.reaction_obj, 'MinGradientColor'):
+            color_val = self.reaction_obj.MinGradientColor
+            current_color = QtGui.QColor.fromRgbF(color_val[0], color_val[1], color_val[2])
+            
+        color = QtWidgets.QColorDialog.getColor(current_color, self.form, "Select Minimum Gradient Color")
+        if color.isValid():
+            rgb = color.getRgbF()
+            self.reaction_obj.MinGradientColor = (rgb[0], rgb[1], rgb[2], 0.0)
+            self.min_gradient_color_button.setStyleSheet(f"background-color: {color.name()}; border: 1px solid gray;")
+            self.update_display()
+    
+    def on_max_gradient_color_clicked(self):
+        """Handle max gradient color button click."""
+        if not self.reaction_obj:
+            return
+            
+        # Get current color
+        current_color = QtCore.Qt.red
+        if hasattr(self.reaction_obj, 'MaxGradientColor'):
+            color_val = self.reaction_obj.MaxGradientColor
+            current_color = QtGui.QColor.fromRgbF(color_val[0], color_val[1], color_val[2])
+            
+        color = QtWidgets.QColorDialog.getColor(current_color, self.form, "Select Maximum Gradient Color")
+        if color.isValid():
+            rgb = color.getRgbF()
+            self.reaction_obj.MaxGradientColor = (rgb[0], rgb[1], rgb[2], 0.0)
+            self.max_gradient_color_button.setStyleSheet(f"background-color: {color.name()}; border: 1px solid gray;")
+            self.update_display()
+    
+    def on_max_reactions_changed(self):
+        """Handle maximum reactions checkbox change."""
+        if self.reaction_obj:
+            self.reaction_obj.ShowOnlyMaximumReactions = self.max_reactions_checkbox.isChecked()
+            self.update_display()
+    
+    def on_significant_reactions_changed(self):
+        """Handle significant reactions checkbox change."""
+        if self.reaction_obj:
+            self.reaction_obj.ShowOnlySignificantReactions = self.significant_reactions_checkbox.isChecked()
+            self.update_display()
+    
+    def on_threshold_changed(self, value):
+        """Handle significance threshold change."""
+        if self.reaction_obj:
+            self.reaction_obj.SignificanceThreshold = value
             self.update_display()
     
     def on_refresh_clicked(self):

@@ -144,13 +144,46 @@ class LoadDistributed:
     
     # Retorna o subelemento asociado
     def getSubelement(self, obj, nameSubElement):
-        
-        if 'Edge' in  nameSubElement:
-            index = int(nameSubElement.split('Edge')[1]) - 1
-            return obj.ObjectBase[0][0].Shape.Edges[index]
-        else:
-            index = int(nameSubElement.split('Vertex')[1]) - 1
-            return obj.ObjectBase[0][0].Shape.Vertexes[index]
+        try:
+            if not nameSubElement:
+                FreeCAD.Console.PrintWarning(f"Warning: Invalid subelement name in distributed load: {nameSubElement}\n")
+                return None
+                
+            if 'Edge' in nameSubElement:
+                index = int(nameSubElement.split('Edge')[1]) - 1
+                # Check if index is valid
+                if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
+                    FreeCAD.Console.PrintWarning(f"Warning: Missing ObjectBase in distributed load\n")
+                    return None
+                if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 1 or not obj.ObjectBase[0][0]:
+                    FreeCAD.Console.PrintWarning(f"Warning: Invalid ObjectBase structure in distributed load\n")
+                    return None
+                if not hasattr(obj.ObjectBase[0][0], 'Shape') or not hasattr(obj.ObjectBase[0][0].Shape, 'Edges'):
+                    FreeCAD.Console.PrintWarning(f"Warning: ObjectBase has no Shape or Edges in distributed load\n")
+                    return None
+                if index < 0 or index >= len(obj.ObjectBase[0][0].Shape.Edges):
+                    FreeCAD.Console.PrintWarning(f"Warning: Edge index {index} out of range in distributed load\n")
+                    return None
+                return obj.ObjectBase[0][0].Shape.Edges[index]
+            else:
+                index = int(nameSubElement.split('Vertex')[1]) - 1
+                # Check if index is valid
+                if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
+                    FreeCAD.Console.PrintWarning(f"Warning: Missing ObjectBase in distributed load\n")
+                    return None
+                if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 1 or not obj.ObjectBase[0][0]:
+                    FreeCAD.Console.PrintWarning(f"Warning: Invalid ObjectBase structure in distributed load\n")
+                    return None
+                if not hasattr(obj.ObjectBase[0][0], 'Shape') or not hasattr(obj.ObjectBase[0][0].Shape, 'Vertexes'):
+                    FreeCAD.Console.PrintWarning(f"Warning: ObjectBase has no Shape or Vertexes in distributed load\n")
+                    return None
+                if index < 0 or index >= len(obj.ObjectBase[0][0].Shape.Vertexes):
+                    FreeCAD.Console.PrintWarning(f"Warning: Vertex index {index} out of range in distributed load\n")
+                    return None
+                return obj.ObjectBase[0][0].Shape.Vertexes[index]
+        except Exception as e:
+            FreeCAD.Console.PrintWarning(f"Error in getSubelement: {str(e)}\n")
+            return None
 
     # Desenha a forma da seta levando em conta a escala informada
     def makeArrow(self, obj, load):
@@ -167,132 +200,171 @@ class LoadDistributed:
     
     def execute(self, obj):
         # Safety check for ObjectBase
-        if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
-            return
-        if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 2 or not obj.ObjectBase[0][1]:
-            return
-            
-        subelement = self.getSubelement(obj, obj.ObjectBase[0][1][0])
-        if 'Edge' in obj.ObjectBase[0][1][0]:
-            k = 1000000
-            nArrow = int(k * (subelement.Length**(1/1.8))/(obj.ScaleDraw * ((obj.InitialLoading + obj.FinalLoading) / 2))) #calcula o numero de setas com base na distancia do menbro, escala do desenho e media das forças de inicio e fim
-            
-            # Limit the number of arrows to prevent performance issues
-            nArrow = min(nArrow, 50)
+        try:
+            if not hasattr(obj, 'ObjectBase') or not obj.ObjectBase or len(obj.ObjectBase) == 0:
+                return
+            if not obj.ObjectBase[0] or len(obj.ObjectBase[0]) < 2 or not obj.ObjectBase[0][1]:
+                return
+                
+            # Get the subelement with enhanced error handling
+            subelement = self.getSubelement(obj, obj.ObjectBase[0][1][0])
+            if not subelement:
+                FreeCAD.Console.PrintWarning(f"Warning: Could not get subelement for distributed load. Skipping execution.\n")
+                return
+                
+            if 'Edge' in obj.ObjectBase[0][1][0]:
+                k = 1000000
+                nArrow = int(k * (subelement.Length**(1/1.8))/(obj.ScaleDraw * ((obj.InitialLoading + obj.FinalLoading) / 2))) #calcula o numero de setas com base na distancia do menbro, escala do desenho e media das forças de inicio e fim
+        
+                # Limit the number of arrows to prevent performance issues
+                nArrow = min(nArrow, 50)
 
-            FEend = obj.FinalLoading / obj.InitialLoading #fator de escala entre as forças 'end' e 'start'
-            distEndStart = subelement.Length
+                FEend = obj.FinalLoading / obj.InitialLoading #fator de escala entre as forças 'end' e 'start'
+                distEndStart = subelement.Length
 
-            # Calculate start and end positions for load visualization
-            start_pos = 0.0
-            end_pos = subelement.Length
-            
-            # Check if start and end positions are specified
-            if hasattr(obj, 'StartPosition') and hasattr(obj, 'EndPosition'):
-                # Convert to internal units (mm) for visualization
-                start_pos = float(obj.StartPosition.getValueAs('mm'))
-                end_pos = float(obj.EndPosition.getValueAs('mm'))
+                # Calculate start and end positions for load visualization
+                start_pos = 0.0
+                end_pos = subelement.Length
                 
-                # Special case: if both are explicitly 0, use full length
-                if start_pos == 0.0 and end_pos == 0.0:
-                    # Both are explicitly set to 0, which means use full length
-                    start_pos = 0.0
-                    end_pos = subelement.Length
-                else:
-                    # If only EndPosition is 0, interpret it as end of member
-                    if end_pos == 0.0:
-                        end_pos = subelement.Length
-                
-                # Ensure positions are within valid range
-                start_pos = max(0.0, min(start_pos, subelement.Length))
-                end_pos = max(0.0, min(end_pos, subelement.Length))
-                
-                # Ensure consistent ordering for visualization
-                if start_pos > end_pos:
-                    FreeCAD.Console.PrintWarning(f"StartPosition ({start_pos}) is greater than EndPosition ({end_pos}). The visualization will swap them.\n")
-                    # Swap start and end positions
-                    temp = start_pos
-                    start_pos = end_pos
-                    end_pos = temp
-                
-                # Adjust distance for arrow placement
-                distEndStart = end_pos - start_pos
-                # If start and end are the same, use full length
-                if distEndStart == 0:
-                    start_pos = 0.0
-                    end_pos = subelement.Length
-                    distEndStart = subelement.Length
-
-            # Gera a lista de pontos 
-            pInit = subelement.Vertexes[0].Point
-            dist = distEndStart / nArrow if nArrow > 0 else 0
-            
-            # Calculate direction vector for the edge
-            edge_vec = FreeCAD.Vector(
-                subelement.Vertexes[1].Point.x - subelement.Vertexes[0].Point.x,
-                subelement.Vertexes[1].Point.y - subelement.Vertexes[0].Point.y,
-                subelement.Vertexes[1].Point.z - subelement.Vertexes[0].Point.z
-            )
-            
-            # Normalize and calculate unit direction vector
-            edge_length = edge_vec.Length
-            if edge_length > 0:
-                unit_dir_vec = FreeCAD.Vector(
-                    edge_vec.x / edge_length,
-                    edge_vec.y / edge_length,
-                    edge_vec.z / edge_length
-                )
-            else:
-                unit_dir_vec = FreeCAD.Vector(0,0,0)
-            
-            # Calculate start point based on start position
-            start_point = FreeCAD.Vector(
-                subelement.Vertexes[0].Point.x + (unit_dir_vec.x * start_pos),
-                subelement.Vertexes[0].Point.y + (unit_dir_vec.y * start_pos),
-                subelement.Vertexes[0].Point.z + (unit_dir_vec.z * start_pos)
-            )
-            
-            # Only generate arrows if there's a valid distance to place them on
-            if distEndStart > 0:
-                # Generate the actual number of arrows to display between start_pos and end_pos
-                nArrow = min(max(int(nArrow * (distEndStart / subelement.Length)), 3), 50)
-                
-                # Calculate step vector for arrow placement - only along the specified section
-                step_length = distEndStart / max(1, nArrow - 1)  # Ensure we don't divide by zero
-                step_vec = FreeCAD.Vector(
-                    unit_dir_vec.x * step_length,
-                    unit_dir_vec.y * step_length,
-                    unit_dir_vec.z * step_length
-                )
-                
-                listPoints = []
-                # Create points from start_pos to end_pos
-                for i in range(nArrow):
-                    point = FreeCAD.Vector(
-                        start_point.x + step_vec.x * i,
-                        start_point.y + step_vec.y * i,
-                        start_point.z + step_vec.z * i
-                    )
-                    listPoints.append(point)
-
-                # gera a lista de setas já em suas devidas escalas e nas devidas distancia posicionadas sobre o eixo X
-                listArrow = []            
-                for i in range(len(listPoints)):
-                    # Calculate load value at this position for scaling
-                    load_value = obj.InitialLoading
-                    if distEndStart > 0:
-                        # Calculate position ratio between 0 and 1 based on position in the array
-                        position_ratio = float(i) / max(1, len(listPoints) - 1)  # Avoid division by zero
-                        # Interpolate between initial and final loading
-                        load_value = obj.InitialLoading + (obj.FinalLoading - obj.InitialLoading) * position_ratio
-                
-                    arrowCopy = self.makeArrow(obj, load_value)
-                    listArrow.append(arrowCopy)
-                    Fe = 1.0
-                    if obj.InitialLoading != 0:
-                        Fe = load_value / obj.InitialLoading  # calculo do fator de escala               
+                # Check if start and end positions are specified
+                if hasattr(obj, 'StartPosition') and hasattr(obj, 'EndPosition'):
+                    # Convert to internal units (mm) for visualization
+                    start_pos = float(obj.StartPosition.getValueAs('mm'))
+                    end_pos = float(obj.EndPosition.getValueAs('mm'))
                     
-                    # Replace match-case with if-elif for compatibility
+                    # Special case: if both are explicitly 0, use full length
+                    if start_pos == 0.0 and end_pos == 0.0:
+                        # Both are explicitly set to 0, which means use full length
+                        start_pos = 0.0
+                        end_pos = subelement.Length
+                    else:
+                        # If only EndPosition is 0, interpret it as end of member
+                        if end_pos == 0.0:
+                            end_pos = subelement.Length
+                    
+                    # Ensure positions are within valid range
+                    start_pos = max(0.0, min(start_pos, subelement.Length))
+                    end_pos = max(0.0, min(end_pos, subelement.Length))
+                    
+                    # Ensure consistent ordering for visualization
+                    if start_pos > end_pos:
+                        FreeCAD.Console.PrintWarning(f"StartPosition ({start_pos}) is greater than EndPosition ({end_pos}). The visualization will swap them.\n")
+                        # Swap start and end positions
+                        temp = start_pos
+                        start_pos = end_pos
+                        end_pos = temp
+                    
+                    # Adjust distance for arrow placement
+                    distEndStart = end_pos - start_pos
+                    # If start and end are the same, use full length
+                    if distEndStart == 0:
+                        start_pos = 0.0
+                        end_pos = subelement.Length
+                        distEndStart = subelement.Length
+
+                # Gera a lista de pontos 
+                pInit = subelement.Vertexes[0].Point
+                dist = distEndStart / nArrow if nArrow > 0 else 0
+                
+                # Calculate direction vector for the edge
+                edge_vec = FreeCAD.Vector(
+                    subelement.Vertexes[1].Point.x - subelement.Vertexes[0].Point.x,
+                    subelement.Vertexes[1].Point.y - subelement.Vertexes[0].Point.y,
+                    subelement.Vertexes[1].Point.z - subelement.Vertexes[0].Point.z
+                )
+                
+                # Normalize and calculate unit direction vector
+                edge_length = edge_vec.Length
+                if edge_length > 0:
+                    unit_dir_vec = FreeCAD.Vector(
+                        edge_vec.x / edge_length,
+                        edge_vec.y / edge_length,
+                        edge_vec.z / edge_length
+                    )
+                else:
+                    unit_dir_vec = FreeCAD.Vector(0,0,0)
+                
+                # Calculate start point based on start position
+                start_point = FreeCAD.Vector(
+                    subelement.Vertexes[0].Point.x + (unit_dir_vec.x * start_pos),
+                    subelement.Vertexes[0].Point.y + (unit_dir_vec.y * start_pos),
+                    subelement.Vertexes[0].Point.z + (unit_dir_vec.z * start_pos)
+                )
+                
+                # Only generate arrows if there's a valid distance to place them on
+                if distEndStart > 0:
+                    # Generate the actual number of arrows to display between start_pos and end_pos
+                    nArrow = min(max(int(nArrow * (distEndStart / subelement.Length)), 3), 50)
+                    
+                    # Calculate step vector for arrow placement - only along the specified section
+                    step_length = distEndStart / max(1, nArrow - 1)  # Ensure we don't divide by zero
+                    step_vec = FreeCAD.Vector(
+                        unit_dir_vec.x * step_length,
+                        unit_dir_vec.y * step_length,
+                        unit_dir_vec.z * step_length
+                    )
+                    
+                    listPoints = []
+                    # Create points from start_pos to end_pos
+                    for i in range(nArrow):
+                        point = FreeCAD.Vector(
+                            start_point.x + step_vec.x * i,
+                            start_point.y + step_vec.y * i,
+                            start_point.z + step_vec.z * i
+                        )
+                        listPoints.append(point)
+
+                    # gera a lista de setas já em suas devidas escalas e nas devidas distancia posicionadas sobre o eixo X
+                    try:
+                        listArrow = []            
+                        for i in range(len(listPoints)):
+                            # Calculate load value at this position for scaling
+                            load_value = obj.InitialLoading
+                            if distEndStart > 0:
+                                # Calculate position ratio between 0 and 1 based on position in the array
+                                position_ratio = float(i) / max(1, len(listPoints) - 1)  # Avoid division by zero
+                                # Interpolate between initial and final loading
+                                load_value = obj.InitialLoading + (obj.FinalLoading - obj.InitialLoading) * position_ratio
+                    
+                            arrowCopy = self.makeArrow(obj, load_value)
+                            listArrow.append(arrowCopy)
+                            Fe = 1.0
+                            if obj.InitialLoading != 0:
+                                Fe = load_value / obj.InitialLoading  # calculo do fator de escala               
+                            
+                            # Replace match-case with if-elif for compatibility
+                            if obj.GlobalDirection == '+X':
+                                arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
+                            elif obj.GlobalDirection == '-X':
+                                arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), 90)
+                            elif obj.GlobalDirection == '+Y':
+                                arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 90)
+                            elif obj.GlobalDirection == '-Y':
+                                arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), -90)
+                            elif obj.GlobalDirection == '+Z':
+                                arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 180)
+                            elif obj.GlobalDirection == '-Z':
+                                arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
+                            
+                            arrowCopy.scale(Fe)
+                            arrowCopy.translate(listPoints[i])
+                    except Exception as e:
+                        FreeCAD.Console.PrintError("Error setting distributed load properties: " + str(e) + "\n")
+                        return
+                else:
+                    # Create a single arrow at the midpoint of the member if no valid range is specified
+                    midpoint = FreeCAD.Vector(
+                        subelement.Vertexes[0].Point.x + (unit_dir_vec.x * subelement.Length * 0.5),
+                        subelement.Vertexes[0].Point.y + (unit_dir_vec.y * subelement.Length * 0.5),
+                        subelement.Vertexes[0].Point.z + (unit_dir_vec.z * subelement.Length * 0.5)
+                    )
+                    listPoints = [midpoint]
+                    listArrow = []
+                    
+                    # Create a single arrow
+                    arrowCopy = self.makeArrow(obj, obj.InitialLoading)
+                    
+                    # Apply rotation based on direction
                     if obj.GlobalDirection == '+X':
                         arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
                     elif obj.GlobalDirection == '-X':
@@ -306,87 +378,63 @@ class LoadDistributed:
                     elif obj.GlobalDirection == '-Z':
                         arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
                     
-                    arrowCopy.scale(Fe)
-                    arrowCopy.translate(listPoints[i])
-            else:
-                # Create a single arrow at the midpoint of the member if no valid range is specified
-                midpoint = FreeCAD.Vector(
-                    subelement.Vertexes[0].Point.x + (unit_dir_vec.x * subelement.Length * 0.5),
-                    subelement.Vertexes[0].Point.y + (unit_dir_vec.y * subelement.Length * 0.5),
-                    subelement.Vertexes[0].Point.z + (unit_dir_vec.z * subelement.Length * 0.5)
-                )
-                listPoints = [midpoint]
-                listArrow = []
-                
-                # Create a single arrow
-                arrowCopy = self.makeArrow(obj, obj.InitialLoading)
-                
-                # Apply rotation based on direction
-                if obj.GlobalDirection == '+X':
-                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
-                elif obj.GlobalDirection == '-X':
-                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), 90)
-                elif obj.GlobalDirection == '+Y':
-                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 90)
-                elif obj.GlobalDirection == '-Y':
-                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), -90)
-                elif obj.GlobalDirection == '+Z':
-                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 180)
-                elif obj.GlobalDirection == '-Z':
-                    arrowCopy.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
-                
-                arrowCopy.translate(midpoint)
-            shape = Part.makeCompound(listArrow)
-            obj.ViewObject.ShapeAppearance = (FreeCAD.Material(DiffuseColor=(0.00,0.00,1.00),AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
-            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
-                # If the load has start and end positions, include them in the label
-                if hasattr(obj, 'StartPosition') and hasattr(obj, 'EndPosition') and \
-                   (obj.StartPosition.Value > 0 or obj.EndPosition.Value > 0):
-                    # Get actual used positions after swapping if needed
-                    actual_start = min(obj.StartPosition.Value, obj.EndPosition.Value)
-                    actual_end = max(obj.StartPosition.Value, obj.EndPosition.Value)
-                    # Show positions in the label
-                    if actual_end > 0:
-                        obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection}) [{actual_start}-{actual_end}]'
+                    arrowCopy.translate(midpoint)
+                shape = Part.makeCompound(listArrow)
+                obj.ViewObject.ShapeAppearance = (FreeCAD.Material(DiffuseColor=(0.00,0.00,1.00),AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
+                if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                    # If the load has start and end positions, include them in the label
+                    if hasattr(obj, 'StartPosition') and hasattr(obj, 'EndPosition') and \
+                       (obj.StartPosition.Value > 0 or obj.EndPosition.Value > 0):
+                        # Get actual used positions after swapping if needed
+                        actual_start = min(obj.StartPosition.Value, obj.EndPosition.Value)
+                        actual_end = max(obj.StartPosition.Value, obj.EndPosition.Value)
+                        # Show positions in the label
+                        if actual_end > 0:
+                            obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection}) [{actual_start}-{actual_end}]'
+                        else:
+                            obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection}) [{actual_start}]'
                     else:
-                        obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection}) [{actual_start}]'
+                        obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection})'
                 else:
-                    obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection})'
-            else:
-                obj.Label = 'distributed load'
+                    obj.Label = 'distributed load'
 
 
-        obj.Placement = shape.Placement
-        obj.Shape = shape
-        obj.ViewObject.DisplayMode = 'Shaded'
+                obj.Placement = shape.Placement
+                obj.Shape = shape
+                obj.ViewObject.DisplayMode = 'Shaded'
+        except Exception as e:
+            FreeCAD.Console.PrintError("Error in distributed load execute: " + str(e) + "\n")
 
     def onChanged(self,obj,Parameter):
-        if Parameter == 'edgeLength':
-            self.execute(obj)
-        elif Parameter == 'LoadType':
-            # Update label when load type changes
-            if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
-                obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection})'
-        elif Parameter == 'GlobalDirection':
-            # Re-execute when direction changes
-            if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+        try:
+            if Parameter == 'edgeLength':
                 self.execute(obj)
-        elif Parameter == 'StartPosition' or Parameter == 'EndPosition':
-            # Re-execute when start or end position changes
-            if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
-                # Validate that start position is not beyond end of member
-                if hasattr(obj, 'StartPosition'):
-                    if obj.StartPosition.Value < 0:
-                        obj.StartPosition = 0.0
-                        FreeCAD.Console.PrintWarning("StartPosition cannot be negative. Set to 0.\n")
+            elif Parameter == 'LoadType':
+                # Update label when load type changes
+                if hasattr(obj, 'LoadType') and hasattr(obj, 'GlobalDirection'):
+                    obj.Label = f'{obj.LoadType} distributed load ({obj.GlobalDirection})'
+            elif Parameter == 'GlobalDirection':
+                # Re-execute when direction changes
+                if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+                    self.execute(obj)
+            elif Parameter == 'StartPosition' or Parameter == 'EndPosition':
+                # Re-execute when start or end position changes
+                if hasattr(obj, 'ObjectBase') and obj.ObjectBase:
+                    # Validate that start position is not beyond end of member
+                    if hasattr(obj, 'StartPosition'):
+                        if obj.StartPosition.Value < 0:
+                            obj.StartPosition = 0.0
+                            FreeCAD.Console.PrintWarning("StartPosition cannot be negative. Set to 0.\n")
+                        
+                    # Handle special case for EndPosition = 0
+                    if hasattr(obj, 'EndPosition'):
+                        if obj.EndPosition.Value < 0:
+                            obj.EndPosition = 0.0
+                            FreeCAD.Console.PrintWarning("EndPosition cannot be negative. Set to 0.\n")
                     
-                # Handle special case for EndPosition = 0
-                if hasattr(obj, 'EndPosition'):
-                    if obj.EndPosition.Value < 0:
-                        obj.EndPosition = 0.0
-                        FreeCAD.Console.PrintWarning("EndPosition cannot be negative. Set to 0.\n")
-                
-                self.execute(obj)
+                    self.execute(obj)
+        except Exception as e:
+            FreeCAD.Console.PrintError(f"Error in onChanged for distributed load: {str(e)}\n")
 
 class ViewProviderLoadDistributed:
     def __init__(self, obj):
@@ -423,6 +471,8 @@ static char * load_distributed_xpm[] = {
 "   .++......................++ ",
 "  .++........................++",
 " .++..........................+",
+" .+...........................+",
+" .+...........................+",
 " .+...........................+",
 " .+...........................+",
 " .+...........................+",
