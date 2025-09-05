@@ -56,6 +56,8 @@ except ImportError:
     App = MockApp()
     FreeCADGui = MockFreeCADGui()
     Part = MockPart()
+    # Create FreeCAD alias for compatibility
+    FreeCAD = App
 
 import os
 
@@ -371,7 +373,7 @@ class LoadPoint:
                     position = getattr(obj, 'RelativePosition', 0.5) if hasattr(obj, 'RelativePosition') else 0.5
                     obj.Label = f'{obj.LoadType} point load ({obj.GlobalDirection}) at {position*100:.0f}%'
         except Exception as e:
-            FreeCAD.Console.PrintError(f"Error in onChanged for point load: {str(e)}\n")
+            App.Console.PrintError(f"Error in onChanged for point load: {str(e)}\n")
 
 class ViewProviderLoadPoint:
     def __init__(self, obj):

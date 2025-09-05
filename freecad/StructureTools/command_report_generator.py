@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 import FreeCAD as App
 import FreeCADGui as Gui
 from PySide2 import QtCore, QtGui, QtWidgets
@@ -25,7 +26,7 @@ except ImportError:
 try:
     from .reporting.ReportGenerator import (
         StructuralReportGenerator, ReportFormat, 
-        ReportConfiguration, AnalysisType
+        ReportMetadata
     )
     REPORTING_AVAILABLE = True
 except ImportError:
@@ -43,11 +44,23 @@ except ImportError:
         MODAL = "Modal"
         BUCKLING = "Buckling"
     
-    class ReportConfiguration:
+    class ReportMetadata:
         def __init__(self):
-            self.company_name = ""
+            self.company = ""
             self.project_name = ""
-            self.engineer_name = ""
+            self.engineer = ""
+            self.project_number = ""
+            self.client = ""
+            self.date = datetime.now().strftime("%Y-%m-%d")
+            self.revision = "Rev. 0"
+            self.description = "Structural Analysis Report"
+            self.company_logo = None
+            self.project_address = ""
+            self.building_code = "IBC 2021"
+            self.design_codes = ["AISC 360-16", "ACI 318-19"]
+            # Additional attributes for compatibility
+            self.engineer_license = ""
+            self.company_address = ""
 
 
 class ReportGeneratorDialog(QtWidgets.QDialog):
@@ -63,7 +76,7 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
         # Initialize data
         self.structural_objects = []
         self.analysis_results = {}
-        self.report_config = ReportConfiguration() if REPORTING_AVAILABLE else type('obj', (object,), {})()
+        self.report_config = ReportMetadata() if REPORTING_AVAILABLE else type('obj', (object,), {})()
         
         # Scan for structural objects
         self.scan_structural_objects()
@@ -603,7 +616,6 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
         if App.ActiveDocument:
             doc_path = App.ActiveDocument.FileName
             if doc_path:
-                import os
                 output_dir = os.path.dirname(doc_path)
                 self.output_path_input.setText(output_dir)
         else:
@@ -894,6 +906,10 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
         self.status_text.append("\n" + "="*50)
         self.status_text.append("STARTING REPORT GENERATION...")
         
+        # Initialize variables
+        success = False
+        output_path = ""
+        
         try:
             # Initialize report generator
             self.progress_bar.setValue(10)
@@ -904,7 +920,8 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
             else:
                 # Use mock implementation
                 generator = type('MockGenerator', (), {
-                    'generate_analysis_report': lambda self, path, fmt: self.generate_mock_report(path)
+                    'generate_analysis_report': lambda self, path, fmt: True,
+                    'set_report_data': lambda self, data: None
                 })()
             
             # Configure report
@@ -992,30 +1009,24 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
     
     def create_report_configuration(self):
         """Create report configuration from UI settings"""
-        config = ReportConfiguration() if REPORTING_AVAILABLE else type('Config', (), {})()
+        config = ReportMetadata() if REPORTING_AVAILABLE else type('Config', (), {})()
         
         # Project information
         config.project_name = self.project_name_input.text()
         config.project_number = self.project_number_input.text()
-        config.project_location = self.project_location_input.text()
-        config.client_name = self.client_name_input.text()
+        config.project_address = self.project_location_input.text()
+        config.client = self.client_name_input.text()
         
         # Engineer information
-        config.engineer_name = self.engineer_name_input.text()
+        config.engineer = self.engineer_name_input.text()
         config.engineer_license = self.engineer_license_input.text()
-        config.company_name = self.company_name_input.text()
+        config.company = self.company_name_input.text()
         config.company_address = self.company_address_input.toPlainText()
         
         # Report settings
-        config.report_title = self.report_title_input.text()
-        config.report_date = self.report_date_input.date().toPython()
+        config.description = self.report_title_input.text()
+        config.date = self.report_date_input.date().toPython()
         config.revision = self.revision_input.text()
-        
-        # Selected sections
-        config.selected_sections = {key: cb.isChecked() for key, cb in self.sections.items()}
-        
-        # Selected results
-        config.selected_results = {key: cb.isChecked() for key, cb in self.results_selection.items()}
         
         return config
     
@@ -1033,13 +1044,16 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
         """Generate PDF report"""
         try:
             if REPORTING_AVAILABLE:
+                # Set report data before generating
+                report_data = self.collect_report_data(config, objects)
+                generator.set_report_data(report_data)
                 return generator.generate_analysis_report(output_path, ReportFormat.PDF)
             else:
                 # Mock PDF generation
                 with open(output_path, 'w') as f:
                     f.write("Mock PDF Report\n")
                     f.write(f"Project: {config.project_name}\n")
-                    f.write(f"Engineer: {config.engineer_name}\n")
+                    f.write(f"Engineer: {config.engineer}\n")
                     f.write(f"Objects: {len(objects)}\n")
                 return True
         except Exception as e:
@@ -1050,6 +1064,9 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
         """Generate HTML report"""
         try:
             if REPORTING_AVAILABLE:
+                # Set report data before generating
+                report_data = self.collect_report_data(config, objects)
+                generator.set_report_data(report_data)
                 return generator.generate_analysis_report(output_path, ReportFormat.HTML)
             else:
                 # Mock HTML generation
@@ -1059,7 +1076,7 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
                 <head><title>{config.project_name} - Structural Report</title></head>
                 <body>
                     <h1>{config.project_name}</h1>
-                    <p>Engineer: {config.engineer_name}</p>
+                    <p>Engineer: {config.engineer}</p>
                     <p>Objects: {len(objects)}</p>
                     <p>This is a mock HTML report.</p>
                 </body>
@@ -1076,11 +1093,14 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
         """Generate Excel report"""
         try:
             if REPORTING_AVAILABLE:
+                # Set report data before generating
+                report_data = self.collect_report_data(config, objects)
+                generator.set_report_data(report_data)
                 return generator.generate_analysis_report(output_path, ReportFormat.EXCEL)
             else:
                 # Mock Excel generation (CSV)
                 csv_content = f"Project,{config.project_name}\n"
-                csv_content += f"Engineer,{config.engineer_name}\n"
+                csv_content += f"Engineer,{config.engineer}\n"
                 csv_content += f"Objects,{len(objects)}\n"
                 csv_content += "Mock Excel Report\n"
                 with open(output_path.replace('.xlsx', '.csv'), 'w') as f:
@@ -1089,6 +1109,193 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
         except Exception as e:
             self.status_text.append(f"Excel generation error: {str(e)}")
             return False
+    
+    def collect_report_data(self, config, objects):
+        """Collect structural data for report generation"""
+        if not REPORTING_AVAILABLE:
+            # Return mock data if reporting not available
+            return type('MockData', (), {
+                'metadata': config,
+                'structural_model': {},
+                'analysis_results': {},
+                'design_results': {},
+                'load_data': {},
+                'optimization_results': {},
+                'drawings': [],
+                'calculations': [],
+                'charts': []
+            })()
+        
+        # Create actual report data
+        from .reporting.ReportGenerator import ReportData
+        
+        # Initialize report data
+        report_data = ReportData()
+        report_data.metadata = config
+        
+        # Collect structural model information
+        structural_info = {}
+        structural_info['object_count'] = len(objects)
+        structural_info['object_types'] = list(set([obj.TypeId for obj in objects if hasattr(obj, 'TypeId')]))
+        
+        # Try to get calc objects for analysis results
+        analysis_results = {}
+        calc_objects = [obj for obj in objects if hasattr(obj, 'Type') and 'Calc' in getattr(obj, 'Type', '')]
+        
+        if calc_objects:
+            calc_obj = calc_objects[0]  # Use first calc object
+            # Collect comprehensive analysis results
+            analysis_summary = {}
+            
+            # Get the FE model from calculation
+            model = None
+            if hasattr(calc_obj, 'FEModel') and calc_obj.FEModel:
+                model = calc_obj.FEModel
+            elif hasattr(calc_obj, 'model') and calc_obj.model:
+                model = calc_obj.model
+            elif hasattr(calc_obj, 'Proxy') and hasattr(calc_obj.Proxy, 'model'):
+                model = calc_obj.Proxy.model
+            
+            # Reaction summary - Enhanced data collection
+            if hasattr(calc_obj, 'ReactionNodes') and calc_obj.ReactionNodes:
+                # Use stored reaction data if available
+                if (hasattr(calc_obj, 'ReactionX') and calc_obj.ReactionX and
+                    hasattr(calc_obj, 'ReactionY') and calc_obj.ReactionY and
+                    hasattr(calc_obj, 'ReactionZ') and calc_obj.ReactionZ):
+                    
+                    total_fx = sum(abs(val) for val in calc_obj.ReactionX)
+                    total_fy = sum(abs(val) for val in calc_obj.ReactionY)
+                    total_fz = sum(abs(val) for val in calc_obj.ReactionZ)
+                    
+                    analysis_summary['reactions'] = {
+                        'support_count': len(calc_obj.ReactionNodes),
+                        'total_fx': {'value': total_fx, 'units': 'kN'},
+                        'total_fy': {'value': total_fy, 'units': 'kN'},
+                        'total_fz': {'value': total_fz, 'units': 'kN'},
+                        'acceptable': True
+                    }
+                else:
+                    analysis_summary['reactions'] = {
+                        'support_count': len(calc_obj.ReactionNodes),
+                        'status': 'Available but not detailed',
+                        'acceptable': True
+                    }
+            elif model and hasattr(model, 'nodes'):
+                # Fall back to model data
+                supported_nodes = [node for node in model.nodes.values() 
+                                 if (node.support_DX or node.support_DY or node.support_DZ or 
+                                     node.support_RX or node.support_RY or node.support_RZ)]
+                analysis_summary['reactions'] = {
+                    'support_count': len(supported_nodes),
+                    'status': 'From model data',
+                    'acceptable': True
+                }
+            
+            # Member count and forces
+            if hasattr(calc_obj, 'NameMembers') and calc_obj.NameMembers:
+                member_count = len(calc_obj.NameMembers)
+                analysis_summary['members'] = {
+                    'count': member_count,
+                    'units': 'elements',
+                    'acceptable': True
+                }
+                
+                # Add member force data if available
+                if hasattr(calc_obj, 'MaxMomentY') and calc_obj.MaxMomentY:
+                    max_moment = max(abs(val) for val in calc_obj.MaxMomentY)
+                    analysis_summary['max_moment'] = {
+                        'value': max_moment,
+                        'units': 'kN·m',
+                        'limit': 'Design dependent',
+                        'acceptable': True
+                    }
+                
+                if hasattr(calc_obj, 'MaxShearY') and calc_obj.MaxShearY:
+                    max_shear = max(abs(val) for val in calc_obj.MaxShearY)
+                    analysis_summary['max_shear'] = {
+                        'value': max_shear,
+                        'units': 'kN',
+                        'limit': 'Design dependent',
+                        'acceptable': True
+                    }
+                
+                if hasattr(calc_obj, 'MaxAxial') and calc_obj.MaxAxial:
+                    max_axial = max(abs(val) for val in calc_obj.MaxAxial)
+                    analysis_summary['max_axial'] = {
+                        'value': max_axial,
+                        'units': 'kN',
+                        'limit': 'Design dependent',
+                        'acceptable': True
+                    }
+            
+            # Load combination data
+            if hasattr(calc_obj, 'LoadCombination'):
+                load_combos = calc_obj.LoadCombination
+                if isinstance(load_combos, list):
+                    analysis_summary['load_combinations'] = {
+                        'count': len(load_combos),
+                        'combinations': load_combos[:5],  # First 5 for preview
+                        'acceptable': True
+                    }
+                elif isinstance(load_combos, str):
+                    analysis_summary['load_combinations'] = {
+                        'count': 1,
+                        'combinations': [load_combos],
+                        'acceptable': True
+                    }
+            
+            # Deflection data
+            if hasattr(calc_obj, 'MaxDeflectionY') and calc_obj.MaxDeflectionY:
+                max_deflection = max(abs(val) for val in calc_obj.MaxDeflectionY)
+                # Estimate span for deflection ratio
+                span_estimate = 1000  # Default 1m, should be calculated from geometry
+                if hasattr(calc_obj, 'NameMembers') and calc_obj.NameMembers and model:
+                    # Try to estimate maximum span
+                    max_span = 0
+                    for member_name in calc_obj.NameMembers[:5]:  # Check first few members
+                        if member_name in model.members:
+                            member = model.members[member_name]
+                            if hasattr(member, 'L'):
+                                max_span = max(max_span, member.L)
+                    if max_span > 0:
+                        span_estimate = max_span
+                
+                deflection_ratio = span_estimate / max_deflection if max_deflection > 0 else float('inf')
+                analysis_summary['max_deflection'] = {
+                    'value': max_deflection,
+                    'units': 'mm',
+                    'span_ratio': f'L/{deflection_ratio:.0f}',
+                    'limit': 'L/300',
+                    'acceptable': deflection_ratio >= 300
+                }
+            
+            # Model statistics
+            if model and hasattr(model, 'nodes'):
+                analysis_summary['model_stats'] = {
+                    'nodes': len(model.nodes),
+                    'elements': len(model.members) if hasattr(model, 'members') else 0,
+                    'load_combos': len(model.LoadCombos) if hasattr(model, 'LoadCombos') else 0
+                }
+            
+            analysis_results['summary'] = analysis_summary
+        
+        report_data.structural_model = structural_info
+        report_data.analysis_results = analysis_results
+        
+        # Collect load data
+        load_data = {}
+        load_objects = [obj for obj in objects if 'Load' in obj.Name]
+        load_data['total_loads'] = len(load_objects)
+        load_data['load_types'] = list(set([obj.LoadType for obj in load_objects if hasattr(obj, 'LoadType')]))
+        report_data.load_data = load_data
+        
+        # Collect design data if available
+        design_results = {}
+        beam_objects = [obj for obj in objects if 'Beam' in obj.Name or 'Column' in obj.Name]
+        design_results['structural_elements'] = len(beam_objects)
+        report_data.design_results = design_results
+        
+        return report_data
     
     def open_generated_report(self, output_path):
         """Open the generated report"""

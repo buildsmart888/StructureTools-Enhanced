@@ -190,10 +190,11 @@ class ReactionTablePanel:
                             # Update object property to match
 
             
-            # If no combinations found, add default
-            self.load_combo_dropdown.addItem("100_DL")
-            if hasattr(self.reaction_obj, 'ActiveLoadCombination') and not self.reaction_obj.ActiveLoadCombination:
-                self.reaction_obj.ActiveLoadCombination = "100_DL"                  
+            # If no combinations found, add default if dropdown is empty
+            if self.load_combo_dropdown.count() == 0:
+                self.load_combo_dropdown.addItem("100_DL")
+                if hasattr(self.reaction_obj, 'ActiveLoadCombination') and not self.reaction_obj.ActiveLoadCombination:
+                    self.reaction_obj.ActiveLoadCombination = "100_DL"                  
                 
         except Exception as e:
             FreeCAD.Console.PrintWarning(f"Warning: Could not populate load combinations: {str(e)}\n")

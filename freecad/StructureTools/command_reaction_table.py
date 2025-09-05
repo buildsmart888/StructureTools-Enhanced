@@ -48,19 +48,55 @@ class CommandViewReactionTable:
                     "Please select a calculation object first.")
                 return
             
-            # Check if analysis data exists
+            # Check if analysis data exists - enhanced checking
             model_available = False
+            model_obj = None
+            
+            # Try different ways to get the model
             if hasattr(calc_obj, 'model') and calc_obj.model:
+                model_obj = calc_obj.model
                 model_available = True
             elif hasattr(calc_obj, 'FEModel') and calc_obj.FEModel:
+                model_obj = calc_obj.FEModel
                 model_available = True
             elif hasattr(calc_obj, 'Proxy') and hasattr(calc_obj.Proxy, 'model') and calc_obj.Proxy.model:
+                model_obj = calc_obj.Proxy.model
                 model_available = True
             
-            if not model_available:
+            # Additional check for reaction data in calc properties
+            reaction_data_available = False
+            if (hasattr(calc_obj, 'ReactionNodes') and calc_obj.ReactionNodes and
+                hasattr(calc_obj, 'ReactionX') and calc_obj.ReactionX):
+                reaction_data_available = True
+                FreeCAD.Console.PrintMessage("Found reaction data in calc object properties\n")
+            elif model_obj and hasattr(model_obj, 'nodes'):
+                # Check if model has supported nodes with reaction results
+                supported_nodes = []
+                for node_name, node in model_obj.nodes.items():
+                    if (node.support_DX or node.support_DY or node.support_DZ or 
+                        node.support_RX or node.support_RY or node.support_RZ):
+                        supported_nodes.append(node_name)
+                        # Check if node has any reaction data
+                        if hasattr(node, 'RxnFX') and node.RxnFX:
+                            reaction_data_available = True
+                            break
+                FreeCAD.Console.PrintMessage(f"Found {len(supported_nodes)} supported nodes in model\n")
+                if supported_nodes and not reaction_data_available:
+                    FreeCAD.Console.PrintMessage("Supported nodes found but no reaction results - analysis may need to be run\n")
+            
+            if not model_available and not reaction_data_available:
                 QtWidgets.QMessageBox.warning(None, "Warning", 
-                    "No analysis data found in the calculation object.")
+                    "No analysis data or model found in the calculation object.\n"
+                    "Please ensure the structural analysis has been completed.")
                 return
+            
+            if not reaction_data_available:
+                reply = QtWidgets.QMessageBox.question(None, "No Reaction Data", 
+                    "No reaction results found. The analysis may not have been completed.\n"
+                    "Continue anyway to view the table structure?",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+                if reply == QtWidgets.QMessageBox.No:
+                    return
                 
             # First try to find existing reaction results object
             reaction_obj = None

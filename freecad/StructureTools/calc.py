@@ -229,8 +229,12 @@ def show_error_message(msg):
 class Calc:
 	def __init__(self, obj, elements):
 		obj.Proxy = self
-
-		# helper to add properties when running inside FreeCAD or fallback to plain attributes for tests
+		self.Object = obj
+		
+		# Initialize with empty model to avoid serialization issues
+		self.model = None
+		
+		# Add properties with _addProp helper
 		def _addProp(prop_type, name, group, desc, default=None, set_value=None):
 			if hasattr(obj, 'addProperty'):
 				try:
@@ -240,6 +244,7 @@ class Calc:
 
 			if set_value is not None:
 				setattr(obj, name, set_value)
+
 			elif default is not None:
 				setattr(obj, name, default)
 
@@ -1936,14 +1941,63 @@ class Calc:
 class ViewProviderCalc:
 	def __init__(self, obj):
 		obj.Proxy = self
-		self.Object = obj.Object
+		self.Object = obj.Object if hasattr(obj, 'Object') else None
 		self.reaction_texts = []  # Store reaction text objects
+	
+	# Add __getstate__ and __setstate__ methods to handle serialization
+	def __getstate__(self):
+		# Don't serialize the Object reference and reaction_texts as they may not be JSON serializable
+		state = self.__dict__.copy()
+		# Remove potentially problematic attributes
+		state['Object'] = None
+		state['reaction_texts'] = []
+		return state
+
+	def __setstate__(self, state):
+		self.__dict__.update(state)
+		# Ensure Object and reaction_texts are properly initialized
+		if not hasattr(self, 'Object'):
+			self.Object = None
+		if not hasattr(self, 'reaction_texts'):
+			self.reaction_texts = []
+		return None
 	
 	def updateData(self, obj, prop):
 		"""Called when the object's data changes"""
 		if prop in ['ShowReactionText', 'ReactionPrecision', 'ReactionTextOffset', 'ReactionFontSize', 'LoadCombination']:
 			self.updateReactionTextDisplay()
+		
+		# Notify reaction results objects when load combination changes
+		if prop == 'LoadCombination':
+			self.notify_reaction_results_update(obj)
 	
+	def notify_reaction_results_update(self, obj):
+		"""Notify all reaction results objects to update when load combination changes."""
+		try:
+			import FreeCAD
+			FreeCAD.Console.PrintMessage(f"📢 Calc LoadCombination changed to: {obj.LoadCombination}\n")
+			
+			# Find all ReactionResults objects in the document that reference this calc
+			for doc_obj in FreeCAD.ActiveDocument.Objects:
+				if (hasattr(doc_obj, 'Proxy') and 
+					hasattr(doc_obj.Proxy, '__class__') and
+					doc_obj.Proxy.__class__.__name__ == 'ReactionResults' and
+					hasattr(doc_obj, 'ObjectBaseCalc') and
+					doc_obj.ObjectBaseCalc == obj):
+					
+					FreeCAD.Console.PrintMessage(f"🔄 Updating ReactionResults: {doc_obj.Name}\n")
+					
+					# Update the ActiveLoadCombination to match calc
+					doc_obj.ActiveLoadCombination = obj.LoadCombination
+					
+					# Trigger update
+					if hasattr(doc_obj.Proxy, 'execute'):
+						doc_obj.Proxy.execute(doc_obj)
+						
+		except Exception as e:
+			import FreeCAD
+			FreeCAD.Console.PrintError(f"❌ Error notifying reaction results: {str(e)}\n")
+
 	def onChanged(self, obj, prop):
 		"""Called when view properties change"""
 		if prop == 'ShowReactionText':
@@ -1954,6 +2008,10 @@ class ViewProviderCalc:
 		try:
 			# Clear existing reaction texts
 			self.clearReactionTexts()
+			
+			# Check if Object is properly set
+			if self.Object is None:
+				return
 			
 			# Only proceed if ShowReactionText is True
 			if not getattr(self.Object, 'ShowReactionText', False):
@@ -2159,12 +2217,16 @@ class ViewProviderCalc:
 	def clearReactionTexts(self):
 		"""Remove all existing reaction text objects"""
 		try:
+			# Check if reaction_texts exists
+			if not hasattr(self, 'reaction_texts'):
+				return
+				
 			doc = App.ActiveDocument
 			if not doc:
 				return
 			
 			for text_obj in self.reaction_texts:
-				if text_obj and text_obj.Name in doc.Objects:
+				if text_obj and hasattr(text_obj, 'Name') and text_obj.Name in doc.Objects:
 					doc.removeObject(text_obj.Name)
 			
 			self.reaction_texts.clear()
@@ -2508,7 +2570,9 @@ class CommandCalc():
         obj = doc.addObject("Part::FeaturePython", "Calc")
 
         objSuport = Calc(obj, selection)
-        ViewProviderCalc(obj.ViewObject)           
+        ViewProviderCalc(obj.ViewObject)
+        # Set the Object property explicitly
+        obj.ViewObject.Proxy.Object = obj
 
         App.ActiveDocument.recompute()        
         return
