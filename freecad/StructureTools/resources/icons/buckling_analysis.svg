@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="64" height="64" fill="#f0f0f0"/>
+  
+  <!-- Straight column (before buckling) -->
+  <rect x="20" y="8" width="4" height="48" fill="#666" stroke="#333" stroke-width="1"/>
+  
+  <!-- Buckled column (after critical load) -->
+  <path d="M38 8 Q32 20, 38 32 Q44 44, 38 56" fill="none" stroke="#e74c3c" stroke-width="4"/>
+  
+  <!-- Load arrows -->
+  <g fill="#e74c3c" stroke="#e74c3c" stroke-width="2">
+    <!-- Top load -->
+    <polygon points="22,4 22,8 20,6 24,6" />
+    <line x1="22" y1="4" x2="22" y2="8"/>
+    
+    <polygon points="38,4 38,8 36,6 40,6" />
+    <line x1="38" y1="4" x2="38" y2="8"/>
+    
+    <!-- Bottom reaction -->
+    <polygon points="22,60 22,56 20,58 24,58" />
+    <line x1="22" y1="56" x2="22" y2="60"/>
+    
+    <polygon points="38,60 38,56 36,58 40,58" />
+    <line x1="38" y1="56" x2="38" y2="60"/>
+  </g>
+  
+  <!-- Critical load indicator -->
+  <circle cx="48" cy="16" r="8" fill="#f39c12" opacity="0.9"/>
+  <text x="48" y="20" text-anchor="middle" font-family="Arial" font-size="7" fill="white" font-weight="bold">Pcr</text>
+  
+  <!-- Buckling mode indicator -->
+  <text x="32" y="6" text-anchor="middle" font-family="Arial" font-size="5" fill="#333">Mode 1</text>
+  
+  <!-- Deformation arrow -->
+  <path d="M28 32 Q32 28, 36 32" fill="none" stroke="#2980b9" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+      <polygon points="0 0, 6 2, 0 4" fill="#2980b9"/>
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="32" y="62" text-anchor="middle" font-family="Arial" font-size="6" fill="#333">Buckling</text>
+</svg>

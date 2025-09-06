@@ -14,7 +14,6 @@ from typing import List, Dict, Tuple, Optional, Any
 import math
 import os
 
-
 class StructuralPlate:
     """
     Custom Document Object for structural plates and shells with enhanced functionality.
@@ -32,6 +31,9 @@ class StructuralPlate:
         """
         self.Type = "StructuralPlate"
         obj.Proxy = self
+        
+        # Ensure we're starting with a clean object
+        self._ensure_property_exists = self._create_property_adder(obj)
         
         # Geometric properties
         obj.addProperty("App::PropertyLinkList", "CornerNodes", "Geometry",
@@ -97,6 +99,20 @@ class StructuralPlate:
         
         obj.addProperty("App::PropertyFloatList", "ThermalLoads", "Loads",
                        "Temperature loads by load case (°C)")
+        
+        # Thai Units Support
+        obj.addProperty("App::PropertyBool", "UseThaiUnits", "Thai Units",
+                       "Enable Thai units for plate load calculations")
+        obj.UseThaiUnits = False
+        
+        obj.addProperty("App::PropertyFloatList", "PressureLoadsKsc", "Thai Units",
+                       "Pressure loads in ksc/m² (Thai units)")
+        
+        obj.addProperty("App::PropertyFloatList", "PressureLoadsTfM2", "Thai Units",
+                       "Pressure loads in tf/m² (Thai units)")
+        
+        obj.addProperty("App::PropertyFloatList", "ShearLoadsKgfM", "Thai Units",
+                       "In-plane shear loads in kgf/m (Thai units)")
         
         obj.addProperty("App::PropertyFloatList", "TemperatureGradient", "Loads",
                        "Temperature gradient through thickness by load case (°C/mm)")
@@ -165,7 +181,7 @@ class StructuralPlate:
         obj.addProperty("App::PropertyFloatList", "TwistingMoment", "Results",
                        "Twisting moment Mxy by load combination")
         
-        # Shear forces (for thick plates)
+        # Transverse shear forces (per unit width)
         obj.addProperty("App::PropertyFloatList", "ShearForceX", "Results",
                        "Transverse shear force Qx by load combination")
         
@@ -173,58 +189,86 @@ class StructuralPlate:
                        "Transverse shear force Qy by load combination")
         
         # Stress results
-        obj.addProperty("App::PropertyFloatList", "StressTop", "Results",
-                       "Von Mises stress at top surface")
+        obj.addProperty("App::PropertyFloatList", "MaxStress", "Results",
+                       "Maximum stress by load combination")
         
-        obj.addProperty("App::PropertyFloatList", "StressBottom", "Results",
-                       "Von Mises stress at bottom surface")
+        obj.addProperty("App::PropertyFloatList", "MinStress", "Results",
+                       "Minimum stress by load combination")
         
-        obj.addProperty("App::PropertyFloatList", "PrincipalStress1", "Results",
-                       "Maximum principal stress")
+        obj.addProperty("App::PropertyFloatList", "VonMisesStress", "Results",
+                       "Von Mises stress by load combination")
         
-        obj.addProperty("App::PropertyFloatList", "PrincipalStress2", "Results",
-                       "Minimum principal stress")
+        # Buckling analysis
+        obj.addProperty("App::PropertyFloatList", "BucklingFactors", "Stability",
+                       "Critical buckling load factors")
         
-        # Stability and design
-        obj.addProperty("App::PropertyFloat", "BucklingFactor", "Design",
-                       "Critical buckling load factor")
+        obj.addProperty("App::PropertyFloatList", "BucklingModes", "Stability",
+                       "Buckling mode shapes")
         
-        obj.addProperty("App::PropertyFloatList", "UtilizationRatios", "Design",
-                       "Utilization ratios by load combination")
+        # Meshing properties
+        obj.addProperty("App::PropertyInteger", "MeshDivisionsX", "Mesh",
+                       "Number of mesh divisions in X direction")
+        obj.MeshDivisionsX = 4
         
-        obj.addProperty("App::PropertyString", "ControllingCase", "Design",
-                       "Controlling load combination")
+        obj.addProperty("App::PropertyInteger", "MeshDivisionsY", "Mesh",
+                       "Number of mesh divisions in Y direction")
+        obj.MeshDivisionsY = 4
         
-        # Advanced properties
-        obj.addProperty("App::PropertyInteger", "MeshDensity", "Advanced",
-                       "Mesh density for analysis (elements per edge)")
-        obj.MeshDensity = 4
+        # Visualization properties
+        obj.addProperty("App::PropertyBool", "ShowMesh", "Display",
+                       "Show finite element mesh")
+        obj.ShowMesh = True
         
-        obj.addProperty("App::PropertyBool", "IncludeGeometricNonlinearity", "Advanced",
-                       "Include geometric nonlinearity (large deflections)")
-        obj.IncludeGeometricNonlinearity = False
+        obj.addProperty("App::PropertyColor", "MeshColor", "Display",
+                       "Color of finite element mesh")
+        obj.MeshColor = (0.5, 0.5, 0.5)  # Gray
         
-        obj.addProperty("App::PropertyBool", "IncludeMaterialNonlinearity", "Advanced",
-                       "Include material nonlinearity")
-        obj.IncludeMaterialNonlinearity = False
+        obj.addProperty("App::PropertyFloat", "MeshLineWidth", "Display",
+                       "Line width for mesh display")
+        obj.MeshLineWidth = 1.0
         
-        # Identification and organization
+        obj.addProperty("App::PropertyEnumeration", "DisplayStyle", "Display",
+                       "Plate display style")
+        obj.DisplayStyle = ["Solid", "Wireframe", "Points"]
+        obj.DisplayStyle = "Solid"
+        
+        # Identification properties
         obj.addProperty("App::PropertyString", "PlateID", "Identification",
                        "Unique plate identifier")
-        
-        obj.addProperty("App::PropertyString", "PlateGroup", "Identification",
-                       "Plate group for organization")
         
         obj.addProperty("App::PropertyString", "Description", "Identification",
                        "Plate description or notes")
         
-        # Internal properties
-        obj.addProperty("App::PropertyInteger", "InternalID", "Internal",
-                       "Internal numbering for analysis")
+        # Status properties
+        obj.addProperty("App::PropertyBool", "IsValid", "Status",
+                       "Whether the plate definition is valid")
+        obj.IsValid = True
         
-        obj.addProperty("App::PropertyBool", "IsActive", "Internal",
-                       "Plate is active in current analysis")
-        obj.IsActive = True
+        obj.addProperty("App::PropertyBool", "IsAnalysisReady", "Status",
+                       "Whether the plate is ready for analysis")
+        obj.IsAnalysisReady = False
+    
+    def _create_property_adder(self, obj):
+        """
+        Create a helper function to safely add properties with error handling.
+        
+        Args:
+            obj: The DocumentObject to add properties to
+            
+        Returns:
+            A function that can be used to add properties to the object
+        """
+        def ensure_property_exists(prop_type, prop_name, prop_group, prop_doc, default=None):
+            try:
+                if not hasattr(obj, prop_name):
+                    obj.addProperty(prop_type, prop_name, prop_group, prop_doc)
+                    if default is not None:
+                        setattr(obj, prop_name, default)
+                return True
+            except Exception as e:
+                App.Console.PrintWarning(f"Error creating property {prop_name}: {e}\n")
+                return False
+        return ensure_property_exists
     
     def onChanged(self, obj, prop: str) -> None:
         """
@@ -234,6 +278,20 @@ class StructuralPlate:
             obj: The DocumentObject being changed
             prop: Name of the changed property
         """
+        # Ensure critical properties exist
+        if not hasattr(obj, 'IncludeMembraneAction'):
+            self._ensure_property_exists("App::PropertyBool", "IncludeMembraneAction", "Plate",
+                       "Include membrane forces in analysis", True)
+        
+        if not hasattr(obj, 'IncludeBendingAction'):
+            self._ensure_property_exists("App::PropertyBool", "IncludeBendingAction", "Plate",
+                       "Include bending moments in analysis", True)
+        
+        if not hasattr(obj, 'IncludeShearDeformation'):
+            self._ensure_property_exists("App::PropertyBool", "IncludeShearDeformation", "Plate",
+                       "Include transverse shear deformation (thick plate)", False)
+        
+        # Handle property changes
         if prop == "CornerNodes":
             self._update_geometry(obj)
         elif prop == "Material":
@@ -244,6 +302,10 @@ class StructuralPlate:
             self._update_plate_behavior(obj)
         elif prop in ["EdgeCondition1", "EdgeCondition2", "EdgeCondition3", "EdgeCondition4"]:
             self._update_boundary_conditions(obj)
+        elif prop in ["PressureLoads", "ShearLoadsX", "ShearLoadsY"]:
+            # Update Thai units when loads change
+            if hasattr(obj, 'UseThaiUnits') and obj.UseThaiUnits:
+                self.updateThaiUnits(obj)
     
     def _update_geometry(self, obj) -> None:
         """Update geometric properties when corner nodes change."""
@@ -351,21 +413,33 @@ class StructuralPlate:
         plate_type = obj.PlateType
         
         if plate_type == "Thin Plate":
-            obj.IncludeMembraneAction = False
-            obj.IncludeBendingAction = True
-            obj.IncludeShearDeformation = False
+            if hasattr(obj, 'IncludeMembraneAction'):
+                obj.IncludeMembraneAction = False
+            if hasattr(obj, 'IncludeBendingAction'):
+                obj.IncludeBendingAction = True
+            if hasattr(obj, 'IncludeShearDeformation'):
+                obj.IncludeShearDeformation = False
         elif plate_type == "Thick Plate":
-            obj.IncludeMembraneAction = True
-            obj.IncludeBendingAction = True
-            obj.IncludeShearDeformation = True
+            if hasattr(obj, 'IncludeMembraneAction'):
+                obj.IncludeMembraneAction = True
+            if hasattr(obj, 'IncludeBendingAction'):
+                obj.IncludeBendingAction = True
+            if hasattr(obj, 'IncludeShearDeformation'):
+                obj.IncludeShearDeformation = True
         elif plate_type == "Shell":
-            obj.IncludeMembraneAction = True
-            obj.IncludeBendingAction = True
-            obj.IncludeShearDeformation = False
+            if hasattr(obj, 'IncludeMembraneAction'):
+                obj.IncludeMembraneAction = True
+            if hasattr(obj, 'IncludeBendingAction'):
+                obj.IncludeBendingAction = True
+            if hasattr(obj, 'IncludeShearDeformation'):
+                obj.IncludeShearDeformation = False
         elif plate_type == "Membrane":
-            obj.IncludeMembraneAction = True
-            obj.IncludeBendingAction = False
-            obj.IncludeShearDeformation = False
+            if hasattr(obj, 'IncludeMembraneAction'):
+                obj.IncludeMembraneAction = True
+            if hasattr(obj, 'IncludeBendingAction'):
+                obj.IncludeBendingAction = False
+            if hasattr(obj, 'IncludeShearDeformation'):
+                obj.IncludeShearDeformation = False
     
     def _update_boundary_conditions(self, obj) -> None:
         """Update boundary condition properties."""
@@ -382,264 +456,143 @@ class StructuralPlate:
                 extrusion_vector = obj.LocalZAxis * thickness
                 solid = face.extrude(extrusion_vector)
                 obj.Shape = solid
-            else:
-                # Just show the surface
-                obj.Shape = face
-                
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating plate visualization: {e}\n")
-            obj.Shape = face
+            App.Console.PrintWarning(f"Error updating visual representation: {e}\n")
     
     def execute(self, obj) -> None:
-        """
-        Update plate geometry and validate properties.
-        
-        Args:
-            obj: The DocumentObject being executed
-        """
-        # Update geometry
-        self._update_geometry(obj)
-        
-        # Validate material assignment
-        if not hasattr(obj, 'Material') or not obj.Material:
-            App.Console.PrintWarning(f"Plate {obj.Label}: No material assigned\n")
-        
-        # Validate load consistency
-        self._validate_load_consistency(obj)
-        
-        # Update derived properties
-        self._update_material_properties(obj)
+        """Update plate when properties change."""
+        # Update geometry if needed
+        if hasattr(obj, 'CornerNodes') and obj.CornerNodes:
+            self._update_geometry(obj)
     
-    def _validate_load_consistency(self, obj) -> None:
-        """Validate load arrays have consistent lengths."""
-        load_properties = [
-            'PressureLoads', 'ShearLoadsX', 'ShearLoadsY', 'ThermalLoads'
-        ]
-        
-        lengths = []
-        for prop in load_properties:
-            if hasattr(obj, prop):
-                lengths.append(len(getattr(obj, prop, [])))
-        
-        if lengths and len(set(lengths)) > 1:
-            App.Console.PrintWarning(
-                f"Plate {obj.Label}: Inconsistent load case count across load types\n"
-            )
-    
-    def get_stiffness_matrix(self, obj) -> List[List[float]]:
-        """
-        Calculate local stiffness matrix for the plate element.
-        
-        Args:
-            obj: The DocumentObject
+    def getLoadsInThaiUnits(self, obj):
+        """Get plate load values in Thai units."""
+        if not hasattr(obj, 'UseThaiUnits') or not obj.UseThaiUnits:
+            return None
             
-        Returns:
-            Stiffness matrix for plate element
-        """
-        if not hasattr(obj, 'Material') or not obj.Material:
-            return []
-        
         try:
-            # Material properties
-            E = obj.Material.ModulusElasticity.getValueAs('MPa')
-            nu = obj.Material.PoissonRatio
-            t = obj.Thickness.getValueAs('mm')
+            # Import Thai units converter
+            from ..utils.universal_thai_units import UniversalThaiUnits
+            converter = UniversalThaiUnits()
             
-            # Membrane stiffness matrix
-            membrane_factor = E * t / (1 - nu**2)
+            # Get load values in SI units
+            pressure_loads = obj.PressureLoads if hasattr(obj, 'PressureLoads') else []
+            shear_loads_x = obj.ShearLoadsX if hasattr(obj, 'ShearLoadsX') else []
+            shear_loads_y = obj.ShearLoadsY if hasattr(obj, 'ShearLoadsY') else []
             
-            # Bending stiffness matrix  
-            bending_factor = E * t**3 / (12 * (1 - nu**2))
+            # Convert to Thai units
+            pressure_loads_ksc = [converter.kn_m2_to_ksc_m2(load) for load in pressure_loads]
+            pressure_loads_tf_m2 = [converter.kn_m2_to_tf_m2(load) for load in pressure_loads]
+            shear_loads_kgf_m = [converter.kn_m_to_kgf_m(load) for load in shear_loads_x + shear_loads_y]
             
-            # This is simplified - actual implementation would depend on 
-            # element formulation (triangular vs quadrilateral)
-            # and would return proper DOF arrangement
+            # Update Thai unit properties
+            obj.PressureLoadsKsc = pressure_loads_ksc
+            obj.PressureLoadsTfM2 = pressure_loads_tf_m2
+            obj.ShearLoadsKgfM = shear_loads_kgf_m
             
-            return self._calculate_element_stiffness(membrane_factor, bending_factor, nu)
+            thai_results = {
+                'pressure_loads_ksc': pressure_loads_ksc,
+                'pressure_loads_tf_m2': pressure_loads_tf_m2,
+                'shear_loads_kgf_m': shear_loads_kgf_m
+            }
+            
+            return thai_results
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating plate stiffness: {e}\n")
-            return []
+            App.Console.PrintError(f"Error converting plate loads to Thai units: {e}\n")
+            return None
     
-    def _calculate_element_stiffness(self, A_factor: float, D_factor: float, nu: float) -> List[List[float]]:
-        """Calculate element stiffness matrix (simplified)."""
-        # This is a placeholder - actual implementation would use 
-        # finite element formulation for plate elements
-        # Returns 6x6 matrix for triangular element or 8x8 for quad
-        
-        size = 6  # Simplified for triangular element
-        k_matrix = [[0.0] * size for _ in range(size)]
-        
-        # Placeholder values - actual implementation would use
-        # shape functions and numerical integration
-        diagonal_value = A_factor + D_factor
-        for i in range(size):
-            k_matrix[i][i] = diagonal_value
-        
-        return k_matrix
-    
-    def get_equivalent_nodal_loads(self, obj, load_case: int = 0) -> List[float]:
-        """
-        Get equivalent nodal loads for surface loads.
-        
-        Args:
-            obj: The DocumentObject
-            load_case: Load case index
-            
-        Returns:
-            Equivalent nodal load vector
-        """
-        loads = []
-        
-        if not (hasattr(obj, 'Area') and hasattr(obj, 'CornerNodes')):
-            return loads
-        
-        try:
-            area = obj.Area.getValueAs('mm^2')
-            num_nodes = len(obj.CornerNodes)
-            
-            # Get pressure load for this load case
-            pressure = 0.0
-            if hasattr(obj, 'PressureLoads') and len(obj.PressureLoads) > load_case:
-                pressure = obj.PressureLoads[load_case]
-            
-            # Distribute pressure load to corner nodes
-            # For uniform pressure, each node gets 1/n of total load
-            total_load = pressure * area
-            nodal_load = total_load / num_nodes
-            
-            # Create load vector (simplified - actual would depend on DOF arrangement)
-            loads = [0.0] * (num_nodes * 3)  # 3 DOF per node (simplified)
-            
-            # Apply vertical loads (in local Z direction)
-            for i in range(num_nodes):
-                loads[i * 3 + 2] = nodal_load  # Z-direction load
-            
-        except Exception as e:
-            App.Console.PrintWarning(f"Error calculating equivalent loads: {e}\n")
-        
-        return loads
-
+    def updateThaiUnits(self, obj):
+        """Update Thai units when properties change."""
+        if hasattr(obj, 'UseThaiUnits') and obj.UseThaiUnits:
+            self.getLoadsInThaiUnits(obj)
 
 class ViewProviderStructuralPlate:
     """
-    ViewProvider for StructuralPlate with enhanced visualization and editing.
+    ViewProvider for StructuralPlate with enhanced visualization.
     """
     
     def __init__(self, vobj):
         """Initialize ViewProvider."""
         vobj.Proxy = self
         self.Object = vobj.Object
-        
-        # Visualization properties
-        vobj.addProperty("App::PropertyBool", "ShowLocalAxes", "Display",
-                        "Show local coordinate system")
-        vobj.ShowLocalAxes = False
-        
-        vobj.addProperty("App::PropertyBool", "ShowLoads", "Display",
-                        "Show applied surface loads") 
-        vobj.ShowLoads = True
-        
-        vobj.addProperty("App::PropertyBool", "ShowBoundaryConditions", "Display",
-                        "Show boundary conditions")
-        vobj.ShowBoundaryConditions = True
-        
-        vobj.addProperty("App::PropertyEnumeration", "ResultsDisplay", "Results",
-                        "Type of results to display")
-        vobj.ResultsDisplay = ["None", "Displacements", "Membrane Forces", "Bending Moments", "Stresses"]
-        vobj.ResultsDisplay = "None"
-        
-        vobj.addProperty("App::PropertyFloat", "ResultScale", "Results",
-                        "Result display scale factor")
-        vobj.ResultScale = 1.0
-        
-        vobj.addProperty("App::PropertyColor", "PlateColor", "Display",
-                        "Plate color")
-        vobj.PlateColor = (0.8, 0.8, 0.9)  # Light blue-gray
-        
-        vobj.addProperty("App::PropertyFloat", "Transparency", "Display",
-                        "Plate transparency (0-100)")
-        vobj.Transparency = 20.0
     
-    def getIcon(self) -> str:
-        """
-        Return icon based on plate type and status.
-        
-        Returns:
-            Path to appropriate icon file
-        """
-        if not hasattr(self.Object, 'PlateType'):
-            return self._get_icon_path("plate_generic.svg")
-        
-        plate_type = getattr(self.Object, 'PlateType', 'Thin Plate').lower()
-        
-        # Check for analysis results
-        has_results = (hasattr(self.Object, 'UtilizationRatios') and 
-                      len(self.Object.UtilizationRatios) > 0)
-        
-        if has_results:
-            max_util = max(self.Object.UtilizationRatios) if self.Object.UtilizationRatios else 0
-            if max_util > 1.0:
-                return self._get_icon_path("plate_overstressed.svg")
-            elif max_util > 0.8:
-                return self._get_icon_path("plate_warning.svg")
-            else:
-                return self._get_icon_path("plate_ok.svg")
-        
-        # Icon based on type
-        if "shell" in plate_type:
-            return self._get_icon_path("shell_generic.svg")
-        elif "membrane" in plate_type:
-            return self._get_icon_path("membrane_generic.svg")
-        else:
-            return self._get_icon_path("plate_generic.svg")
+    def getIcon(self):
+        """Return the icon for this object."""
+        return ":/icons/Part_Face.svg"
     
-    def _get_icon_path(self, icon_name: str) -> str:
-        """Get full path to icon file."""
-        icon_dir = os.path.join(os.path.dirname(__file__), "..", "resources", "icons")
-        return os.path.join(icon_dir, icon_name)
+    def attach(self, vobj):
+        """Setup the scene sub-graph of the view provider."""
+        self.Object = vobj.Object
+        return
     
-    def setEdit(self, vobj, mode: int) -> bool:
-        """
-        Open custom task panel for plate editing.
-        
-        Args:
-            vobj: ViewObject being edited
-            mode: Edit mode
-            
-        Returns:
-            True if edit mode started successfully
-        """
-        if mode == 0:
-            from ..taskpanels.PlatePropertiesPanel import PlatePropertiesPanel
-            self.panel = PlatePropertiesPanel(vobj.Object)
-            Gui.Control.showDialog(self.panel)
-            return True
+    def updateData(self, obj, prop):
+        """Update visualization when object data changes."""
+        return
+    
+    def onChanged(self, vobj, prop):
+        """Handle view provider property changes."""
+        return
+    
+    def setEdit(self, vobj, mode):
+        """Edit the object."""
         return False
     
-    def unsetEdit(self, vobj, mode: int) -> bool:
-        """Close plate editing panel."""
-        Gui.Control.closeDialog()
-        return True
+    def unsetEdit(self, vobj, mode):
+        """Finish editing the object."""
+        return
     
-    def doubleClicked(self, vobj) -> bool:
-        """Handle double-click to open properties panel."""
+    def doubleClicked(self, vobj):
+        """Handle double-click."""
         return self.setEdit(vobj, 0)
     
-    def updateData(self, obj, prop: str) -> None:
-        """Update visualization when object data changes."""
-        if prop in ["CornerNodes", "Thickness", "PressureLoads"]:
-            # Trigger visual update
-            pass
+    def __getstate__(self):
+        """Save the state."""
+        return None
+
+    def __setstate__(self, state):
+        """Restore the state."""
+        return None
+
+def makeStructuralPlate(nodes=None, thickness="200 mm", plate_type="Thin Plate", name="StructuralPlate"):
+    """
+    Create a new StructuralPlate object.
     
-    def getDisplayModes(self, vobj) -> list:
-        """Return available display modes."""
-        return ["Flat Lines", "Shaded", "Wireframe", "Points"]
+    Args:
+        nodes: List of corner nodes
+        thickness: Plate thickness
+        plate_type: Type of plate element
+        name: Object name
+        
+    Returns:
+        Created StructuralPlate object
+    """
+    doc = App.ActiveDocument
+    if not doc:
+        App.Console.PrintError("No active document. Please create or open a document first.\n")
+        return None
     
-    def getDefaultDisplayMode(self) -> str:
-        """Return default display mode."""
-        return "Shaded"
+    # Create the object
+    obj = doc.addObject("App::DocumentObjectGroupPython", name)
+    StructuralPlate(obj)
     
-    def setDisplayMode(self, mode: str) -> str:
-        """Set display mode."""
-        return mode
+    # Create ViewProvider
+    if App.GuiUp:
+        ViewProviderStructuralPlate(obj.ViewObject)
+    
+    # Set properties
+    if nodes:
+        obj.CornerNodes = nodes if isinstance(nodes, list) else [nodes]
+    obj.Thickness = thickness
+    obj.PlateType = plate_type
+    
+    # Generate unique ID
+    plate_count = len([o for o in doc.Objects if hasattr(o, 'Proxy') and hasattr(o.Proxy, 'Type') and o.Proxy.Type == "StructuralPlate"])
+    obj.PlateID = f"PL{plate_count + 1:03d}"
+    
+    # Recompute to update properties
+    obj.recompute()
+    doc.recompute()
+    
+    App.Console.PrintMessage(f"Created StructuralPlate: {obj.Label} with ID: {obj.PlateID}\n")
+    return obj

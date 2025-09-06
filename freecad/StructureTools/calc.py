@@ -1,10 +1,132 @@
-import FreeCAD, App, FreeCADGui, Part, os, math
+import os, math
+import sys
+
+# Setup FreeCAD stubs for standalone operation
+try:
+    from .utils.freecad_stubs import setup_freecad_stubs, is_freecad_available
+    if not is_freecad_available():
+        setup_freecad_stubs()
+except ImportError:
+    pass
+
+# Import FreeCAD modules (now available via stubs if needed)
+try:
+    import FreeCAD as App, FreeCADGui, Part
+    FREECAD_AVAILABLE = True
+except ImportError:
+    FREECAD_AVAILABLE = False
+    print("FreeCAD modules not available - using stub mode")
+    # Create more comprehensive mock objects for App and FreeCADGui when not available
+    class MockQuantity:
+        def __init__(self, value, unit=None):
+            self.value = value
+            self.unit = unit
+            
+        def getValueAs(self, unit):
+            return self
+            
+        def __float__(self):
+            if hasattr(self.value, '__float__'):
+                return float(self.value)
+            return 0.0
+        
+        def __mul__(self, other):
+            # Handle multiplication with numbers
+            if isinstance(other, (int, float)):
+                return MockQuantity(self.value * other, self.unit)
+            return NotImplemented
+        
+        def __rmul__(self, other):
+            # Handle reverse multiplication (10 * quantity)
+            return self.__mul__(other)
+    
+    class MockUnits:
+        def __init__(self):
+            self.Quantity = MockQuantity
+    
+    class MockConsole:
+        def PrintWarning(self, msg):
+            print("WARNING:", msg)
+            
+        def PrintMessage(self, msg):
+            print("MESSAGE:", msg)
+            
+        def PrintError(self, msg):
+            print("ERROR:", msg)
+    
+    class MockVector:
+        def __init__(self, x=0, y=0, z=0):
+            self.x = x
+            self.y = y
+            self.z = z
+    
+    class MockDocument:
+        def addObject(self, type, name):
+            class MockObject:
+                def __init__(self):
+                    self.Name = name
+                    self.ViewObject = None  # Add ViewObject attribute
+            return MockObject()
+            
+        def recompute(self):
+            pass
+    
+    class MockApp:
+        def __init__(self):
+            self.Console = MockConsole()
+            self.Units = MockUnits()
+            self.Vector = MockVector
+            self.ActiveDocument = MockDocument()
+    
+    class MockSelection:
+        @staticmethod
+        def getSelection():
+            return []
+    
+    class MockFreeCADGui:
+        def __init__(self):
+            self.Selection = MockSelection()
+            
+        def addCommand(self, name, command):
+            pass
+    
+    App = MockApp()
+    FreeCADGui = MockFreeCADGui()
 from PySide import QtWidgets
 import subprocess
+
+# Import Thai units support
+try:
+    from .utils.universal_thai_units import enhance_with_thai_units, thai_auto_units, get_universal_thai_units
+    from .utils.thai_units import get_thai_converter
+    from .utils.units_manager import get_units_manager, format_force, format_stress, format_modulus
+    THAI_UNITS_AVAILABLE = True
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    THAI_UNITS_AVAILABLE = False
+    GLOBAL_UNITS_AVAILABLE = False
+    enhance_with_thai_units = lambda x, t: x
+    thai_auto_units = lambda f: f
+    get_universal_thai_units = lambda: None
+    get_thai_converter = lambda: None
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e6:.0f} MPa"
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
 from .Pynite_main.FEModel3D import FEModel3D
+
+# Import material standards database
+try:
+	from .data.MaterialStandards import MATERIAL_STANDARDS, get_material_info
+	HAS_MATERIAL_DATABASE = True
+except ImportError:
+	MATERIAL_STANDARDS = {}
+	def get_material_info(standard_name):
+		return {}
+	HAS_MATERIAL_DATABASE = False
 
 
 def _find_matching_node_index(nodes_map, coord, tol=1e-3):
@@ -28,15 +150,9 @@ except Exception:
 
 
 def _print_warning(msg):
-	# Try FreeCAD.Console, then App.Console, fallback to print
+	# Try App.Console, fallback to print
 	try:
-		if 'FreeCAD' in globals() and hasattr(FreeCAD, 'Console'):
-			FreeCAD.Console.PrintWarning(msg)
-			return
-	except Exception:
-		pass
-	try:
-		if 'App' in globals() and hasattr(App, 'Console'):
+		if hasattr(App, 'Console'):
 			App.Console.PrintWarning(msg)
 			return
 	except Exception:
@@ -49,13 +165,7 @@ def _print_warning(msg):
 
 def _print_message(msg):
 	try:
-		if 'FreeCAD' in globals() and hasattr(FreeCAD, 'Console'):
-			FreeCAD.Console.PrintMessage(msg)
-			return
-	except Exception:
-		pass
-	try:
-		if 'App' in globals() and hasattr(App, 'Console'):
+		if hasattr(App, 'Console'):
 			App.Console.PrintMessage(msg)
 			return
 	except Exception:
@@ -68,13 +178,7 @@ def _print_message(msg):
 
 def _print_error(msg):
 	try:
-		if 'FreeCAD' in globals() and hasattr(FreeCAD, 'Console'):
-			FreeCAD.Console.PrintError(msg)
-			return
-	except Exception:
-		pass
-	try:
-		if 'App' in globals() and hasattr(App, 'Console'):
+		if hasattr(App, 'Console'):
 			App.Console.PrintError(msg)
 			return
 	except Exception:
@@ -89,10 +193,10 @@ def _print_error(msg):
 def qty_val(value, from_unit='mm', to_unit=None):
 	# Prefer FreeCAD Units when available
 	try:
-		if 'FreeCAD' in globals() and hasattr(FreeCAD, 'Units') and hasattr(FreeCAD.Units, 'Quantity'):
+		if hasattr(App, 'Units') and hasattr(App.Units, 'Quantity'):
 			if to_unit:
-				return float(FreeCAD.Units.Quantity(value, from_unit).getValueAs(to_unit))
-			return float(FreeCAD.Units.Quantity(value, from_unit))
+				return float(App.Units.Quantity(value, from_unit).getValueAs(to_unit))
+			return float(App.Units.Quantity(value, from_unit))
 	except Exception:
 		pass
 	# Fallback: try numeric or MockQuantity
@@ -110,27 +214,37 @@ def qty_val(value, from_unit='mm', to_unit=None):
 # 	subprocess.check_call(["pip", "install", "PyniteFEA"])
 
 def show_error_message(msg):
-	msg_box = QtWidgets.QMessageBox()
-	msg_box.setIcon(QtWidgets.QMessageBox.Critical)  #Ícone de erro
-	msg_box.setWindowTitle("Erro")
-	msg_box.setText(msg)
-	msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-	msg_box.exec_()
+	try:
+		msg_box = QtWidgets.QMessageBox()
+		msg_box.setIcon(QtWidgets.QMessageBox.Critical)  #Ícone de erro
+		msg_box.setWindowTitle("Erro")
+		msg_box.setText(msg)
+		msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+		msg_box.exec_()
+	except Exception:
+		# Fallback if QMessageBox is not available
+		print("ERROR:", msg)
 
 
 class Calc:
 	def __init__(self, obj, elements):
 		obj.Proxy = self
-
-		# helper to add properties when running inside FreeCAD or fallback to plain attributes for tests
+		self.Object = obj
+		
+		# Initialize with empty model to avoid serialization issues
+		self.model = None
+		
+		# Add properties with _addProp helper
 		def _addProp(prop_type, name, group, desc, default=None, set_value=None):
 			if hasattr(obj, 'addProperty'):
 				try:
 					obj.addProperty(prop_type, name, group, desc)
 				except Exception:
 					pass
+
 			if set_value is not None:
 				setattr(obj, name, set_value)
+
 			elif default is not None:
 				setattr(obj, name, default)
 
@@ -165,6 +279,103 @@ class Calc:
 		]
 		obj.LoadCombination = '100_DL'
 
+		# Structured per-member results (stored as a python object so tests and UI can access lists/dicts)
+		_addProp("App::PropertyPythonObject", "MemberResults", "Calc", "structured per-member results", default=[])
+
+		# Other result properties written by execute(); provide safe defaults to avoid AttributeError
+		_addProp("App::PropertyStringList", "NameMembers", "Calc", "list of member names", default=[])
+		_addProp("App::PropertyVectorList", "Nodes", "Calc", "list of node vectors", default=[])
+		# Time-series and diagram data as string lists (comma-joined values per member)
+		_addProp("App::PropertyStringList", "MomentZ", "Calc", "per-member moment Z series", default=[])
+		_addProp("App::PropertyStringList", "MomentY", "Calc", "per-member moment Y series", default=[])
+		_addProp("App::PropertyStringList", "ShearY", "Calc", "per-member shear Y series", default=[])
+		_addProp("App::PropertyStringList", "ShearZ", "Calc", "per-member shear Z series", default=[])
+		_addProp("App::PropertyStringList", "AxialForce", "Calc", "per-member axial force series", default=[])
+		_addProp("App::PropertyStringList", "Torque", "Calc", "per-member torque series", default=[])
+		_addProp("App::PropertyStringList", "DeflectionY", "Calc", "per-member deflection Y series", default=[])
+		_addProp("App::PropertyStringList", "DeflectionZ", "Calc", "per-member deflection Z series", default=[])
+
+		# Min/max scalar lists (floats)
+		_addProp("App::PropertyFloatList", "MinMomentY", "Calc", "min moment Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MinMomentZ", "Calc", "min moment Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxMomentY", "Calc", "max moment Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxMomentZ", "Calc", "max moment Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MinShearY", "Calc", "min shear Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MinShearZ", "Calc", "min shear Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxShearY", "Calc", "max shear Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxShearZ", "Calc", "max shear Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MinTorque", "Calc", "min torque per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxTorque", "Calc", "max torque per member", default=[])
+		_addProp("App::PropertyFloatList", "MinDeflectionY", "Calc", "min deflection Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MinDeflectionZ", "Calc", "min deflection Z per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxDeflectionY", "Calc", "max deflection Y per member", default=[])
+		_addProp("App::PropertyFloatList", "MaxDeflectionZ", "Calc", "max deflection Z per member", default=[])
+
+		# Thai Units Support (Legacy)
+		_addProp("App::PropertyBool", "UseThaiUnits", "Thai Units", "enable Thai units for calculation results", default=False)
+		_addProp("App::PropertyStringList", "MomentZKsc", "Thai Units", "per-member moment Z in ksc", default=[])
+		_addProp("App::PropertyStringList", "MomentYKsc", "Thai Units", "per-member moment Y in ksc", default=[])
+		_addProp("App::PropertyStringList", "AxialForceKgf", "Thai Units", "per-member axial force in kgf", default=[])
+		_addProp("App::PropertyStringList", "AxialForceTf", "Thai Units", "per-member axial force in tf", default=[])
+		_addProp("App::PropertyStringList", "ShearYKgf", "Thai Units", "per-member shear Y in kgf", default=[])
+		_addProp("App::PropertyStringList", "ShearZKgf", "Thai Units", "per-member shear Z in kgf", default=[])
+		
+		# Global Units System (New Enhanced System)
+		_addProp("App::PropertyEnumeration", "GlobalUnitsSystem", "Global Units", "global units system")
+		# Set enum options for GlobalUnitsSystem immediately after creating the property
+		if hasattr(obj, 'GlobalUnitsSystem'):
+			obj.GlobalUnitsSystem = ["SI", "US", "THAI"]
+			obj.GlobalUnitsSystem = "SI"  # Set default value after defining enum options
+		_addProp("App::PropertyBool", "UseGlobalUnits", "Global Units", "enable global units system", default=True)
+		_addProp("App::PropertyStringList", "FormattedForces", "Global Units", "formatted force results", default=[])
+		_addProp("App::PropertyStringList", "FormattedStresses", "Global Units", "formatted stress results", default=[])
+		_addProp("App::PropertyStringList", "FormattedMoments", "Global Units", "formatted moment results", default=[])
+		# Load summary and metadata
+		_addProp("App::PropertyStringList", "LoadSummary", "Calc", "summary of active loads", default=[])
+		_addProp("App::PropertyInteger", "TotalLoads", "Calc", "total number of loads", default=0)
+		_addProp("App::PropertyString", "AnalysisType", "Calc", "text description of analysis type", default='')
+		
+		# Reaction text display properties
+		_addProp("App::PropertyBool", "ShowReactionText", "Reaction Display", "Show reaction values as text", default=False)
+		_addProp("App::PropertyBool", "ShowReactionUnits", "Reaction Display", "Show units in reaction text", default=True)
+		_addProp("App::PropertyInteger", "ReactionPrecision", "Reaction Display", "Decimal precision for reaction values", default=1)
+		_addProp("App::PropertyFloat", "ReactionTextOffset", "Reaction Display", "Text offset distance from support node", default=500.0)
+		_addProp("App::PropertyEnumeration", "ReactionTextOrientation", "Reaction Display", "Text orientation")
+		_addProp("App::PropertyFloat", "ReactionFontSize", "Reaction Display", "Font size for reaction text", default=200.0)
+		_addProp("App::PropertyColor", "ReactionTextColor", "Reaction Display", "Color for reaction text", default=(0.0, 0.0, 1.0, 0.0))
+		
+		# Set text orientation options
+		obj.ReactionTextOrientation = ["Horizontal", "Vertical"]
+		obj.ReactionTextOrientation = "Horizontal"
+		
+		# Reaction component selection
+		_addProp("App::PropertyBool", "ShowReactionForces", "Reaction Components", "Show reaction forces (Fx, Fy, Fz)", default=True)
+		_addProp("App::PropertyBool", "ShowReactionMoments", "Reaction Components", "Show reaction moments (Mx, My, Mz)", default=True)
+		_addProp("App::PropertyBool", "ShowReactionResultant", "Reaction Components", "Show resultant reaction force", default=False)
+		
+		# Internal storage for reaction text shapes
+		_addProp("App::PropertyPythonObject", "ReactionTextShapes", "Internal", "Storage for reaction text shapes", default=[])
+		
+		# Reaction values storage
+		_addProp("App::PropertyStringList", "ReactionNodes", "Reactions", "List of node indices with reactions", default=[])
+		_addProp("App::PropertyFloatList", "ReactionX", "Reactions", "Reaction forces in X direction", default=[])
+		_addProp("App::PropertyFloatList", "ReactionY", "Reactions", "Reaction forces in Y direction", default=[])
+		_addProp("App::PropertyFloatList", "ReactionZ", "Reactions", "Reaction forces in Z direction", default=[])
+		_addProp("App::PropertyFloatList", "ReactionMX", "Reactions", "Reaction moments about X axis", default=[])
+		_addProp("App::PropertyFloatList", "ReactionMY", "Reactions", "Reaction moments about Y axis", default=[])
+		_addProp("App::PropertyFloatList", "ReactionMZ", "Reactions", "Reaction moments about Z axis", default=[])
+		_addProp("App::PropertyString", "ReactionLoadCombo", "Reactions", "Current load combination for reactions", default="100_DL")
+		
+		# Self-weight consideration
+		_addProp("App::PropertyBool", "selfWeight", "Analysis", "Consider self-weight of members", default=True)
+		
+		# Number of points for diagram discretization
+		_addProp("App::PropertyInteger", "NumPointsMoment", "Diagram Points", "Number of points for moment diagram calculation", default=5)
+		_addProp("App::PropertyInteger", "NumPointsAxial", "Diagram Points", "Number of points for axial force diagram calculation", default=3)
+		_addProp("App::PropertyInteger", "NumPointsShear", "Diagram Points", "Number of points for shear force diagram calculation", default=4)
+		_addProp("App::PropertyInteger", "NumPointsTorque", "Diagram Points", "Number of points for torque diagram calculation", default=3)
+		_addProp("App::PropertyInteger", "NumPointsDeflection", "Diagram Points", "Number of points for deflection diagram calculation", default=4)
+
 
 	#  Mapeia os nós da estrutura, (inverte o eixo y e z para adequação as coordenadas do sover)
 	def mapNodes(self, elements, unitLength):	
@@ -173,7 +384,7 @@ class Calc:
 		for element in elements:
 			for edge in element.Shape.Edges:
 				for vertex in edge.Vertexes:
-					node = [round(float(FreeCAD.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(FreeCAD.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(FreeCAD.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)]
+					node = [round(float(App.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(App.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(App.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)]
 					if not node in listNodes:
 						listNodes.append(node)
 
@@ -186,7 +397,7 @@ class Calc:
 			for i, edge in enumerate(element.Shape.Edges):
 				listIndexVertex = []
 				for vertex in edge.Vertexes:
-					node = [round(float(FreeCAD.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(FreeCAD.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(FreeCAD.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)]
+					node = [round(float(App.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(App.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(App.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)]
 					index = listNodes.index(node)
 					listIndexVertex.append(index)
 
@@ -214,15 +425,53 @@ class Calc:
 		return model
 
 	# Cria os membros no modelo do solver
-	def setMembers(self, model, members_map,selfWeight):
-		for memberName in list(members_map):			
-			model.add_member(memberName, members_map[memberName]['nodes'][0] , members_map[memberName]['nodes'][1], members_map[memberName]['material'], members_map[memberName]['section'])
+	def setMembers(self, model, members_map, selfWeight=True):
+		# First add all members to the model
+		for memberName in list(members_map):  
+			model.add_member(memberName, members_map[memberName]['nodes'][0], members_map[memberName]['nodes'][1], 
+				members_map[memberName]['material'], members_map[memberName]['section'])
 			
-			#Considera o peso proprio nos elementos de barra
-			if selfWeight : model.add_member_self_weight('FY', -1) 
-
-			#libera as rotações na extremidades do elemento a fim de emular ocomportamento de barras de treliça
-			if members_map[memberName]['trussMember']: model.def_releases(memberName, Dxi=False, Dyi=False, Dzi=False, Rxi=False, Ryi=True, Rzi=True, Dxj=False, Dyj=False, Dzj=False, Rxj=False, Ryj=True, Rzj=True)
+			# Apply truss member releases if needed
+			if members_map[memberName]['trussMember']:
+				model.def_releases(memberName, Dxi=False, Dyi=False, Dzi=False, Rxi=False, Ryi=True, Rzi=True, 
+					Dxj=False, Dyj=False, Dzj=False, Rxj=False, Ryj=True, Rzj=True)
+		
+		# Apply self-weight after all members are added
+		if selfWeight:
+			try:
+				_print_message("Adding self-weight to all members as distributed loads\n")
+				
+				# Apply self-weight as distributed loads for each member - γ · A
+				for memberName in list(members_map):
+					try:
+						# Get member material and section
+						material_name = members_map[memberName]['material']
+						section_name = members_map[memberName]['section']
+						
+						# Get material density if available
+						if material_name in model.materials:
+							density = model.materials[material_name].rho
+							
+							# Get section area if available
+							if section_name in model.sections:
+								area = model.sections[section_name].A
+								
+								# Calculate distributed load (w = γ · A)
+								line_load = density * area
+								
+								# Apply as distributed load in -Y direction (FY)
+								if abs(line_load) > 1e-10:  # Only apply if non-zero
+									_print_message(f"Member {memberName}: Applying self-weight of {line_load:.4f}\n")
+									model.add_member_dist_load(memberName, 'FY', -line_load, -line_load, case='DL')
+								else:
+									_print_message(f"Member {memberName}: Self-weight calculation resulted in zero load\n")
+									_print_message(f"  Density: {density}, Area: {area}\n")
+					except Exception as e:
+						_print_warning(f"Failed to apply self-weight to member {memberName}: {e}\n")
+			except Exception as e:
+				_print_warning(f"Failed to apply self-weight as distributed loads: {e}\n")
+				_print_message("Falling back to built-in self-weight function\n")
+				model.add_member_self_weight('FY', -1)
 		
 		return model
 
@@ -297,7 +546,8 @@ class Calc:
 				load_types[load_type].append(load)
 				
 		# Check if the selected load combination requires load types that are not present
-		required_factors = self.getLoadFactors(load_combination, 'DL')  # Get all factors for this combination
+		# This line was incorrect - it's not needed and was causing confusion
+		# required_factors = self.getLoadFactors(load_combination, 'DL')  # Get all factors for this combination
 		
 		return load_types
 
@@ -321,68 +571,126 @@ class Calc:
 	# Cria os carregamentos
 	def setLoads(self, model, loads, nodes_map, unitForce, unitLength, load_combination):
 		for load in loads:
-
-			match load.GlobalDirection:
-				case '+X':
-					axis = 'FX'
-					direction = 1
-
-				case '-X':
-					axis = 'FX'
-					direction = -1
-
-				case '+Y':
-					axis = 'FZ'
-					direction = 1
-
-				case '-Y':
-					axis = 'FZ'
-					direction = -1
-
-				case '+Z':
-					axis = 'FY'
-					direction = 1
-
-				case '-Z':
-					axis = 'FY'
-					direction = -1
-
 			# Check if load has LoadType property, if not default to 'DL'
 			load_type = getattr(load, 'LoadType', 'DL')
 			
+			# Don't apply load factors here - let Pynite handle them via load combinations
+			# Just use factor 1.0 for all loads and specify the load case
+			load_factor = 1.0
+
+			# Determine axis and direction based on GlobalDirection
+			axis = 'FX'  # Default
+			direction = 1  # Default
+
+			# Handle force directions (forces and moments)
+			if load.GlobalDirection in ['+X', '+x']:
+				axis = 'FX' if load.GlobalDirection[1].isupper() else 'Fx'
+				direction = 1
+			elif load.GlobalDirection in ['-X', '-x']:
+				axis = 'FX' if load.GlobalDirection[1].isupper() else 'Fx'
+				direction = -1
+			elif load.GlobalDirection in ['+Y', '+y']:
+				axis = 'FZ' if load.GlobalDirection[1].isupper() else 'Fz'
+				direction = 1
+			elif load.GlobalDirection in ['-Y', '-y']:
+				axis = 'FZ' if load.GlobalDirection[1].isupper() else 'Fz'
+				direction = -1
+			elif load.GlobalDirection in ['+Z', '+z']:
+				axis = 'FY' if load.GlobalDirection[1].isupper() else 'Fy'
+				direction = 1
+			elif load.GlobalDirection in ['-Z', '-z']:
+				axis = 'FY' if load.GlobalDirection[1].isupper() else 'Fy'
+				direction = -1
+			elif load.GlobalDirection in ['+My', '-My']:
+				axis = 'Mz' if load.GlobalDirection[0] == '+' else '-Mz'
+				direction = 1 if load.GlobalDirection[0] == '+' else -1
+			elif load.GlobalDirection in ['+Mz', '-Mz']:
+				axis = 'My' if load.GlobalDirection[0] == '+' else '-My'
+				direction = 1 if load.GlobalDirection[0] == '+' else -1
+			elif load.GlobalDirection in ['+Mx', '-Mx']:
+				axis = 'Mx'
+				direction = 1 if load.GlobalDirection[0] == '+' else -1
+
 			# Check direction compatibility for wind and earthquake loads
 			if load_type in ['W', 'E']:
 				if not self.checkDirectionCompatibility(load_combination, load.GlobalDirection):
 					continue  # Skip loads that don't match the required direction
 			
 			# Valida se o carregamento é distribuido
-			if 'Edge' in load.ObjectBase[0][1][0]:
+			if 'Edge' in load.ObjectBase[0][1][0] and hasattr(load, 'InitialLoading'):
 				initial = float(load.InitialLoading.getValueAs(unitForce))
 				final = float(load.FinalLoading.getValueAs(unitForce))
 
 				# Apply load factor based on load combination and load type
-				load_factor = self.getLoadFactors(load_combination, load_type)
 				factored_initial = initial * direction * load_factor
 				factored_final = final * direction * load_factor
 				
 				subname = int(load.ObjectBase[0][1][0].split('Edge')[1]) - 1
 				name = load.ObjectBase[0][0].Name + '_' + str(subname)
-				model.add_member_dist_load(name, axis, factored_initial, factored_final)
+				
+				# Check if start and end positions are specified, otherwise use full length
+				x1 = None
+				x2 = None
+				if hasattr(load, 'StartPosition') and hasattr(load, 'EndPosition'):
+					# Only use start/end positions if they are not both zero (which would indicate full length)
+					if load.StartPosition.Value != 0.0 or load.EndPosition.Value != 0.0:
+						x1 = float(load.StartPosition.getValueAs(unitLength))
+						x2 = float(load.EndPosition.getValueAs(unitLength))
+				
+				model.add_member_dist_load(name, axis, factored_initial, factored_final, x1, x2, case=load_type)
+
+			# Valida se o carregamento é pontual (point load) em membro
+			elif 'Edge' in load.ObjectBase[0][1][0] and hasattr(load, 'PointLoading'):
+				# This is a point load on a member
+				force = float(load.PointLoading.getValueAs(unitForce))
+				
+				# Apply load factor based on load combination and load type
+				factored_load = force * direction * load_factor
+				
+				subname = int(load.ObjectBase[0][1][0].split('Edge')[1]) - 1
+				name = load.ObjectBase[0][0].Name + '_' + str(subname)
+				
+				# Get position along member (default to 0.5 if not specified)
+				position_ratio = getattr(load, 'RelativePosition', 0.5)
+				# Clamp position between 0.0 and 1.0
+				position_ratio = max(0.0, min(1.0, position_ratio))
+				
+				# Calculate actual position in member length units
+				member_length = model.members[name].L()
+				x_position = position_ratio * member_length
+				
+				# For moments, we need to use the appropriate moment axis
+				load_axis = axis
+				if axis in ['My', '-My', 'Mz', '-Mz', 'Mx']:
+					# Moments use different axis notation
+					if axis == 'My':
+						load_axis = 'MZ'
+					elif axis == '-My':
+						load_axis = 'MZ'
+						factored_load *= -1
+					elif axis == 'Mz':
+						load_axis = 'MY'
+					elif axis == '-Mz':
+						load_axis = 'MY'
+						factored_load *= -1
+					elif axis == 'Mx':
+						load_axis = 'MX'
+				
+				model.add_member_pt_load(name, load_axis, factored_load, x_position, case=load_type)
 
 			# Valida se o carregamento é nodal
 			elif 'Vertex' in load.ObjectBase[0][1][0]:
 				numVertex = int(load.ObjectBase[0][1][0].split('Vertex')[1]) - 1
 				vertex = load.ObjectBase[0][0].Shape.Vertexes[numVertex]
 				
-				node = list(filter(lambda element: element == [round(float(FreeCAD.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(FreeCAD.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(FreeCAD.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)], nodes_map))[0]
+				node = list(filter(lambda element: element == [round(float(App.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(App.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(App.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)], nodes_map))[0]
 				indexNode = nodes_map.index(node)
 
 				# Apply load factor based on load combination and load type
-				load_factor = self.getLoadFactors(load_combination, load_type)
 				factored_load = float(load.NodalLoading.getValueAs(unitForce)) * direction * load_factor
 				
 				name = str(indexNode)
-				model.add_node_load(name, axis, factored_load)
+				model.add_node_load(name, axis, factored_load, case=load_type)
 			
 
 					
@@ -390,14 +698,45 @@ class Calc:
 
 	# Cria os suportes
 	def setSuports(self, model, suports, nodes_map, unitLength):
-		for suport in suports:
-			suportvertex = list(suport.ObjectBase[0][0].Shape.Vertexes[int(suport.ObjectBase[0][1][0].split('Vertex')[1])-1].Point)
-			for i, node in enumerate(nodes_map):
-				if round(float(FreeCAD.Units.Quantity(suportvertex[0],'mm').getValueAs(unitLength)),2) == round(node[0],2) and round(float(FreeCAD.Units.Quantity(suportvertex[1],'mm').getValueAs(unitLength)),2) == round(node[2],2) and round(float(FreeCAD.Units.Quantity(suportvertex[2],'mm').getValueAs(unitLength)),2) == round(node[1],2):					
-					name = str(i)
-					model.def_support(name, suport.FixTranslationX, suport.FixTranslationZ, suport.FixTranslationY, suport.FixRotationX, suport.FixRotationZ, suport.FixRotationY)
-					break
+		support_count = 0
 		
+		_print_message(f"Applying {len(suports)} support conditions\n")
+		
+		for suport in suports:
+			try:
+				suportvertex = list(suport.ObjectBase[0][0].Shape.Vertexes[int(suport.ObjectBase[0][1][0].split('Vertex')[1])-1].Point)
+				support_found = False
+				
+				for i, node in enumerate(nodes_map):
+					if (round(float(App.Units.Quantity(suportvertex[0],'mm').getValueAs(unitLength)),2) == round(node[0],2) and 
+						round(float(App.Units.Quantity(suportvertex[1],'mm').getValueAs(unitLength)),2) == round(node[2],2) and 
+						round(float(App.Units.Quantity(suportvertex[2],'mm').getValueAs(unitLength)),2) == round(node[1],2)):
+						
+						name = str(i)
+						_print_message(f"Applying support at node {name} with coordinates ({node[0]:.2f}, {node[1]:.2f}, {node[2]:.2f})\n")
+						_print_message(f"  Support conditions: X={suport.FixTranslationX}, Y={suport.FixTranslationZ}, Z={suport.FixTranslationY}, ")
+						_print_message(f"RX={suport.FixRotationX}, RY={suport.FixRotationZ}, RZ={suport.FixRotationY}\n")
+						
+						model.def_support(name, 
+							suport.FixTranslationX, 
+							suport.FixTranslationZ, 
+							suport.FixTranslationY, 
+							suport.FixRotationX, 
+							suport.FixRotationZ, 
+							suport.FixRotationY)
+						
+						support_count += 1
+						support_found = True
+						break
+				
+				if not support_found:
+					_print_warning(f"Could not find a node matching support location for {suport.Label}\n")
+					_print_warning(f"  Support vertex coordinates: {suportvertex}\n")
+			
+			except Exception as e:
+				_print_warning(f"Failed to apply support {suport.Label}: {e}\n")
+		
+		_print_message(f"Applied {support_count} out of {len(suports)} support conditions\n")
 		return model
 
 	def setMaterialAndSections(self, model, lines, unitLength, unitForce):
@@ -408,23 +747,41 @@ class Calc:
 			section = line.SectionMember
 
 			if not material.Name in materiais:
-				density = FreeCAD.Units.Quantity(material.Density).getValueAs('t/m^3') * 10 #Converte a unidade de entrada em t/m³ e na sequencia converte em kN/m³
-				density = float(FreeCAD.Units.Quantity(density, 'kN/m^3').getValueAs(unitForce+"/"+unitLength+"^3")) #Converte kN/m³ para as unidades definidas no calc
-				modulusElasticity = float(material.ModulusElasticity.getValueAs(unitForce+"/"+unitLength+"^2"))
-				poissonRatio = float(material.PoissonRatio)
-				G = modulusElasticity / (2 * (1 + poissonRatio))
-				model.add_material(material.Name, modulusElasticity, G, poissonRatio, density)
-				materiais.append(material.Name)
+				# Try to get calc properties from material object first (supports both old and new materials)
+				if hasattr(material, 'Proxy') and hasattr(material.Proxy, 'get_calc_properties'):
+					# New StructuralMaterial or updated old Material with get_calc_properties method
+					try:
+						mat_props = material.Proxy.get_calc_properties(material, unitLength, unitForce)
+						model.add_material(mat_props['name'], mat_props['E'], mat_props['G'], mat_props['nu'], mat_props['density'])
+						materiais.append(material.Name)
+						continue
+					except Exception as e:
+						App.Console.PrintWarning(f"Error using material calc properties for {material.Name}: {e}\n")
+				
+				# Fallback to original method for compatibility
+				try:
+					density = App.Units.Quantity(material.Density).getValueAs('t/m^3') * 10 #Converte a unidade de entrada em t/m³ e na sequencia converte em kN/m³
+					density = float(App.Units.Quantity(density, 'kN/m^3').getValueAs(unitForce+"/"+unitLength+"^3")) #Converte kN/m³ para as unidades definidas no calc
+					modulusElasticity = float(material.ModulusElasticity.getValueAs(unitForce+"/"+unitLength+"^2"))
+					poissonRatio = float(material.PoissonRatio)
+					G = modulusElasticity / (2 * (1 + poissonRatio))
+					model.add_material(material.Name, modulusElasticity, G, poissonRatio, density)
+					materiais.append(material.Name)
+				except Exception as e:
+					App.Console.PrintError(f"Error processing material {material.Name}: {e}\n")
+					# Add default material as fallback
+					model.add_material(material.Name, 200000.0, 77000.0, 0.3, 78.5)
+					materiais.append(material.Name)
 				
 
 			if not section.Name in sections:
 
 				ang = line.RotationSection.getValueAs('rad')
-				J  = float(FreeCAD.Units.Quantity(section.MomentInertiaPolar, 'mm^4').getValueAs(unitLength+"^4"))
+				J  = float(App.Units.Quantity(section.MomentInertiaPolar, 'mm^4').getValueAs(unitLength+"^4"))
 				A  = float(section.AreaSection.getValueAs(unitLength+"^2"))
-				Iy = float(FreeCAD.Units.Quantity(section.MomentInertiaY, 'mm^4').getValueAs(unitLength+"^4"))
-				Iz = float(FreeCAD.Units.Quantity(section.MomentInertiaZ, 'mm^4').getValueAs(unitLength+"^4"))
-				Iyz = float(FreeCAD.Units.Quantity(section.ProductInertiaYZ, 'mm^4').getValueAs(unitLength+"^4"))
+				Iy = float(App.Units.Quantity(section.MomentInertiaY, 'mm^4').getValueAs(unitLength+"^4"))
+				Iz = float(App.Units.Quantity(section.MomentInertiaZ, 'mm^4').getValueAs(unitLength+"^4"))
+				Iyz = float(App.Units.Quantity(section.ProductInertiaYZ, 'mm^4').getValueAs(unitLength+"^4"))
 
 				
 				# Aplica a rotação de eixo
@@ -439,14 +796,32 @@ class Calc:
 	
 	def execute(self, obj):
 		model = FEModel3D()
+		# Store the model as an attribute so tests can access it
+		self.model = model
+		# Initialize materials list to track processed materials
+		materiais = []
+		
 		# Ensure there's a default material so meshed quads can be assigned a material name
+
 		# Tests and minimal workflows may not define materials; create a light default.
 		try:
 			if 'default' not in model.materials:
-				model.add_material('default', 200000.0, 77000.0, 0.3, 7850.0)
-		except Exception:
+				# Try to use ASTM A992 from database as default
+				if HAS_MATERIAL_DATABASE and 'ASTM_A992' in MATERIAL_STANDARDS:
+					props = get_material_info('ASTM_A992')
+					E = float(props.get('ModulusElasticity', '200000 MPa').replace(' MPa', ''))
+					nu = props.get('PoissonRatio', 0.3)
+					G = E / (2 * (1 + nu))
+					density_kg_m3 = float(props.get('Density', '7850 kg/m^3').replace(' kg/m^3', ''))
+					density = density_kg_m3 * 9.81 / 1000  # Convert to kN/m³
+					model.add_material('default', E, G, nu, density)
+					_print_message(f"Using ASTM A992 as default material from database\n")
+				else:
+					# Fallback to hardcoded values
+					model.add_material('default', 200000.0, 77000.0, 0.3, 78.5)
+		except Exception as e:
 			# Non-fatal if FEModel internals differ; proceed without failing
-			pass
+			_print_warning(f"Could not create default material: {e}\n")
 		# Filtra os diferentes tipos de elementos
 		lines = list(filter(lambda element: 'Line' in element.Name or 'Wire' in element.Name, obj.ListElements))
 		loads = list(filter(lambda element: 'Load' in element.Name, obj.ListElements))
@@ -455,12 +830,19 @@ class Calc:
 		plates = list(filter(lambda element: getattr(element, 'Type', '') == 'StructuralPlate' or 'Plate' in element.Name, obj.ListElements))
 		area_loads = list(filter(lambda element: getattr(element, 'Type', '') == 'AreaLoad' or 'AreaLoad' in element.Name, obj.ListElements))
 
+		# Map nodes and members
 		nodes_map = self.mapNodes(lines, obj.LengthUnit)
 		members_map = self.mapMembers(lines, nodes_map, obj.LengthUnit)
 
+		# Set up materials, nodes, and members
 		model = self.setMaterialAndSections(model, lines, obj.LengthUnit, obj.ForceUnit)
 		model = self.setNodes(model, nodes_map)
-		model = self.setMembers(model, members_map, obj.selfWeight)
+		
+		# Handle self-weight setting with backwards compatibility
+		use_self_weight = True  # Default to True
+		if hasattr(obj, 'selfWeight'):
+			use_self_weight = obj.selfWeight
+		model = self.setMembers(model, members_map, use_self_weight)
 
 		# ---- New: map plates (StructuralPlate objects) into the FE model ----
 		# For each StructuralPlate, attempt to find four corner nodes in nodes_map and add a Plate element to the model.
@@ -476,7 +858,7 @@ class Calc:
 			if hasattr(plate_obj, 'CornerNodes') and plate_obj.CornerNodes:
 				# CornerNodes expected as list of FreeCAD.Vector or similar
 				try:
-					corner_points = [FreeCAD.Vector(v) if not isinstance(v, FreeCAD.Vector) else v for v in plate_obj.CornerNodes]
+					corner_points = [App.Vector(v) if not isinstance(v, App.Vector) else v for v in plate_obj.CornerNodes]
 				except Exception:
 					corner_points = []
 				if corner_points and len(corner_points) >= 4:
@@ -575,10 +957,33 @@ class Calc:
 									thk = float(thk)
 								except Exception:
 									thk = 0.1
-							mat_name = getattr(plate_obj, 'Material', None)
-							if mat_name and hasattr(mat_name, 'Name'):
-								mat_name = mat_name.Name
-							elif not mat_name:
+							# Get material name and ensure material is added to model
+							mat_obj = getattr(plate_obj, 'Material', None)
+							if mat_obj and hasattr(mat_obj, 'Name'):
+								mat_name = mat_obj.Name
+								# Ensure plate material is added to FE model
+								if mat_name not in materiais:
+									if hasattr(mat_obj, 'Proxy') and hasattr(mat_obj.Proxy, 'get_calc_properties'):
+										try:
+											mat_props = mat_obj.Proxy.get_calc_properties(mat_obj, obj.LengthUnit, obj.ForceUnit)
+											model.add_material(mat_props['name'], mat_props['E'], mat_props['G'], mat_props['nu'], mat_props['density'])
+											materiais.append(mat_name)
+										except Exception:
+											model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+											materiais.append(mat_name)
+									else:
+										try:
+											density = App.Units.Quantity(mat_obj.Density).getValueAs('t/m^3') * 10
+											density = float(App.Units.Quantity(density, 'kN/m^3').getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^3"))
+											E = float(mat_obj.ModulusElasticity.getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^2"))
+											nu = float(mat_obj.PoissonRatio)
+											G = E / (2 * (1 + nu))
+											model.add_material(mat_name, E, G, nu, density)
+											materiais.append(mat_name)
+										except Exception:
+											model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+											materiais.append(mat_name)
+							else:
 								mat_name = 'default'
 							# Create a stable element name linked to the plate
 							elem_name = f"{plate_obj.Name}_{elem_id}"
@@ -604,10 +1009,32 @@ class Calc:
 					n_name = str(corner_indices[3])
 					# thickness and material
 					thk = getattr(plate_obj, 'Thickness', 0.1)
-					mat_name = getattr(plate_obj, 'Material', None)
-					if mat_name and hasattr(mat_name, 'Name'):
-						mat_name = mat_name.Name
-					elif not mat_name:
+					mat_obj = getattr(plate_obj, 'Material', None)
+					if mat_obj and hasattr(mat_obj, 'Name'):
+						mat_name = mat_obj.Name
+						# Ensure plate material is added to FE model
+						if mat_name not in materiais:
+							if hasattr(mat_obj, 'Proxy') and hasattr(mat_obj.Proxy, 'get_calc_properties'):
+								try:
+									mat_props = mat_obj.Proxy.get_calc_properties(mat_obj, obj.LengthUnit, obj.ForceUnit)
+									model.add_material(mat_props['name'], mat_props['E'], mat_props['G'], mat_props['nu'], mat_props['density'])
+									materiais.append(mat_name)
+								except Exception:
+									model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+									materiais.append(mat_name)
+							else:
+								try:
+									density = App.Units.Quantity(mat_obj.Density).getValueAs('t/m^3') * 10
+									density = float(App.Units.Quantity(density, 'kN/m^3').getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^3"))
+									E = float(mat_obj.ModulusElasticity.getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^2"))
+									nu = float(mat_obj.PoissonRatio)
+									G = E / (2 * (1 + nu))
+									model.add_material(mat_name, E, G, nu, density)
+									materiais.append(mat_name)
+								except Exception:
+									model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+									materiais.append(mat_name)
+					else:
 						mat_name = 'default'
 					try:
 						model.add_plate(plate_obj.Name, i_name, j_name, m_name, n_name, float(thk), mat_name)
@@ -631,11 +1058,19 @@ class Calc:
 				except Exception:
 					pass
 
-			# Determine pressure magnitude (in force per area units) - assume Magnitude property
+			# Determine pressure magnitude (in force per area units)
 			pressure_value = None
-			if hasattr(aload, 'Magnitude'):
+			
+			# First try LoadIntensity property (preferred)
+			if hasattr(aload, 'LoadIntensity'):
 				try:
-					# Try to convert FreeCAD.Quantity to model units
+					pressure_value = qty_val(aload.LoadIntensity, 'N/m^2', obj.ForceUnit + '/' + obj.LengthUnit + '^2')
+				except Exception as e:
+					_print_warning(f"Could not convert LoadIntensity for AreaLoad '{aload.Name}': {e}\n")
+
+			# Fall back to Magnitude property if needed
+			if pressure_value is None and hasattr(aload, 'Magnitude'):
+				try:
 					pressure_value = qty_val(aload.Magnitude, 'N/m^2', obj.ForceUnit + '/' + obj.LengthUnit + '^2')
 				except Exception:
 					try:
@@ -643,39 +1078,323 @@ class Calc:
 					except Exception:
 						pressure_value = None
 
+			# Get load direction vector
+			load_direction = App.Vector(0, 0, -1)  # Default downward
+			if hasattr(aload, 'LoadDirection'):
+				load_direction = aload.LoadDirection
+			elif hasattr(aload, 'Direction'):
+				# Use the Direction property if LoadDirection is not available
+				direction_map = {
+					"+X Global": App.Vector(1, 0, 0),
+					"-X Global": App.Vector(-1, 0, 0),
+					"+Y Global": App.Vector(0, 1, 0),
+					"-Y Global": App.Vector(0, -1, 0),
+					"+Z Global": App.Vector(0, 0, 1),
+					"-Z Global": App.Vector(0, 0, -1),
+					"Normal": App.Vector(0, 0, -1)  # Default
+				}
+				if aload.Direction in direction_map:
+					load_direction = direction_map[aload.Direction]
+				elif aload.Direction == "Custom" and hasattr(aload, 'CustomDirection'):
+					load_direction = aload.CustomDirection
+
+			# Normalize the direction vector
+			try:
+				length = math.sqrt(load_direction.x**2 + load_direction.y**2 + load_direction.z**2)
+				if length > 0:
+					load_direction = App.Vector(load_direction.x/length, load_direction.y/length, load_direction.z/length)
+			except Exception as e:
+				_print_warning(f"Error normalizing load direction for AreaLoad '{aload.Name}': {e}\n")
+				load_direction = App.Vector(0, 0, -1)
+
+			# Apply coordinate system mapping (FreeCAD X→Solver X, FreeCAD Y→Solver Z, FreeCAD Z→Solver Y)
+			load_direction = App.Vector(load_direction.x, load_direction.z, load_direction.y)
+
+			# Determine load distribution method (one-way vs two-way)
+			distribution_method = "TwoWay"  # Default to two-way distribution
+			if hasattr(aload, 'LoadDistribution'):
+				distribution_method = aload.LoadDistribution
+
+			# Get load case from load category
+			load_case = "DL"  # Default to dead load
+			if hasattr(aload, 'LoadCategory'):
+				load_case = aload.LoadCategory
+
+			_print_message(f"Processing AreaLoad '{aload.Name}' with {distribution_method} distribution, pressure: {pressure_value} {obj.ForceUnit}/{obj.LengthUnit}²\n")
+
 			for tgt in targets:
 				# try to find the plate we added by name
 				plate_name = getattr(tgt, 'Name', None)
-				# Map to rectangular plates
-				if plate_name and plate_name in model.plates and pressure_value is not None:
-					try:
-						model.add_plate_surface_pressure(plate_name, pressure_value, case='Case 1')
-					except Exception as e:
+				
+				# Process each face of the target to calculate effective pressure
+				if hasattr(tgt, 'Shape') and hasattr(tgt.Shape, 'Faces'):
+					face_count = len(tgt.Shape.Faces)
+					for i, face in enumerate(tgt.Shape.Faces):
+						try:
+							# Calculate face normal at center
+							u_range = face.ParameterRange[0:2]
+							v_range = face.ParameterRange[2:4]
+							u_center = (u_range[0] + u_range[1]) / 2
+							v_center = (v_range[0] + v_range[1]) / 2
+							face_normal = face.normalAt(u_center, v_center)
+							
+							# Normalize face normal
+							normal_length = math.sqrt(face_normal.x**2 + face_normal.y**2 + face_normal.z**2)
+							if normal_length > 0:
+								face_normal = App.Vector(face_normal.x/normal_length, face_normal.y/normal_length, face_normal.z/normal_length)
+							
+							# Apply coordinate system mapping (FreeCAD X→Solver X, FreeCAD Y→Solver Z, FreeCAD Z→Solver Y)
+							face_normal = App.Vector(face_normal.x, face_normal.z, face_normal.y)
+							
+							# Calculate dot product between load direction and face normal
+							# This gives us the effective pressure considering the angle
+							dot_product = load_direction.x * face_normal.x + load_direction.y * face_normal.y + load_direction.z * face_normal.z
+							
+							# Calculate effective pressure
+							effective_pressure = pressure_value * dot_product if pressure_value is not None else 0.0
+							
+							# For plates or directly mapped quads
+							face_plate_name = f"{plate_name}_{i}" if face_count > 1 else plate_name
+
+							# Get edge factors based on distribution method
+							edge_factors = [0.25, 0.25, 0.25, 0.25]  # Default equal distribution
+							
+							if distribution_method == "OneWay":
+								# One-way distribution - load goes to two parallel edges
+								one_way_direction = App.Vector(1, 0, 0)  # Default X direction
+								
+								if hasattr(aload, 'OneWayDirection'):
+									if aload.OneWayDirection == "X":
+										one_way_direction = App.Vector(1, 0, 0)
+									elif aload.OneWayDirection == "Y":
+										one_way_direction = App.Vector(0, 1, 0)
+									elif aload.OneWayDirection == "Custom" and hasattr(aload, 'CustomDistributionDirection'):
+										one_way_direction = aload.CustomDistributionDirection
+								
+								# Reset factors to 0
+								edge_factors = [0.0, 0.0, 0.0, 0.0]
+								
+								# Find edges perpendicular to distribution direction
+								edges = face.Edges
+								perpendicular_edges = []
+								
+								for j, edge in enumerate(edges):
+									if edge.Length > 0:
+										edge_dir = edge.Vertexes[1].Point - edge.Vertexes[0].Point
+										edge_length = math.sqrt(edge_dir.x**2 + edge_dir.y**2 + edge_dir.z**2)
+										if edge_length > 0:
+											edge_dir = App.Vector(edge_dir.x/edge_length, edge_dir.y/edge_length, edge_dir.z/edge_length)
+											# Check if edge is perpendicular to direction (using dot product)
+											edge_dot = abs(edge_dir.x * one_way_direction.x + edge_dir.y * one_way_direction.y + edge_dir.z * one_way_direction.z)
+											if edge_dot < 0.3:  # If dot product is close to 0, they're perpendicular
+												perpendicular_edges.append(j)
+								
+								# Set perpendicular edges to 0.5 each (shared load)
+								if len(perpendicular_edges) >= 2:
+									for j in perpendicular_edges[:2]:  # Use first two perpendicular edges
+										if j < len(edge_factors):
+											edge_factors[j] = 0.5
+							
+							elif distribution_method == "TwoWay":
+								# Two-way distribution - load is distributed based on relative span lengths
+								edges = face.Edges
+								
+								if len(edges) >= 4:
+									# Get edge lengths
+									edge_lengths = [edge.Length for edge in edges[:4]]  # Use first 4 edges
+									
+									# Calculate edge factors based on relative lengths
+									# For a rectangle, longer edges get more load
+									total_length = sum(edge_lengths)
+									
+									if total_length > 0:
+										edge_factors = [length/total_length for length in edge_lengths]
+										
+										# Pad to 4 elements if needed
+										while len(edge_factors) < 4:
+											edge_factors.append(0.0)
+							
+							elif distribution_method == "OpenStructure":
+								# Open structure - load is distributed based on projected area
+								# Calculate edge factors based on projection and edge orientation
+								edges = face.Edges
+								
+								if len(edges) >= 4:
+									# Project load direction onto each edge normal
+									for j, edge in enumerate(edges[:4]):
+										if edge.Length > 0:
+											# Get edge normal (perpendicular to edge, in plane of face)
+											edge_dir = edge.Vertexes[1].Point - edge.Vertexes[0].Point
+											edge_normal = App.Vector(edge_dir.y, -edge_dir.x, edge_dir.z)  # Simplified 2D normal
+											
+											# Normalize edge normal
+											normal_length = math.sqrt(edge_normal.x**2 + edge_normal.y**2 + edge_normal.z**2)
+											if normal_length > 0:
+												edge_normal = App.Vector(edge_normal.x/normal_length, edge_normal.y/normal_length, edge_normal.z/normal_length)
+											
+											# Get projection factor (dot product with load direction)
+											proj_factor = abs(edge_normal.x * load_direction.x + 
+																edge_normal.y * load_direction.y + 
+																edge_normal.z * load_direction.z)
+											
+											# Use projection factor to adjust edge factor
+											edge_factors[j] = proj_factor
+									
+									# Normalize edge factors to sum to 1.0
+									factor_sum = sum(edge_factors)
+									if factor_sum > 0:
+										edge_factors = [factor / factor_sum for factor in edge_factors]
+							
+							# Apply pressure to plates/quads with edge factors
+							if plate_name and face_plate_name in model.plates and effective_pressure is not None:
+								try:
+									model.add_plate_surface_pressure(face_plate_name, effective_pressure, case=load_case)
+									_print_message(f"  Applied pressure {effective_pressure:.4f} to plate {face_plate_name} with edge factors: {[f'{ef:.2f}' for ef in edge_factors]}\n")
+								except Exception as e:
+									_print_warning(f"Could not map AreaLoad '{aload.Name}' to plate '{face_plate_name}': {e}\n")
+									
+							# Map to meshed quads created for this plate (if any)
+							if hasattr(self, '_plate_mesh_elements') and plate_name in getattr(self, '_plate_mesh_elements', {}):
+								for qname in self._plate_mesh_elements.get(plate_name, []):
+									if qname in model.quads and effective_pressure is not None:
+										try:
+											model.add_quad_surface_pressure(qname, effective_pressure, case=load_case)
+											_print_message(f"  Applied pressure {effective_pressure:.4f} to quad {qname} with edge factors: {[f'{ef:.2f}' for ef in edge_factors]}\n")
+										except Exception as e:
+											_print_warning(f"Could not map AreaLoad '{aload.Name}' to quad '{qname}': {e}\n")
+						except Exception as e:
+							_print_warning(f"Error processing face {i} of AreaLoad '{aload.Name}': {e}\n")
+				else:
+					# Fallback to original method if no face information available
+					if plate_name and plate_name in model.plates and pressure_value is not None:
+						try:
+							model.add_plate_surface_pressure(plate_name, pressure_value, case=load_case)
+							_print_message(f"  Applied pressure {pressure_value:.4f} to plate {plate_name} (fallback method)\n")
+						except Exception as e:
 							_print_warning(f"Could not map AreaLoad '{aload.Name}' to plate '{plate_name}': {e}\n")
-				# Map to meshed quads created for this plate (if any)
-				if hasattr(self, '_plate_mesh_elements') and plate_name in getattr(self, '_plate_mesh_elements', {}):
-					for qname in self._plate_mesh_elements.get(plate_name, []):
-						if qname in model.quads and pressure_value is not None:
-							try:
-								model.add_quad_surface_pressure(qname, pressure_value, case='Case 1')
-							except Exception as e:
-								_print_warning(f"Could not map AreaLoad '{aload.Name}' to quad '{qname}': {e}\n")
+							
+					# Map to meshed quads created for this plate (if any)
+					if hasattr(self, '_plate_mesh_elements') and plate_name in getattr(self, '_plate_mesh_elements', {}):
+						for qname in self._plate_mesh_elements.get(plate_name, []):
+							if qname in model.quads and pressure_value is not None:
+								try:
+									model.add_quad_surface_pressure(qname, pressure_value, case=load_case)
+									_print_message(f"  Applied pressure {pressure_value:.4f} to quad {qname} (fallback method)\n")
+								except Exception as e:
+									_print_warning(f"Could not map AreaLoad '{aload.Name}' to quad '{qname}': {e}\n")
 
 		
 		# Use the selected load combination
 		active_load_combination = obj.LoadCombination if hasattr(obj, 'LoadCombination') else '100_DL'
+		_print_message(f"Starting analysis with LoadCombination: {active_load_combination}\n")
 		
 		# Filter and organize loads by type for current load combination
 		organized_loads = self.organizeLoadsByType(loads, active_load_combination)
 		
+		# Load ALL loads regardless of combination - Pynite will handle factors via combinations
+		# We now load all loads with their LoadType as case names
 		model = self.setLoads(model, loads, nodes_map, obj.ForceUnit, obj.LengthUnit, active_load_combination)
 		model = self.setSuports(model, suports, nodes_map, obj.LengthUnit)
 
+		# Create individual load cases and combinations for Pynite
+		load_factors = {}
+		for load_type in ['DL', 'LL', 'W', 'E', 'H', 'F']:
+			factor = self.getLoadFactors(active_load_combination, load_type)
+			if factor != 0.0:
+				load_factors[load_type] = factor
+		
+		# Clear existing load combinations and add the current one
+		model.load_combos.clear()
+		
+		# Create load combination with proper factors for each load type
+		# Now loads are loaded with factor 1.0, so Pynite will apply the factors
+		model.add_load_combo(active_load_combination, load_factors)
+		
+		_print_message(f"Added load combination '{active_load_combination}' with factors: {load_factors}\n")
+		_print_message(f"Model now has load combinations: {list(model.load_combos.keys())}\n")
+		
+		# Debug: Show available load cases in model
+		if hasattr(model, 'load_cases'):
+			load_cases = model.load_cases
+			_print_message(f"Available load cases in model: {load_cases}\n")
+		else:
+			_print_message("No load_cases property found in model\n")
+
 		# Run analysis but don't let exceptions abort headless tests; capture and warn instead
 		try:
+			_print_message("Starting structural analysis...\n")
+			
+			# Check that we have necessary components for analysis
+			if not model.nodes:
+				_print_warning("No nodes defined in model! Analysis cannot proceed.\n")
+				return
+			
+			if not model.members:
+				_print_warning("No members defined in model! Analysis cannot proceed.\n")
+				return
+			
+			# Check if we have any supports defined
+			support_count = 0
+			for node_name, node in model.nodes.items():
+				if (node.support_DX or node.support_DY or node.support_DZ or
+					node.support_RX or node.support_RY or node.support_RZ):
+					support_count += 1
+			
+			if support_count == 0:
+				_print_warning("No supports defined in model! Analysis cannot proceed.\n")
+				return
+			
+			_print_message(f"Model ready for analysis with {len(model.nodes)} nodes, {len(model.members)} members, and {support_count} supports.\n")
+			
+			# Run analysis with verification
 			model.analyze()
+			
+			# Verify analysis ran successfully by checking if reaction attributes exist
+			supported_node = None
+			for node_name, node in model.nodes.items():
+				if (node.support_DX or node.support_DY or node.support_DZ or
+					node.support_RX or node.support_RY or node.support_RZ):
+					supported_node = node
+					break
+					
+			if supported_node:
+				if not hasattr(supported_node, 'RxnFX'):
+					_print_warning("Analysis completed but reaction attributes not created! Check model setup.\n")
+				else:
+					_print_message("Analysis completed successfully with reaction attributes.\n")
+			
+			# Print magnitudes of self-weight loads for debugging
+			self_weight_total = 0
+			for member_name, member in model.members.items():
+				# PhysMember contains sub_members, need to access through them
+				if hasattr(member, 'sub_members'):
+					for sub_member in member.sub_members.values():
+						if hasattr(sub_member, 'distributed_loads'):
+							for load_case, loads in sub_member.distributed_loads.items():
+								for load in loads:
+									if load[0] == 'FY':
+										load_w1 = load[1]
+										load_w2 = load[2]
+										avg_load = (abs(load_w1) + abs(load_w2)) / 2
+										self_weight_total += avg_load
+			
+			_print_message(f"Total self-weight load magnitude: {self_weight_total:.4f}\n")
+			
+			# Debug: Check if analysis results exist for the selected combination
+			if model.members:
+				first_member = list(model.members.values())[0]
+				if hasattr(first_member, 'moment_array'):
+					try:
+						test_result = first_member.moment_array('My', 2, combo_name=active_load_combination)
+						_print_message(f"Analysis successful - test moment result for first member: {test_result[1][0]:.6f}\n")
+					except Exception as test_e:
+						_print_warning(f"Could not get results for combo '{active_load_combination}': {test_e}\n")
+			
 		except Exception as e:
-			_print_warning(f"Model analysis failed (continuing): {e}\n")
+			_print_warning(f"Model analysis failed (continuing): {str(e)}\n")
+			# Print stack trace for better debugging
+			import traceback
+			_print_warning(f"Stack trace:\n{traceback.format_exc()}\n")
 
 		# Update analysis summary
 		analysis_type = "Allowable Stress Design" if active_load_combination.startswith('1') and not active_load_combination.startswith('10') else "Strength Design" if active_load_combination.startswith('10') else "Allowable Stress Design"
@@ -684,15 +1403,126 @@ class Calc:
 		# Create load summary
 		load_summary = []
 		total_loads = 0
-		for load in loads:
+		for load in loads:  # Use all loads for summary
 			load_type = getattr(load, 'LoadType', 'DL')
 			load_factor = self.getLoadFactors(active_load_combination, load_type)
-			if load_factor > 0:
-				load_summary.append(f"{load_type} (Factor: {load_factor}) - {load.Label}")
-				total_loads += 1
+			load_summary.append(f"{load_type} (Factor: {load_factor}) - {load.Label}")
+			total_loads += 1
 				
 		obj.LoadSummary = load_summary
 		obj.TotalLoads = total_loads
+
+		# Extract reaction forces and moments
+		reaction_nodes = []
+		reaction_x = []
+		reaction_y = []
+		reaction_z = []
+		reaction_mx = []
+		reaction_my = []
+		reaction_mz = []
+
+		# Set current load combination for reactions
+		if hasattr(obj, 'ReactionLoadCombo'):
+			obj.ReactionLoadCombo = active_load_combination
+
+		# Find all supported nodes and collect their reactions
+		_print_message(f"Collecting reactions for load combination: {active_load_combination}\n")
+		
+		# Count total supported nodes
+		support_node_count = 0
+		for node_name, node in model.nodes.items():
+			if (hasattr(node, 'support_DX') and node.support_DX) or \
+			   (hasattr(node, 'support_DY') and node.support_DY) or \
+			   (hasattr(node, 'support_DZ') and node.support_DZ) or \
+			   (hasattr(node, 'support_RX') and node.support_RX) or \
+			   (hasattr(node, 'support_RY') and node.support_RY) or \
+			   (hasattr(node, 'support_RZ') and node.support_RZ):
+				support_node_count += 1
+		
+		_print_message(f"Found {support_node_count} supported nodes\n")
+		
+		# Check if reaction attributes are created
+		reaction_attrs_exist = False
+		for node_name, node in model.nodes.items():
+			if hasattr(node, 'RxnFX'):
+				reaction_attrs_exist = True
+				break
+		
+		if not reaction_attrs_exist:
+			_print_warning("No reaction attributes found in any nodes! Make sure analysis was successful.\n")
+		
+		# Sum of all reactions for validation
+		total_fx = 0.0
+		total_fy = 0.0
+		total_fz = 0.0
+		
+		for node_name, node in model.nodes.items():
+			is_supported = False
+			
+			# Check each support direction
+			support_conditions = []
+			if hasattr(node, 'support_DX') and node.support_DX:
+				is_supported = True
+				support_conditions.append('DX')
+			if hasattr(node, 'support_DY') and node.support_DY:
+				is_supported = True
+				support_conditions.append('DY')
+			if hasattr(node, 'support_DZ') and node.support_DZ:
+				is_supported = True
+				support_conditions.append('DZ')
+			if hasattr(node, 'support_RX') and node.support_RX:
+				is_supported = True
+				support_conditions.append('RX')
+			if hasattr(node, 'support_RY') and node.support_RY:
+				is_supported = True
+				support_conditions.append('RY')
+			if hasattr(node, 'support_RZ') and node.support_RZ:
+				is_supported = True
+				support_conditions.append('RZ')
+
+			if is_supported:
+				# Add node to reaction list
+				reaction_nodes.append(node_name)
+				
+				# Get reaction forces (default to 0.0 if not present)
+				fx = node.RxnFX.get(active_load_combination, 0.0) if hasattr(node, 'RxnFX') and active_load_combination in node.RxnFX else 0.0
+				fy = node.RxnFY.get(active_load_combination, 0.0) if hasattr(node, 'RxnFY') and active_load_combination in node.RxnFY else 0.0
+				fz = node.RxnFZ.get(active_load_combination, 0.0) if hasattr(node, 'RxnFZ') and active_load_combination in node.RxnFZ else 0.0
+				
+				# Get reaction moments (default to 0.0 if not present)
+				mx = node.RxnMX.get(active_load_combination, 0.0) if hasattr(node, 'RxnMX') and active_load_combination in node.RxnMX else 0.0
+				my = node.RxnMY.get(active_load_combination, 0.0) if hasattr(node, 'RxnMY') and active_load_combination in node.RxnMY else 0.0
+				mz = node.RxnMZ.get(active_load_combination, 0.0) if hasattr(node, 'RxnMZ') and active_load_combination in node.RxnMZ else 0.0
+				
+				# Accumulate totals for validation
+				total_fx += fx
+				total_fy += fy
+				total_fz += fz
+				
+				# Print diagnostic information
+				_print_message(f"Node {node_name} reactions: FX={fx:.3f}, FY={fy:.3f}, FZ={fz:.3f}, MX={mx:.3f}, MY={my:.3f}, MZ={mz:.3f}\n")
+				_print_message(f"  Support conditions: {', '.join(support_conditions)}\n")
+				_print_message(f"  Node coordinates: ({node.X:.3f}, {node.Y:.3f}, {node.Z:.3f})\n")
+				
+				# Append to reaction lists
+				reaction_x.append(fx)
+				reaction_y.append(fy)
+				reaction_z.append(fz)
+				reaction_mx.append(mx)
+				reaction_my.append(my)
+				reaction_mz.append(mz)
+		
+		_print_message(f"Total reactions - Sum FX: {total_fx:.3f}, Sum FY: {total_fy:.3f}, Sum FZ: {total_fz:.3f}\n")
+
+		# Store reaction values in object properties
+		_print_message(f"Storing {len(reaction_nodes)} reaction nodes with their values\n")
+		obj.ReactionNodes = reaction_nodes
+		obj.ReactionX = reaction_x
+		obj.ReactionY = reaction_y
+		obj.ReactionZ = reaction_z
+		obj.ReactionMX = reaction_mx
+		obj.ReactionMY = reaction_my
+		obj.ReactionMZ = reaction_mz
 
 		# Gera os resultados
 		momentz = []
@@ -718,42 +1548,183 @@ class Calc:
 		minDeflectionz = []
 		maxDeflectionz = []
 
-		for name in model.members.keys():			
-			momenty.append(','.join( str(value) for value in model.members[name].moment_array('My', obj.NumPointsMoment)[1]))
-			momentz.append(','.join( str(value) for value in model.members[name].moment_array('Mz', obj.NumPointsMoment)[1]))
+		# Structured per-member results (list of dicts) for easier downstream consumption
+		member_results = []
 
-			sheary.append(','.join( str(value) for value in model.members[name].shear_array('Fy', obj.NumPointsShear)[1]))
-			shearz.append(','.join( str(value) for value in model.members[name].shear_array('Fz', obj.NumPointsShear)[1]))
+		# helper: create a member summary dict from model/member
+		def _build_member_summary(member_name: str) -> dict:
+			"""Build a dict summary for a member.
 
-			axial.append(','.join( str(value) for value in model.members[name].axial_array(obj.NumPointsAxial)[1]))
-			
-			torque.append(','.join( str(value) for value in model.members[name].torque_array(obj.NumPointsTorque)[1]))
+			Returns keys: name, section, nodes, momentY, momentZ, shearY, shearZ,
+			axial, torque, deflectionY, deflectionZ and min/max scalar values.
+			"""
+			m = model.members[member_name]
+			# numeric arrays (try-except to tolerate missing methods)
+			try:
+				my_vals = [float(v) for v in m.moment_array('My', getattr(obj, 'NumPointsMoment', 3))[1]]
+			except Exception:
+				my_vals = []
+			try:
+				mz_vals = [float(v) for v in m.moment_array('Mz', getattr(obj, 'NumPointsMoment', 3))[1]]
+			except Exception:
+				mz_vals = []
+			try:
+				fy_vals = [float(v) for v in m.shear_array('Fy', getattr(obj, 'NumPointsShear', 3))[1]]
+			except Exception:
+				fy_vals = []
+			try:
+				fz_vals = [float(v) for v in m.shear_array('Fz', getattr(obj, 'NumPointsShear', 3))[1]]
+			except Exception:
+				fz_vals = []
+			try:
+				ax_vals = [float(v) for v in m.axial_array(getattr(obj, 'NumPointsAxial', 2))[1]]
+			except Exception:
+				ax_vals = []
+			try:
+				tq_vals = [float(v) for v in m.torque_array(getattr(obj, 'NumPointsTorque', 2))[1]]
+			except Exception:
+				tq_vals = []
+			try:
+				dy_vals = [float(v) for v in m.deflection_array('dy', getattr(obj, 'NumPointsDeflection', 2))[1]]
+			except Exception:
+				dy_vals = []
+			try:
+				dz_vals = [float(v) for v in m.deflection_array('dz', getattr(obj, 'NumPointsDeflection', 2))[1]]
+			except Exception:
+				dz_vals = []
 
-			deflectiony.append(','.join( str(value) for value in model.members[name].deflection_array('dy', obj.NumPointsDeflection)[1]))
-			deflectionz.append(','.join( str(value) for value in model.members[name].deflection_array('dz', obj.NumPointsDeflection)[1]))
+			return {
+				'name': member_name,
+				'section': (members_map.get(member_name, {}).get('section') if 'members_map' in locals() else None),
+				'nodes': (members_map.get(member_name, {}).get('nodes') if 'members_map' in locals() else []),
+				'momentY': my_vals,
+				'momentZ': mz_vals,
+				'shearY': fy_vals,
+				'shearZ': fz_vals,
+				'axial': ax_vals,
+				'torque': tq_vals,
+				'deflectionY': dy_vals,
+				'deflectionZ': dz_vals,
+				'minMomentY': m.min_moment('My', combo_name=active_load_combination),
+				'maxMomentY': m.max_moment('My', combo_name=active_load_combination),
+				'minMomentZ': m.min_moment('Mz', combo_name=active_load_combination),
+				'maxMomentZ': m.max_moment('Mz', combo_name=active_load_combination),
+				'minShearY': m.min_shear('Fy', combo_name=active_load_combination),
+				'maxShearY': m.max_shear('Fy', combo_name=active_load_combination),
+				'minShearZ': m.min_shear('Fz', combo_name=active_load_combination),
+				'maxShearZ': m.max_shear('Fz', combo_name=active_load_combination),
+				'minTorque': m.min_torque(combo_name=active_load_combination),
+				'maxTorque': m.max_torque(combo_name=active_load_combination),
+				'minDeflectionY': m.min_deflection('dy', combo_name=active_load_combination),
+				'maxDeflectionY': m.max_deflection('dy', combo_name=active_load_combination),
+				'minDeflectionZ': m.min_deflection('dz', combo_name=active_load_combination),
+				'maxDeflectionZ': m.max_deflection('dz', combo_name=active_load_combination)
+			}
 
-			mimMomenty.append(model.members[name].min_moment('My'))
-			mimMomentz.append(model.members[name].min_moment('Mz'))
-			maxMomenty.append(model.members[name].max_moment('My'))
-			maxMomentz.append(model.members[name].max_moment('Mz'))
+		for name in model.members.keys():
+			try:
+				momenty.append(','.join( str(value) for value in model.members[name].moment_array('My', getattr(obj, 'NumPointsMoment', 5), combo_name=active_load_combination)[1]))
+				momentz.append(','.join( str(value) for value in model.members[name].moment_array('Mz', getattr(obj, 'NumPointsMoment', 5), combo_name=active_load_combination)[1]))
+			except Exception as e:
+				_print_warning(f"Error getting moment arrays for member '{name}' with combo '{active_load_combination}': {e}\n")
+				momenty.append('0.0')
+				momentz.append('0.0')
 
-			minSheary.append(model.members[name].min_shear('Fy'))
-			minShearz.append(model.members[name].min_shear('Fz'))
-			maxSheary.append(model.members[name].max_shear('Fy'))
-			maxShearz.append(model.members[name].max_shear('Fz'))
+			try:
+				sheary.append(','.join( str(value) for value in model.members[name].shear_array('Fy', getattr(obj, 'NumPointsShear', 4), combo_name=active_load_combination)[1]))
+				shearz.append(','.join( str(value) for value in model.members[name].shear_array('Fz', getattr(obj, 'NumPointsShear', 4), combo_name=active_load_combination)[1]))
 
-			minTorque.append(model.members[name].min_torque())
-			maxTorque.append(model.members[name].max_torque())
+				axial.append(','.join( str(value) for value in model.members[name].axial_array(getattr(obj, 'NumPointsAxial', 3), combo_name=active_load_combination)[1]))
+				
+				torque.append(','.join( str(value) for value in model.members[name].torque_array(getattr(obj, 'NumPointsTorque', 3), combo_name=active_load_combination)[1]))
 
-			minDeflectiony.append(model.members[name].min_deflection('dy'))
-			minDeflectionz.append(model.members[name].min_deflection('dz'))
-			maxDeflectiony.append(model.members[name].max_deflection('dy'))
-			maxDeflectionz.append(model.members[name].max_deflection('dz'))
-			
+				deflectiony.append(','.join( str(value) for value in model.members[name].deflection_array('dy', getattr(obj, 'NumPointsDeflection', 4), combo_name=active_load_combination)[1]))
+				deflectionz.append(','.join( str(value) for value in model.members[name].deflection_array('dz', getattr(obj, 'NumPointsDeflection', 4), combo_name=active_load_combination)[1]))
+			except Exception as e:
+				_print_warning(f"Error getting force/deflection arrays for member '{name}' with combo '{active_load_combination}': {e}\n")
+				sheary.append('0.0')
+				shearz.append('0.0')
+				axial.append('0.0')
+				torque.append('0.0')
+				deflectiony.append('0.0')
+				deflectionz.append('0.0')
+
+			try:
+				mimMomenty.append(model.members[name].min_moment('My', combo_name=active_load_combination))
+				mimMomentz.append(model.members[name].min_moment('Mz', combo_name=active_load_combination))
+				maxMomenty.append(model.members[name].max_moment('My', combo_name=active_load_combination))
+				maxMomentz.append(model.members[name].max_moment('Mz', combo_name=active_load_combination))
+
+				minSheary.append(model.members[name].min_shear('Fy', combo_name=active_load_combination))
+				minShearz.append(model.members[name].min_shear('Fz', combo_name=active_load_combination))
+				maxSheary.append(model.members[name].max_shear('Fy', combo_name=active_load_combination))
+				maxShearz.append(model.members[name].max_shear('Fz', combo_name=active_load_combination))
+
+				minTorque.append(model.members[name].min_torque(combo_name=active_load_combination))
+				maxTorque.append(model.members[name].max_torque(combo_name=active_load_combination))
+
+				minDeflectiony.append(model.members[name].min_deflection('dy', combo_name=active_load_combination))
+				minDeflectionz.append(model.members[name].min_deflection('dz', combo_name=active_load_combination))
+				maxDeflectiony.append(model.members[name].max_deflection('dy', combo_name=active_load_combination))
+				maxDeflectionz.append(model.members[name].max_deflection('dz', combo_name=active_load_combination))
+			except Exception as e:
+				_print_warning(f"Error getting min/max values for member '{name}' with combo '{active_load_combination}': {e}\n")
+				mimMomenty.append(0.0)
+				mimMomentz.append(0.0)
+				maxMomenty.append(0.0)
+				maxMomentz.append(0.0)
+				minSheary.append(0.0)
+				minShearz.append(0.0)
+				maxSheary.append(0.0)
+				maxShearz.append(0.0)
+				minTorque.append(0.0)
+				maxTorque.append(0.0)
+				minDeflectiony.append(0.0)
+				minDeflectionz.append(0.0)
+				maxDeflectiony.append(0.0)
+				maxDeflectionz.append(0.0)
+
+			# Also collect structured numeric results for this member (lists of floats)
+			try:
+				my_vals = [float(v) for v in model.members[name].moment_array('My', getattr(obj, 'NumPointsMoment', 3), combo_name=active_load_combination)[1]]
+			except Exception:
+				my_vals = []
+			try:
+				mz_vals = [float(v) for v in model.members[name].moment_array('Mz', getattr(obj, 'NumPointsMoment', 3), combo_name=active_load_combination)[1]]
+			except Exception:
+				mz_vals = []
+			try:
+				fy_vals = [float(v) for v in model.members[name].shear_array('Fy', getattr(obj, 'NumPointsShear', 3), combo_name=active_load_combination)[1]]
+			except Exception:
+				fy_vals = []
+			try:
+				fz_vals = [float(v) for v in model.members[name].shear_array('Fz', getattr(obj, 'NumPointsShear', 3), combo_name=active_load_combination)[1]]
+			except Exception:
+				fz_vals = []
+			try:
+				ax_vals = [float(v) for v in model.members[name].axial_array(getattr(obj, 'NumPointsAxial', 2), combo_name=active_load_combination)[1]]
+			except Exception:
+				ax_vals = []
+			try:
+				tq_vals = [float(v) for v in model.members[name].torque_array(getattr(obj, 'NumPointsTorque', 2), combo_name=active_load_combination)[1]]
+			except Exception:
+				tq_vals = []
+			try:
+				dy_vals = [float(v) for v in model.members[name].deflection_array('dy', getattr(obj, 'NumPointsDeflection', 2), combo_name=active_load_combination)[1]]
+			except Exception:
+				dy_vals = []
+			try:
+				dz_vals = [float(v) for v in model.members[name].deflection_array('dz', getattr(obj, 'NumPointsDeflection', 2), combo_name=active_load_combination)[1]]
+			except Exception:
+				dz_vals = []
+
+			# build structured summary and append
+			summary = _build_member_summary(name)
+			member_results.append(summary)
 			
 
 		obj.NameMembers = model.members.keys()
-		obj.Nodes = [FreeCAD.Vector(node[0], node[2], node[1]) for node in nodes_map]
+		obj.Nodes = [App.Vector(node[0], node[2], node[1]) for node in nodes_map]
 		obj.MomentZ = momentz
 		obj.MomentY = momenty
 		obj.MinMomentY = mimMomenty
@@ -776,18 +1747,492 @@ class Calc:
 		obj.MinDeflectionZ = minDeflectionz
 		obj.MaxDeflectionY = maxDeflectiony
 		obj.MaxDeflectionZ = maxDeflectionz
+		# expose structured per-member results (backwards-compatible addition)
+		if hasattr(obj, 'MemberResults'):
+			obj.MemberResults = member_results
+		else:
+			# For older Calc objects without MemberResults property, add it dynamically
+			try:
+				obj.addProperty("App::PropertyPythonObject", "MemberResults", "Calc", "structured per-member results")
+				obj.MemberResults = member_results
+			except Exception as e:
+				_print_warning(f"Could not add MemberResults property: {e}\n")
+		
+		# Update Thai units if enabled (Legacy support)
+		if hasattr(obj, 'UseThaiUnits') and getattr(obj, 'UseThaiUnits', False):
+			self.updateThaiUnitsResults(obj)
+			
+		# Update Global Units if enabled (New enhanced system)
+		if hasattr(obj, 'UseGlobalUnits') and getattr(obj, 'UseGlobalUnits', True):
+			self.updateGlobalUnitsResults(obj)
+	   
+
+	def updateThaiUnitsResults(self, obj):
+		"""Update Thai units calculation results"""
+		try:
+			from .utils.universal_thai_units import UniversalThaiUnits
+			converter = UniversalThaiUnits()
+		except ImportError:
+			# Thai units not available
+			return
+			
+		try:
+			
+			# Convert moment results to ksc
+			moment_z_ksc = []
+			moment_y_ksc = []
+			for mz_str in obj.MomentZ:
+				values = [float(v) for v in mz_str.split(',')]
+				# Use a more generic conversion method if kn_m_to_ksc_m is not available
+				ksc_values = [v * 101.97162129779283 for v in values]  # Approximate conversion factor
+				moment_z_ksc.append(','.join(str(v) for v in ksc_values))
+			
+			for my_str in obj.MomentY:
+				values = [float(v) for v in my_str.split(',')]
+				# Use a more generic conversion method if kn_m_to_ksc_m is not available
+				ksc_values = [v * 101.97162129779283 for v in values]  # Approximate conversion factor
+				moment_y_ksc.append(','.join(str(v) for v in ksc_values))
+			
+			obj.MomentZKsc = moment_z_ksc
+			obj.MomentYKsc = moment_y_ksc
+			
+			# Convert axial forces to kgf and tf
+			axial_kgf = []
+			axial_tf = []
+			for ax_str in obj.AxialForce:
+				values = [float(v) for v in ax_str.split(',')]
+				# Use a more generic conversion method if kn_to_kgf is not available
+				kgf_values = [v * 101.97162129779283 for v in values]  # Approximate conversion factor
+				tf_values = [v * 0.0010197162129779283 for v in values]  # Approximate conversion factor
+				axial_kgf.append(','.join(str(v) for v in kgf_values))
+				axial_tf.append(','.join(str(v) for v in tf_values))
+			
+			obj.AxialForceKgf = axial_kgf
+			obj.AxialForceTf = axial_tf
+			
+			# Convert shear forces to kgf
+			shear_y_kgf = []
+			shear_z_kgf = []
+			for sy_str in obj.ShearY:
+				values = [float(v) for v in sy_str.split(',')]
+				# Use a more generic conversion method if kn_to_kgf is not available
+				kgf_values = [v * 101.97162129779283 for v in values]  # Approximate conversion factor
+				shear_y_kgf.append(','.join(str(v) for v in kgf_values))
+			
+			for sz_str in obj.ShearZ:
+				values = [float(v) for v in sz_str.split(',')]
+				# Use a more generic conversion method if kn_to_kgf is not available
+				kgf_values = [v * 101.97162129779283 for v in values]  # Approximate conversion factor
+				shear_z_kgf.append(','.join(str(v) for v in kgf_values))
+			
+			obj.ShearYKgf = shear_y_kgf
+			obj.ShearZKgf = shear_z_kgf
+			
+		except Exception as e:
+			_print_warning(f"Thai units conversion failed: {e}\n")
+
+	def getResultsInThaiUnits(self, obj):
+		"""Get calculation results in Thai units format"""
+		if not hasattr(obj, 'UseThaiUnits') or not obj.UseThaiUnits:
+			return None
+			
+		thai_results = {
+			'moments_ksc': {
+				'momentY': getattr(obj, 'MomentYKsc', []),
+				'momentZ': getattr(obj, 'MomentZKsc', [])
+			},
+			'forces_kgf': {
+				'axial': getattr(obj, 'AxialForceKgf', []),
+				'shearY': getattr(obj, 'ShearYKgf', []),
+				'shearZ': getattr(obj, 'ShearZKgf', [])
+			},
+			'forces_tf': {
+				'axial': getattr(obj, 'AxialForceTf', [])
+			}
+		}
+		return thai_results
+	
+	def updateGlobalUnitsResults(self, obj):
+		"""Update calculation results using Global Units System"""
+		if not GLOBAL_UNITS_AVAILABLE:
+			return
+			
+		try:
+			# Get units manager and set system
+			units_manager = get_units_manager()
+			if hasattr(obj, 'GlobalUnitsSystem') and units_manager is not None:
+				units_manager.set_unit_system(obj.GlobalUnitsSystem)
+			
+			# Format force results
+			if hasattr(obj, 'MaxAxialForce') and obj.MaxAxialForce:
+				formatted_forces = []
+				for force_n in obj.MaxAxialForce:
+					formatted = format_force(force_n * 1000)  # Convert kN to N for function
+					formatted_forces.append(formatted)
+				obj.FormattedForces = formatted_forces
+			
+			# Format moment results (as stress equivalent)
+			if hasattr(obj, 'MaxMomentZ') and obj.MaxMomentZ:
+				formatted_moments = []
+				for moment_knm in obj.MaxMomentZ:
+					# Convert moment to equivalent stress for display
+					moment_nm = moment_knm * 1000000  # kN⋅m to N⋅mm
+					formatted = format_stress(moment_nm)  # Display as stress-like unit
+					formatted_moments.append(formatted)
+				obj.FormattedMoments = formatted_moments
+			
+			# Format general stress results (if available)
+			if hasattr(obj, 'MaxStress') and getattr(obj, 'MaxStress', None):
+				formatted_stresses = []
+				for stress_pa in obj.MaxStress:
+					formatted = format_stress(stress_pa)
+					formatted_stresses.append(formatted)
+				obj.FormattedStresses = formatted_stresses
+				
+		except Exception as e:
+			_print_warning(f"Global units formatting failed: {e}\n")
 		
 	   
 
 
 	def onChanged(self,obj,Parameter):
 		pass
+
+	def member_results_to_json(self, obj) -> str:
+		"""Return a JSON string of obj.MemberResults.
+
+		This helper serializes the structured MemberResults for export or UI use.
+		"""
+		import json
+		results = getattr(obj, 'MemberResults', [])
+		# Ensure numeric types are JSON serializable (lists of floats are fine)
+		return json.dumps(results)
+
+	def member_results_to_csv(self, obj, include_header: bool = True) -> str:
+		"""Return a CSV string for obj.MemberResults.
+
+		CSV columns: name,section,nodes,momentY,momentZ,shearY,shearZ,axial,torque,deflectionY,deflectionZ,minMomentY,...
+		Lists are serialized as semicolon-separated numeric strings inside cells.
+		"""
+		import csv, io
+		results = getattr(obj, 'MemberResults', [])
+		if not results:
+			return ''
+
+		# determine header keys (preserve order)
+		header = list(results[0].keys())
+		output = io.StringIO()
+		writer = csv.writer(output)
+		if include_header:
+			writer.writerow(header)
+		for r in results:
+			row = []
+			for k in header:
+				val = r.get(k, '')
+				if isinstance(val, list):
+					# join numeric lists with semicolon
+					row.append(';'.join(str(x) for x in val))
+				else:
+					row.append(str(val))
+			writer.writerow(row)
+		return output.getvalue()
 	
 
 class ViewProviderCalc:
 	def __init__(self, obj):
 		obj.Proxy = self
+		self.Object = obj.Object if hasattr(obj, 'Object') else None
+		self.reaction_texts = []  # Store reaction text objects
 	
+	# Add __getstate__ and __setstate__ methods to handle serialization
+	def __getstate__(self):
+		# Don't serialize the Object reference and reaction_texts as they may not be JSON serializable
+		state = self.__dict__.copy()
+		# Remove potentially problematic attributes
+		state['Object'] = None
+		state['reaction_texts'] = []
+		return state
+
+	def __setstate__(self, state):
+		self.__dict__.update(state)
+		# Ensure Object and reaction_texts are properly initialized
+		if not hasattr(self, 'Object'):
+			self.Object = None
+		if not hasattr(self, 'reaction_texts'):
+			self.reaction_texts = []
+		return None
+	
+	def updateData(self, obj, prop):
+		"""Called when the object's data changes"""
+		if prop in ['ShowReactionText', 'ReactionPrecision', 'ReactionTextOffset', 'ReactionFontSize', 'LoadCombination']:
+			self.updateReactionTextDisplay()
+		
+		# Notify reaction results objects when load combination changes
+		if prop == 'LoadCombination':
+			self.notify_reaction_results_update(obj)
+	
+	def notify_reaction_results_update(self, obj):
+		"""Notify all reaction results objects to update when load combination changes."""
+		try:
+			import FreeCAD
+			FreeCAD.Console.PrintMessage(f"📢 Calc LoadCombination changed to: {obj.LoadCombination}\n")
+			
+			# Find all ReactionResults objects in the document that reference this calc
+			for doc_obj in FreeCAD.ActiveDocument.Objects:
+				if (hasattr(doc_obj, 'Proxy') and 
+					hasattr(doc_obj.Proxy, '__class__') and
+					doc_obj.Proxy.__class__.__name__ == 'ReactionResults' and
+					hasattr(doc_obj, 'ObjectBaseCalc') and
+					doc_obj.ObjectBaseCalc == obj):
+					
+					FreeCAD.Console.PrintMessage(f"🔄 Updating ReactionResults: {doc_obj.Name}\n")
+					
+					# Update the ActiveLoadCombination to match calc
+					doc_obj.ActiveLoadCombination = obj.LoadCombination
+					
+					# Trigger update
+					if hasattr(doc_obj.Proxy, 'execute'):
+						doc_obj.Proxy.execute(doc_obj)
+						
+		except Exception as e:
+			import FreeCAD
+			FreeCAD.Console.PrintError(f"❌ Error notifying reaction results: {str(e)}\n")
+
+	def onChanged(self, obj, prop):
+		"""Called when view properties change"""
+		if prop == 'ShowReactionText':
+			self.updateReactionTextDisplay()
+	
+	def updateReactionTextDisplay(self):
+		"""Update the display of reaction texts based on ShowReactionText property"""
+		try:
+			# Clear existing reaction texts
+			self.clearReactionTexts()
+			
+			# Check if Object is properly set
+			if self.Object is None:
+				return
+			
+			# Only proceed if ShowReactionText is True
+			if not getattr(self.Object, 'ShowReactionText', False):
+				return
+			
+			# Get reaction data from analysis results
+			if not hasattr(self.Object, 'model') or self.Object.model is None:
+				return
+			
+			# Create reaction texts for each support node
+			self.createReactionTexts()
+			
+		except Exception as e:
+			print(f"Error updating reaction text display: {e}")
+	
+	def createReactionTexts(self):
+		"""Create 3D text objects for reaction forces and moments"""
+		try:
+			model = self.Object.model
+			if not model or not hasattr(model, 'Nodes'):
+				return
+			
+			# Get display properties
+			precision = getattr(self.Object, 'ReactionPrecision', 2)
+			offset = getattr(self.Object, 'ReactionTextOffset', 100.0)  # mm
+			font_size = getattr(self.Object, 'ReactionFontSize', 12.0)
+			active_combination = getattr(self.Object, 'LoadCombination', '100_DL')
+			
+			# Iterate through nodes to find supports with reactions
+			for node_name, node in model.Nodes.items():
+				# Check if node has support conditions
+				has_support = any([
+					node.support_DX, node.support_DY, node.support_DZ,
+					node.support_RX, node.support_RY, node.support_RZ
+				])
+				
+				if not has_support:
+					continue
+				
+				# Get reaction values
+				reactions = self.getNodeReactions(node, active_combination)
+				if not reactions:
+					continue
+				
+				# Create text for this node
+				text_content = self.formatReactionText(node_name, reactions, precision)
+				if text_content:
+					text_obj = self.createTextObject(node, text_content, offset, font_size)
+					if text_obj:
+						self.reaction_texts.append(text_obj)
+			
+		except Exception as e:
+			print(f"Error creating reaction texts: {e}")
+	
+	def getNodeReactions(self, node, combo_name):
+		"""Extract reaction values for a node from analysis results"""
+		reactions = {}
+		
+		try:
+			# Get reaction forces
+			if hasattr(node, 'RxnFX') and combo_name in node.RxnFX:
+				reactions['FX'] = node.RxnFX[combo_name]
+			if hasattr(node, 'RxnFY') and combo_name in node.RxnFY:
+				reactions['FY'] = node.RxnFY[combo_name]
+			if hasattr(node, 'RxnFZ') and combo_name in node.RxnFZ:
+				reactions['FZ'] = node.RxnFZ[combo_name]
+			
+			# Get reaction moments
+			if hasattr(node, 'RxnMX') and combo_name in node.RxnMX:
+				reactions['MX'] = node.RxnMX[combo_name]
+			if hasattr(node, 'RxnMY') and combo_name in node.RxnMY:
+				reactions['MY'] = node.RxnMY[combo_name]
+			if hasattr(node, 'RxnMZ') and combo_name in node.RxnMZ:
+				reactions['MZ'] = node.RxnMZ[combo_name]
+				
+		except Exception as e:
+			print(f"Error getting node reactions: {e}")
+		
+		return reactions
+	
+	def formatReactionText(self, node_name, reactions, precision):
+		"""Format reaction values into display text"""
+		lines = [f"Node: {node_name}"]
+		
+		# Format forces
+		force_lines = []
+		for component in ['FX', 'FY', 'FZ']:
+			if component in reactions:
+				value = reactions[component]
+				if abs(value) > 1e-6:  # Only show significant values
+					force_lines.append(f"{component}: {value:.{precision}f} kN")
+		
+		if force_lines:
+			lines.extend(force_lines)
+		
+		# Format moments
+		moment_lines = []
+		for component in ['MX', 'MY', 'MZ']:
+			if component in reactions:
+				value = reactions[component]
+				if abs(value) > 1e-6:  # Only show significant values
+					moment_lines.append(f"{component}: {value:.{precision}f} kN·m")
+		
+		if moment_lines:
+			lines.extend(moment_lines)
+		
+		return '\n'.join(lines) if len(lines) > 1 else ""
+	
+	def createTextObject(self, node, text_content, offset, font_size):
+		"""Create a 3D text object at the node location"""
+		try:
+			doc = App.ActiveDocument
+			if not doc:
+				return None
+			
+			# Calculate text position (offset from node)
+			node_pos = App.Vector(node.X, node.Y, node.Z)
+			text_pos = node_pos + App.Vector(offset, offset, 0)
+			
+			# Try different methods to create text
+			text_obj = None
+			
+			# Method 1: Try using Part workbench for 3D text
+			try:
+				import Part
+				# Create simple text using Part.makeText (if available)
+				text_obj = doc.addObject("Part::Feature", f"Reactions_{node.name}")
+				
+				# Create simple wire geometry for text display
+				# Since Part.makeText might not be available, create basic shapes
+				lines = text_content.split('\n')
+				shapes = []
+				
+				for i, line in enumerate(lines):
+					if line.strip():
+						# Create a simple line/wire to represent text
+						start_point = text_pos + App.Vector(0, -i * font_size * 2, 0)
+						end_point = start_point + App.Vector(len(line) * font_size * 0.8, 0, 0)
+						
+						# Create a simple line
+						line_wire = Part.makeLine(start_point, end_point)
+						shapes.append(line_wire)
+				
+				if shapes:
+					# Combine all lines
+					compound = Part.makeCompound(shapes)
+					text_obj.Shape = compound
+					text_obj.Label = f"Reactions_{node.name}_Wire"
+					
+					# Set visual properties
+					if hasattr(text_obj.ViewObject, 'ShapeColor'):
+						text_obj.ViewObject.ShapeColor = (1.0, 0.0, 0.0)  # Red
+					if hasattr(text_obj.ViewObject, 'LineWidth'):
+						text_obj.ViewObject.LineWidth = 2.0
+					
+					print(f"Created wire-based text for {node.name}: {text_content}")
+					return text_obj
+				
+			except Exception as e:
+				print(f"Part method failed: {e}")
+			
+			# Method 2: Try Draft workbench
+			try:
+				import Draft
+				text_obj = Draft.make_text(text_content, point=text_pos)
+				text_obj.Label = f"Reactions_{node.name}_Draft"
+				
+				# Set text properties
+				if hasattr(text_obj.ViewObject, 'FontSize'):
+					text_obj.ViewObject.FontSize = font_size
+				if hasattr(text_obj.ViewObject, 'TextColor'):
+					text_obj.ViewObject.TextColor = (1.0, 0.0, 0.0)  # Red color
+				
+				print(f"Created Draft text for {node.name}: {text_content}")
+				return text_obj
+				
+			except Exception as e:
+				print(f"Draft method failed: {e}")
+			
+			# Method 3: Create annotation object
+			try:
+				text_obj = doc.addObject("App::Annotation", f"Reactions_{node.name}_Annotation")
+				text_obj.LabelText = text_content
+				text_obj.Position = text_pos
+				
+				print(f"Created annotation for {node.name}: {text_content}")
+				return text_obj
+				
+			except Exception as e:
+				print(f"Annotation method failed: {e}")
+			
+			# Method 4: Simple debug print
+			print(f"All text creation methods failed. Text content for {node.name}:")
+			print(f"  Position: {text_pos}")
+			print(f"  Content: {text_content}")
+			
+			return None
+			
+		except Exception as e:
+			print(f"Error creating text object: {e}")
+			return None
+	
+	def clearReactionTexts(self):
+		"""Remove all existing reaction text objects"""
+		try:
+			# Check if reaction_texts exists
+			if not hasattr(self, 'reaction_texts'):
+				return
+				
+			doc = App.ActiveDocument
+			if not doc:
+				return
+			
+			for text_obj in self.reaction_texts:
+				if text_obj and hasattr(text_obj, 'Name') and text_obj.Name in doc.Objects:
+					doc.removeObject(text_obj.Name)
+			
+			self.reaction_texts.clear()
+			
+		except Exception as e:
+			print(f"Error clearing reaction texts: {e}")
 
 	def getIcon(self):
 		return """
@@ -1121,17 +2566,21 @@ class CommandCalc():
     
     def Activated(self):
         selection = FreeCADGui.Selection.getSelection()
-        doc = FreeCAD.ActiveDocument
+        doc = App.ActiveDocument
         obj = doc.addObject("Part::FeaturePython", "Calc")
 
         objSuport = Calc(obj, selection)
-        ViewProviderCalc(obj.ViewObject)           
+        ViewProviderCalc(obj.ViewObject)
+        # Set the Object property explicitly
+        obj.ViewObject.Proxy.Object = obj
 
-        FreeCAD.ActiveDocument.recompute()        
+        App.ActiveDocument.recompute()        
         return
 
     def IsActive(self):
         
         return True
 
-FreeCADGui.addCommand("calc", CommandCalc())
+# Only register command if FreeCAD GUI is available
+if FREECAD_AVAILABLE and 'FreeCADGui' in globals():
+    FreeCADGui.addCommand("calc", CommandCalc())

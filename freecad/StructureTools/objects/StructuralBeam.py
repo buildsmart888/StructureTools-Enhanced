@@ -428,7 +428,7 @@ class StructuralBeam:
                 
                 # Check if calculated area is reasonable compared to property
                 if abs(area_calc - area_prop) / area_prop > 0.5:  # 50% difference
-                    App.Console.PrintWarning(
+                    FreeCAD.Console.PrintWarning(
                         f"Section area mismatch: calculated {area_calc:.0f} mm², "
                         f"property {area_prop:.0f} mm²\n"
                     )
@@ -451,7 +451,7 @@ class StructuralBeam:
                 continue
         
         if lengths and len(set(lengths)) > 1:
-            App.Console.PrintWarning(
+            FreeCAD.Console.PrintWarning(
                 f"Beam {obj.Label}: Inconsistent load case count across load types\n"
             )
     
@@ -534,7 +534,7 @@ class StructuralBeam:
             return k
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating stiffness matrix: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating stiffness matrix: {e}\n")
             return [[0.0] * 12 for _ in range(12)]
     
     def get_load_vector(self, obj, load_case: int = 0) -> List[float]:
@@ -577,7 +577,7 @@ class StructuralBeam:
             # Point loads would be handled separately in analysis
 
         except Exception as e:
-            App.Console.PrintWarning(f"Error calculating load vector: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error calculating load vector: {e}\n")
         
         return loads
 

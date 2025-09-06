@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="64" height="64" fill="#f0f0f0"/>
+  
+  <!-- Results table/chart background -->
+  <rect x="8" y="12" width="48" height="36" fill="white" stroke="#333" stroke-width="2"/>
+  
+  <!-- Table headers -->
+  <line x1="8" y1="22" x2="56" y2="22" stroke="#333" stroke-width="1"/>
+  <line x1="20" y1="12" x2="20" y2="48" stroke="#333" stroke-width="1"/>
+  <line x1="36" y1="12" x2="36" y2="48" stroke="#333" stroke-width="1"/>
+  
+  <!-- Data rows -->
+  <line x1="8" y1="28" x2="56" y2="28" stroke="#ddd" stroke-width="0.5"/>
+  <line x1="8" y1="34" x2="56" y2="34" stroke="#ddd" stroke-width="0.5"/>
+  <line x1="8" y1="40" x2="56" y2="40" stroke="#ddd" stroke-width="0.5"/>
+  
+  <!-- Headers text -->
+  <text x="14" y="19" text-anchor="middle" font-family="Arial" font-size="6" fill="#333">Mode</text>
+  <text x="28" y="19" text-anchor="middle" font-family="Arial" font-size="6" fill="#333">Freq (Hz)</text>
+  <text x="46" y="19" text-anchor="middle" font-family="Arial" font-size="6" fill="#333">Period</text>
+  
+  <!-- Sample data -->
+  <text x="14" y="31" text-anchor="middle" font-family="Arial" font-size="5" fill="#666">1</text>
+  <text x="28" y="31" text-anchor="middle" font-family="Arial" font-size="5" fill="#666">2.45</text>
+  <text x="46" y="31" text-anchor="middle" font-family="Arial" font-size="5" fill="#666">0.41</text>
+  
+  <text x="14" y="37" text-anchor="middle" font-family="Arial" font-size="5" fill="#666">2</text>
+  <text x="28" y="37" text-anchor="middle" font-family="Arial" font-size="5" fill="#666">5.82</text>
+  <text x="46" y="37" text-anchor="middle" font-family="Arial" font-size="5" fill="#666">0.17</text>
+  
+  <!-- Eye/view icon -->
+  <circle cx="44" cy="54" r="6" fill="none" stroke="#3498db" stroke-width="2"/>
+  <circle cx="44" cy="54" r="3" fill="#3498db"/>
+  <circle cx="44" cy="54" r="1" fill="white"/>
+  
+  <!-- Chart/graph indicator -->
+  <polyline points="12,54 16,50 22,52 26,48 30,50" fill="none" stroke="#27ae60" stroke-width="2"/>
+  
+  <!-- Title -->
+  <text x="32" y="62" text-anchor="middle" font-family="Arial" font-size="6" fill="#333">Results</text>
+</svg>

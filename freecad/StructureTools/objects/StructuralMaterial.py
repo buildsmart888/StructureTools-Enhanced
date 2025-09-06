@@ -23,6 +23,27 @@ class StructuralMaterial:
     including design code integration, temperature effects, and automated validation.
     """
     
+    def _ensure_property(self, obj, type_name: str, prop_name: str, group: str, doc: str = "", readonly: bool = False) -> None:
+        """
+        Ensure a property exists on the object, creating it if necessary.
+        
+        Args:
+            obj: The DocumentObject
+            type_name: Property type (e.g., "App::PropertyStringList")
+            prop_name: Property name
+            group: Property group
+            doc: Property documentation
+            readonly: Whether the property should be read-only
+        """
+        if not hasattr(obj, prop_name):
+            try:
+                obj.addProperty(type_name, prop_name, group, doc)
+                if readonly:
+                    obj.setEditorMode(prop_name, 1)  # 1 = read-only in Property Editor
+            except Exception:
+                # Property might already exist, continue anyway
+                pass
+    
     def __init__(self, obj):
         """
         Initialize StructuralMaterial object.
@@ -41,7 +62,7 @@ class StructuralMaterial:
         obj.addProperty("App::PropertyEnumeration", "MaterialStandard", "Standard", 
                        "Material standard (ASTM, EN, etc.)")
         obj.MaterialStandard = list(MATERIAL_STANDARDS.keys())
-        obj.MaterialStandard = "ASTM_A992"
+        obj.MaterialStandard = "ASTM_A992"  # Set a default, will be updated next
         
         obj.addProperty("App::PropertyString", "GradeDesignation", "Standard",
                        "Material grade designation").GradeDesignation = "Gr. 50"
@@ -120,25 +141,149 @@ class StructuralMaterial:
         obj.addProperty("App::PropertyString", "LastValidated", "Internal",
                        "Last validation timestamp")
         
-        obj.addProperty("App::PropertyStringList", "ValidationWarnings", "Internal",
-                       "Current validation warnings")
+        # Initialize ValidationWarnings property to prevent AttributeError
+        self._ensure_property(obj, "App::PropertyStringList", "ValidationWarnings", "Validation",
+                             "Current validation warnings")
+        obj.ValidationWarnings = []
+        
+        # Update properties based on selected standard
+        self._update_standard_properties(obj)
     
+    def _as_kg_per_m3(self, val) -> float:
+        """
+        Helper function to normalize density values to kg/m³.
+        
+        Args:
+            val: Density value (can be Quantity, string, or float)
+            
+        Returns:
+            float: Density in kg/m³
+        """
+        try:
+            # If it's already a FreeCAD Quantity with getValueAs method
+            if hasattr(val, 'getValueAs'):
+                return float(val.getValueAs('kg/m^3'))
+            
+            # If it's a string or numeric value, convert via Units.parseQuantity
+            from FreeCAD import Units
+            # Handle scientific notation and different unit formats properly
+            if isinstance(val, str):
+                # Use FreeCAD's parseQuantity to handle various unit formats
+                q = Units.parseQuantity(val)
+                return float(q.getValueAs('kg/m^3'))
+            
+            # For numeric values, create a Quantity and convert
+            q = Units.Quantity(str(val))
+            return float(q.getValueAs('kg/m^3'))
+        except Exception as e:
+            raise Exception(f"Could not convert {val} to kg/m³: {str(e)}")
+
+    def _calculate_shear_modulus(self, obj) -> None:
+        """Calculate shear modulus from elastic modulus and Poisson ratio."""
+        if not (hasattr(obj, 'ModulusElasticity') and hasattr(obj, 'PoissonRatio')):
+            return
+        
+        try:
+            # Get E in MPa and nu as float
+            E = obj.ModulusElasticity.getValueAs('MPa')
+            nu = obj.PoissonRatio
+            G_MPa = float(E) / (2 * (1 + nu))
+            
+            # Update shear modulus with proper Quantity formatting
+            from FreeCAD import Units
+            obj.ShearModulus = Units.Quantity(f"{G_MPa:.0f} MPa")
+            
+        except (AttributeError, ValueError, TypeError) as e:
+            App.Console.PrintWarning(f"Could not calculate shear modulus: {e}\n")
+
     def onChanged(self, obj, prop: str) -> None:
         """
         Handle property changes with validation and dependencies.
         
         Args:
-            obj: The DocumentObject being changed
-            prop: Name of the changed property
+            obj: Material DocumentObject
+            prop: Changed property name
         """
-        if prop == "PoissonRatio":
-            self._validate_poisson_ratio(obj)
-        elif prop == "MaterialStandard":
-            self._update_standard_properties(obj)
-        elif prop == "ModulusElasticity" or prop == "PoissonRatio":
-            self._calculate_shear_modulus(obj)
-        elif prop in ["YieldStrength", "UltimateStrength"]:
-            self._validate_strength_properties(obj)
+        try:
+            # Import validation after FreeCAD is available
+            from ..utils.validation import StructuralValidator
+            from ..utils.exceptions import ValidationError
+            
+            validator = StructuralValidator()
+            
+            # Handle MaterialStandard changes
+            if prop == 'MaterialStandard':
+                App.Console.PrintMessage(f"Material standard changed to {obj.MaterialStandard}\n")
+                self._update_standard_properties(obj)
+            
+            # Validate changed property
+            elif prop == 'PoissonRatio':
+                if hasattr(obj, 'PoissonRatio'):
+                    nu = obj.PoissonRatio
+                    if not (0.0 <= nu <= 0.5):
+                        App.Console.PrintError(
+                            f"Invalid Poisson ratio {nu:.3f}. Must be between 0.0 and 0.5\n"
+                        )
+                        obj.PoissonRatio = 0.3  # Reset to default
+            
+            elif prop == 'ModulusElasticity':
+                if hasattr(obj, 'ModulusElasticity'):
+                    try:
+                        E = validator.get_property_value(obj.ModulusElasticity, 'Pa')
+                        if E <= 0:
+                            App.Console.PrintError("Elastic modulus must be positive\n")
+                    except Exception as e:
+                        App.Console.PrintError(f"Invalid elastic modulus: {str(e)}\n")
+            
+            elif prop == 'Density':
+                if hasattr(obj, 'Density'):
+                    try:
+                        # Use the new helper function to normalize density to kg/m³
+                        rho_kg_m3 = self._as_kg_per_m3(obj.Density)
+                        if rho_kg_m3 <= 0:
+                            App.Console.PrintError("Density must be positive\n")
+                    except Exception as e:
+                        App.Console.PrintError(f"Invalid density: {str(e)}\n")
+            
+            # Full validation on critical changes
+            if prop in ['ModulusElasticity', 'PoissonRatio', 'YieldStrength', 'UltimateStrength']:
+                try:
+                    warnings = validator.validate_material_properties(obj)
+                    if warnings:
+                        # Ensure ValidationWarnings property exists
+                        self._ensure_property(obj, "App::PropertyStringList", "ValidationWarnings", "Validation",
+                                            "Current validation warnings")
+                        
+                        try:
+                            obj.ValidationWarnings = warnings
+                        except Exception:
+                            # If we can't set the property, just continue
+                            pass
+                        for warning in warnings:
+                            App.Console.PrintWarning(f"Material warning: {warning}\n")
+                    else:
+                        # Ensure ValidationWarnings property exists
+                        self._ensure_property(obj, "App::PropertyStringList", "ValidationWarnings", "Validation",
+                                            "Current validation warnings")
+                        try:
+                            obj.ValidationWarnings = []
+                        except Exception:
+                            # If we can't set the property, just continue
+                            pass
+                except ValidationError as e:
+                    App.Console.PrintError(f"Material validation error: {str(e)}\n")
+                except Exception as e:
+                    App.Console.PrintWarning(f"Error during material validation: {str(e)}\n")
+        
+        except ImportError:
+            # Fallback validation without utils
+            if prop == 'PoissonRatio' and hasattr(obj, 'PoissonRatio'):
+                nu = obj.PoissonRatio
+                if not (0.0 <= nu <= 0.5):
+                    App.Console.PrintError(f"Invalid Poisson ratio {nu:.3f}\n")
+                    obj.PoissonRatio = 0.3
+        except Exception as e:
+            App.Console.PrintWarning(f"Error in material property validation: {str(e)}\n")
     
     def _validate_poisson_ratio(self, obj) -> None:
         """Validate Poisson ratio is within physical bounds."""
@@ -162,31 +307,59 @@ class StructuralMaterial:
         if standard in MATERIAL_STANDARDS:
             props = MATERIAL_STANDARDS[standard]
             
+            # Debug the standard and properties
+            App.Console.PrintMessage(f"Updating properties for standard: {standard}\n")
+            App.Console.PrintMessage(f"Available properties: {list(props.keys())}\n")
+            
+            # Check for concrete vs steel material type
+            if 'CompressiveStrength' in props:
+                # Set material type to Concrete for concrete materials
+                if hasattr(obj, 'MaterialType'):
+                    obj.MaterialType = 'Concrete'
+                    App.Console.PrintMessage(f"Setting material type to Concrete\n")
+            
             # Update properties from standard
             for prop_name, value in props.items():
                 if hasattr(obj, prop_name):
+                    App.Console.PrintMessage(f"Setting {prop_name} = {value}\n")
                     setattr(obj, prop_name, value)
+            
+            # Force update critical properties to ensure they're set correctly
+            if 'Density' in props and hasattr(obj, 'Density'):
+                obj.Density = props['Density']
+                App.Console.PrintMessage(f"Forcing update of Density to {props['Density']}\n")
+                
+            if 'ModulusElasticity' in props and hasattr(obj, 'ModulusElasticity'):
+                obj.ModulusElasticity = props['ModulusElasticity']
+                App.Console.PrintMessage(f"Forcing update of ModulusElasticity to {props['ModulusElasticity']}\n")
+                
+            if 'PoissonRatio' in props and hasattr(obj, 'PoissonRatio'):
+                obj.PoissonRatio = props['PoissonRatio']
+                App.Console.PrintMessage(f"Forcing update of PoissonRatio to {props['PoissonRatio']}\n")
+                
+            if 'YieldStrength' in props and hasattr(obj, 'YieldStrength'):
+                obj.YieldStrength = props['YieldStrength']
+                App.Console.PrintMessage(f"Forcing update of YieldStrength to {props['YieldStrength']}\n")
+                
+            if 'UltimateStrength' in props and hasattr(obj, 'UltimateStrength'):
+                obj.UltimateStrength = props['UltimateStrength']
+                App.Console.PrintMessage(f"Forcing update of UltimateStrength to {props['UltimateStrength']}\n")
+            
+            # Special handling for concrete materials
+            if 'CompressiveStrength' in props:
+                # For concrete, set YieldStrength and UltimateStrength to CompressiveStrength
+                # as these are not typically used for concrete but needed for compatibility
+                if hasattr(obj, 'CompressiveStrength') and hasattr(obj, 'YieldStrength'):
+                    obj.YieldStrength = props['CompressiveStrength']
+                    App.Console.PrintMessage(f"Setting YieldStrength to CompressiveStrength: {props['CompressiveStrength']}\n")
+                if hasattr(obj, 'CompressiveStrength') and hasattr(obj, 'UltimateStrength'):
+                    obj.UltimateStrength = props['CompressiveStrength']
+                    App.Console.PrintMessage(f"Setting UltimateStrength to CompressiveStrength: {props['CompressiveStrength']}\n")
             
             App.Console.PrintMessage(
                 f"Updated material properties for standard: {standard}\n"
             )
             self._clear_validation_warnings(obj)
-    
-    def _calculate_shear_modulus(self, obj) -> None:
-        """Calculate shear modulus from elastic modulus and Poisson ratio."""
-        if not (hasattr(obj, 'ModulusElasticity') and hasattr(obj, 'PoissonRatio')):
-            return
-        
-        try:
-            E = obj.ModulusElasticity.getValueAs('MPa')
-            nu = obj.PoissonRatio
-            G = E / (2 * (1 + nu))
-            
-            # Update shear modulus
-            obj.ShearModulus = f"{G:.0f} MPa"
-            
-        except (AttributeError, ValueError) as e:
-            App.Console.PrintWarning(f"Could not calculate shear modulus: {e}\n")
     
     def _validate_strength_properties(self, obj) -> None:
         """Validate strength property relationships."""
@@ -209,8 +382,15 @@ class StructuralMaterial:
     
     def _add_validation_warning(self, obj, warning: str) -> None:
         """Add a validation warning to the object."""
-        if not hasattr(obj, 'ValidationWarnings'):
-            obj.ValidationWarnings = []
+        # Ensure ValidationWarnings property exists
+        self._ensure_property(obj, "App::PropertyStringList", "ValidationWarnings", "Validation",
+                            "Current validation warnings")
+        # Initialize the property if it doesn't exist
+        if not hasattr(obj, "ValidationWarnings"):
+            try:
+                obj.ValidationWarnings = []
+            except Exception:
+                pass
 
         # Ensure ValidationWarnings is a list-like container
         try:
@@ -220,7 +400,11 @@ class StructuralMaterial:
 
         if warning not in warnings:
             warnings.append(warning)
-            obj.ValidationWarnings = warnings
+            try:
+                obj.ValidationWarnings = warnings
+            except Exception:
+                # If we can't set the property, just continue
+                pass
     
     def _remove_validation_warning(self, obj, warning_key: str) -> None:
         """Remove validation warnings containing the key."""
@@ -237,7 +421,11 @@ class StructuralMaterial:
     def _clear_validation_warnings(self, obj) -> None:
         """Clear all validation warnings."""
         if hasattr(obj, 'ValidationWarnings'):
-            obj.ValidationWarnings = []
+            try:
+                obj.ValidationWarnings = []
+            except Exception:
+                # If we can't set the property, just continue
+                pass
     
     def execute(self, obj) -> None:
         """
@@ -274,12 +462,64 @@ class StructuralMaterial:
             }
             
             # Store for use by other workbenches
-            obj.addProperty("App::PropertyMap", "FreeCADMaterialCard", "Internal",
-                           "FreeCAD material card data")
-            obj.FreeCADMaterialCard = material_dict
+            try:
+                obj.addProperty("App::PropertyMap", "FreeCADMaterialCard", "Internal",
+                               "FreeCAD material card data")
+            except Exception:
+                # Property might already exist, continue anyway
+                pass
+            try:
+                obj.FreeCADMaterialCard = material_dict
+            except Exception:
+                # If we can't set the property, just continue
+                pass
             
         except Exception as e:
             App.Console.PrintWarning(f"Could not update FreeCAD material: {e}\n")
+    
+    def get_calc_properties(self, obj, unit_length: str = 'm', unit_force: str = 'kN') -> dict:
+        """
+        Get material properties formatted for calc integration.
+        
+        Args:
+            obj: Material DocumentObject
+            unit_length: Target length unit (m, mm, etc.)
+            unit_force: Target force unit (kN, N, etc.)
+            
+        Returns:
+            Dictionary with material properties for FEModel3D
+        """
+        try:
+            # Convert density from kg/m³ to force/volume units
+            density_kg_m3 = obj.Density.getValueAs('kg/m^3')
+            density_kn_m3 = density_kg_m3 * 9.80665 / 1000  # Convert to kN/m³
+            density = density_kn_m3  # Will be converted to target units by calc
+            
+            # Get elastic properties in target units
+            E = obj.ModulusElasticity.getValueAs(f'{unit_force}/{unit_length}^2')
+            nu = obj.PoissonRatio
+            G = E / (2 * (1 + nu))  # Calculate shear modulus
+            
+            return {
+                'name': obj.Name,
+                'E': float(E),
+                'G': float(G),
+                'nu': float(nu),
+                'density': float(density),
+                'unit_system': f'{unit_force}-{unit_length}'
+            }
+            
+        except Exception as e:
+            App.Console.PrintError(f"Error getting calc properties for material {obj.Name}: {e}\n")
+            # Return safe defaults
+            return {
+                'name': obj.Name if hasattr(obj, 'Name') else 'Material',
+                'E': 200000.0,  # MPa
+                'G': 77000.0,   # MPa  
+                'nu': 0.3,
+                'density': 7850.0,  # kg/m³
+                'unit_system': f'{unit_force}-{unit_length}'
+            }
 
 
 class ViewProviderStructuralMaterial:

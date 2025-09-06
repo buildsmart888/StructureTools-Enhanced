@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="64" height="64" fill="#f8f9fa"/>
+  
+  <!-- AISC Logo Background Circle -->
+  <circle cx="32" cy="32" r="28" fill="#1e3a8a" stroke="#1e40af" stroke-width="2"/>
+  
+  <!-- Steel I-Beam Section -->
+  <g fill="#e5e7eb" stroke="#374151" stroke-width="1.5">
+    <!-- Top flange -->
+    <rect x="20" y="16" width="24" height="4" rx="1"/>
+    <!-- Web -->
+    <rect x="30.5" y="16" width="3" height="32" rx="0.5"/>
+    <!-- Bottom flange -->
+    <rect x="20" y="44" width="24" height="4" rx="1"/>
+  </g>
+  
+  <!-- AISC Text -->
+  <text x="32" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white" font-weight="bold">AISC</text>
+  <text x="32" y="38" text-anchor="middle" font-family="Arial, sans-serif" font-size="6" fill="#e5e7eb">360-16</text>
+  
+  <!-- Design Check Symbols -->
+  <!-- Flexural moment symbol -->
+  <g stroke="#fbbf24" stroke-width="2" fill="none">
+    <path d="M 12 52 Q 18 48, 24 52" marker-end="url(#arrowhead)"/>
+    <path d="M 24 52 Q 18 56, 12 52" marker-end="url(#arrowhead)"/>
+  </g>
+  
+  <!-- Compression force arrows -->
+  <g stroke="#ef4444" stroke-width="2" fill="#ef4444">
+    <polygon points="32,8 30,12 34,12"/>
+    <line x1="32" y1="8" x2="32" y2="12"/>
+    
+    <polygon points="32,56 30,52 34,52"/>
+    <line x1="32" y1="52" x2="32" y2="56"/>
+  </g>
+  
+  <!-- Shear force arrow -->
+  <g stroke="#10b981" stroke-width="2" fill="#10b981">
+    <polygon points="48,32 44,30 44,34"/>
+    <line x1="44" y1="32" x2="48" y2="32"/>
+  </g>
+  
+  <!-- Check mark indicator -->
+  <circle cx="52" cy="12" r="6" fill="#059669" opacity="0.9"/>
+  <path d="M 49 12 L 51 14 L 55 10" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Capacity ratio indicator -->
+  <rect x="8" y="8" width="12" height="8" fill="rgba(59, 130, 246, 0.1)" stroke="#3b82f6" stroke-width="1" rx="2"/>
+  <text x="14" y="13" text-anchor="middle" font-family="Arial, sans-serif" font-size="5" fill="#1e40af">D/C</text>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+      <polygon points="0 0, 6 2, 0 4" fill="#fbbf24"/>
+    </marker>
+  </defs>
+</svg>

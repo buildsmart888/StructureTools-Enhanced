@@ -1,6 +1,15 @@
 import FreeCAD, App, FreeCADGui, Part, os
 from PySide import QtWidgets
 
+# Import Thai units support
+try:
+    from .utils.universal_thai_units import enhance_with_thai_units, thai_material_units
+    THAI_UNITS_AVAILABLE = True
+except ImportError:
+    THAI_UNITS_AVAILABLE = False
+    enhance_with_thai_units = lambda x, t: x
+    thai_material_units = lambda f: f
+
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
 def show_error_message(msg):

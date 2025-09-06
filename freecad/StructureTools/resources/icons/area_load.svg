@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="64" height="64" fill="#f0f0f0"/>
+  
+  <!-- Surface/plate background -->
+  <rect x="8" y="20" width="48" height="24" fill="#e8f4fd" stroke="#333" stroke-width="1"/>
+  
+  <!-- Area load arrows (distributed pressure) -->
+  <g fill="#e74c3c" stroke="#e74c3c" stroke-width="1">
+    <!-- Row 1 of arrows -->
+    <polygon points="14,18 14,12 12,14 16,14" />
+    <polygon points="24,18 24,12 22,14 26,14" />
+    <polygon points="34,18 34,12 32,14 36,14" />
+    <polygon points="44,18 44,12 42,14 46,14" />
+    <polygon points="54,18 54,12 52,14 56,14" />
+    
+    <!-- Row 2 of arrows -->
+    <polygon points="14,28 14,22 12,24 16,24" />
+    <polygon points="24,28 24,22 22,24 26,24" />
+    <polygon points="34,28 34,22 32,24 36,24" />
+    <polygon points="44,28 44,22 42,24 46,24" />
+    <polygon points="54,28 54,22 52,24 56,24" />
+    
+    <!-- Row 3 of arrows -->
+    <polygon points="14,38 14,32 12,34 16,34" />
+    <polygon points="24,38 24,32 22,34 26,34" />
+    <polygon points="34,38 34,32 32,34 36,34" />
+    <polygon points="44,38 44,32 42,34 46,34" />
+    <polygon points="54,38 54,32 52,34 56,34" />
+    
+    <!-- Row 4 of arrows -->
+    <polygon points="14,48 14,42 12,44 16,44" />
+    <polygon points="24,48 24,42 22,44 26,44" />
+    <polygon points="34,48 34,42 32,44 36,44" />
+    <polygon points="44,48 44,42 42,44 46,44" />
+    <polygon points="54,48 54,42 52,44 56,44" />
+  </g>
+  
+  <!-- Load magnitude indicator -->
+  <circle cx="50" cy="54" r="6" fill="#27ae60" opacity="0.8"/>
+  <text x="50" y="57" text-anchor="middle" font-family="Arial" font-size="6" fill="white">P</text>
+  
+  <!-- Load type label -->
+  <text x="32" y="58" text-anchor="middle" font-family="Arial" font-size="5" fill="#666">kN/m²</text>
+  
+  <!-- Title -->
+  <text x="32" y="62" text-anchor="middle" font-family="Arial" font-size="6" fill="#333">Area Load</text>
+</svg>

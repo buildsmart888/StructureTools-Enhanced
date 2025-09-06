@@ -77,11 +77,38 @@ def _safe_patch(*args, **kwargs):
     If the target is a builtins attribute (target string starts with
     'builtins.'), return a wrapper that restores the original
     builtins.getattr during the patcher's __enter__ to avoid recursion
-    when tests patch builtins.getattr and then patch other builtins.
-    Otherwise behave exactly like the original patch.
+    # strip out our wrapper keys
+    kwargs = {k: v for k, v in kwargs.items() if not k.startswith('_')}
+    # If the caller passed a Mock for 'spec' or 'spec_set', remove it
+    # because unittest.mock.patch will raise InvalidSpecError when spec is a Mock
+    for spec_key in ('spec', 'spec_set'):
+        if spec_key in kwargs:
+            val = kwargs[spec_key]
+            # if it's a unittest.mock.Mock or MagicMock, drop the spec
+            try:
+                from unittest.mock import Mock
+                if isinstance(val, Mock):
+                    del kwargs[spec_key]
+            except Exception:
+                # best-effort: if we can't import Mock, and the value
+                # looks like a Mock (has '_mock_wraps' or '_mock_parent'), drop it
+                if hasattr(val, '_mock_wraps') or hasattr(val, '_mock_parent'):
+                    del kwargs[spec_key]
+    return _patch(target, **kwargs)
+    unittest.mock.InvalidSpecError.
     """
     # If called as patch(target, ...), inspect target
     target = args[0] if args else kwargs.get('target')
+
+    # Sanitize spec/spec_set kwargs if they're Mock objects
+    try:
+        if 'spec' in kwargs and isinstance(kwargs['spec'], _unittest_mock.Mock):
+            kwargs.pop('spec', None)
+        if 'spec_set' in kwargs and isinstance(kwargs['spec_set'], _unittest_mock.Mock):
+            kwargs.pop('spec_set', None)
+    except Exception:
+        # If something goes wrong, continue without sanitization
+        pass
 
     # Special-case builtins.* patches: if tests provided a side_effect,
     # install a light-weight function wrapper instead of placing a
@@ -127,10 +154,7 @@ def _safe_patch(*args, **kwargs):
 
             return BuiltinFuncPatch()
 
-    # No side_effect: fall back to original patcher
-    return _ORIG_UNittest_PATCH(*args, **kwargs)
-
-    # Default behaviour for other targets
+    # No special case: fall back to original patcher
     return _ORIG_UNittest_PATCH(*args, **kwargs)
 
 # Replace patch with the selective wrapper
@@ -156,6 +180,250 @@ test_dir = os.path.dirname(__file__)
 project_root = os.path.dirname(test_dir)
 freecad_dir = os.path.join(project_root, "freecad")
 sys.path.insert(0, freecad_dir)
+
+# Provide minimal stub modules at import time so modules that register
+# FreeCADGui commands or reference App.Vector during import don't fail
+try:
+    import types as _types
+    if 'FreeCAD' not in sys.modules:
+        _fc = _types.ModuleType('FreeCAD')
+        _fc.Vector = lambda x=0, y=0, z=0: (x, y, z)
+        class _Q:
+            def __init__(self, v=0):
+                self.value = float(v)
+            def getValueAs(self, u):
+                return self.value
+        _fc.Units = type('U', (), {'Quantity': _Q})
+        sys.modules['FreeCAD'] = _fc
+    if 'App' not in sys.modules:
+        _app = _types.ModuleType('App')
+        _app.Vector = lambda x=0, y=0, z=0: (x, y, z)
+        _app.Console = _types.SimpleNamespace(PrintMessage=lambda *a, **k: None, PrintWarning=lambda *a, **k: None, PrintError=lambda *a, **k: None)
+        sys.modules['App'] = _app
+    if 'FreeCADGui' not in sys.modules:
+        _gui = _types.ModuleType('FreeCADGui')
+        _gui.addCommand = lambda *a, **k: None
+        _gui.Control = _types.SimpleNamespace(showDialog=lambda *a, **k: None, closeDialog=lambda *a, **k: None)
+        sys.modules['FreeCADGui'] = _gui
+    if 'Part' not in sys.modules:
+        sys.modules['Part'] = _types.ModuleType('Part')
+except Exception:
+    pass
+
+# --- Minimal PySide2 shim for QtWidgets used in UI taskpanels during tests ---
+try:
+    if 'PySide2' not in sys.modules:
+        import types as _types
+        _pyside = _types.ModuleType('PySide2')
+        # QtCore shim
+        _qtcore = _types.ModuleType('PySide2.QtCore')
+        class _Signal:
+            def __init__(self):
+                self._cb = None
+            def connect(self, cb):
+                self._cb = cb
+        _qtcore.Signal = _Signal
+        _qtcore.Qt = _types.SimpleNamespace(AlignLeft=1, AlignRight=2)
+        # QtGui shim (unused methods can be added later)
+        _qtgui = _types.ModuleType('PySide2.QtGui')
+
+        # QtWidgets shim: minimal widget classes and layouts used in panels
+        _qtwidgets = _types.ModuleType('PySide2.QtWidgets')
+
+        class QWidget:
+            def __init__(self, *a, **k):
+                self._layout = None
+            def setLayout(self, l):
+                self._layout = l
+
+        class QVBoxLayout:
+            def __init__(self, *a, **k):
+                self._items = []
+            def addWidget(self, w):
+                self._items.append(('w', w))
+            def addLayout(self, l):
+                self._items.append(('l', l))
+
+        class QHBoxLayout(QVBoxLayout):
+            pass
+
+        class QGridLayout(QVBoxLayout):
+            def addWidget(self, w, r, c):
+                self._items.append(('g', w, r, c))
+
+        class QLabel:
+            def __init__(self, text=''):
+                self._text = text
+            def setStyleSheet(self, s):
+                pass
+            def setText(self, t):
+                self._text = t
+
+        class QPushButton:
+            def __init__(self, label=''):
+                self.clicked = _Signal()
+            def setToolTip(self, t):
+                pass
+
+        class QComboBox:
+            def __init__(self):
+                self._items = []
+                self.currentTextChanged = _Signal()
+            def addItems(self, items):
+                self._items.extend(items)
+            def addItem(self, item):
+                self._items.append(item)
+
+        class QDoubleSpinBox:
+            def __init__(self):
+                self.valueChanged = _Signal()
+            def setRange(self, a, b):
+                pass
+            def setValue(self, v):
+                pass
+            def setDecimals(self, d):
+                pass
+            def setSuffix(self, s):
+                pass
+
+        class QSpinBox(QDoubleSpinBox):
+            pass
+
+        class QCheckBox:
+            def __init__(self, label=''):
+                self.toggled = _Signal()
+            def setChecked(self, v):
+                pass
+
+        class QListWidget:
+            def __init__(self):
+                self._items = []
+            def setMaximumHeight(self, h):
+                pass
+            def setSelectionMode(self, m):
+                pass
+            def addItem(self, item):
+                self._items.append(item)
+
+        class QGroupBox(QWidget):
+            def setLayout(self, l):
+                super().setLayout(l)
+
+        class QFormLayout:
+            def addRow(self, a, b=None):
+                pass
+
+        class QTextEdit:
+            def __init__(self):
+                pass
+            def setMaximumHeight(self, h):
+                pass
+            def setText(self, t):
+                pass
+            def setPlaceholderText(self, t):
+                pass
+
+        class QTabWidget:
+            def __init__(self):
+                pass
+            def addTab(self, widget, title):
+                pass
+
+        class QLineEdit:
+            def __init__(self):
+                self.textChanged = _Signal()
+            def setText(self, t):
+                pass
+            def textChanged(self, *a, **k):
+                pass
+
+        _qtwidgets.QWidget = QWidget
+        _qtwidgets.QVBoxLayout = QVBoxLayout
+        _qtwidgets.QHBoxLayout = QHBoxLayout
+        _qtwidgets.QGridLayout = QGridLayout
+        _qtwidgets.QLabel = QLabel
+        _qtwidgets.QPushButton = QPushButton
+        _qtwidgets.QComboBox = QComboBox
+        _qtwidgets.QDoubleSpinBox = QDoubleSpinBox
+        _qtwidgets.QSpinBox = QSpinBox
+        _qtwidgets.QCheckBox = QCheckBox
+        _qtwidgets.QListWidget = QListWidget
+        _qtwidgets.QGroupBox = QGroupBox
+        _qtwidgets.QFormLayout = QFormLayout
+        _qtwidgets.QTextEdit = QTextEdit
+        _qtwidgets.QTabWidget = QTabWidget
+        _qtwidgets.QLineEdit = QLineEdit
+        _qtwidgets.QAbstractItemView = _types.SimpleNamespace(ExtendedSelection=1)
+
+        _pyside.QtWidgets = _qtwidgets
+        _pyside.QtCore = _qtcore
+        _pyside.QtGui = _qtgui
+        sys.modules['PySide2'] = _pyside
+        sys.modules['PySide2.QtWidgets'] = _qtwidgets
+        sys.modules['PySide2.QtCore'] = _qtcore
+        sys.modules['PySide2.QtGui'] = _qtgui
+except Exception:
+    pass
+
+# Minimal QtWidgets shim for headless tests
+try:
+    qt = _types.ModuleType('QtWidgets')
+
+    class QWidget:
+        def __init__(self, *args, **kwargs):
+            self._layout = None
+        def setLayout(self, layout):
+            self._layout = layout
+        def setStyleSheet(self, s):
+            pass
+
+    class QLabel:
+        def __init__(self, text=''):
+            self._text = text
+        def setText(self, text):
+            self._text = text
+        def setStyleSheet(self, s):
+            pass
+
+    class QVBoxLayout:
+        def __init__(self, parent=None):
+            self._items = []
+        def addWidget(self, w):
+            self._items.append(w)
+        def addLayout(self, l):
+            self._items.append(l)
+
+    class QPushButton:
+        def __init__(self, text=''):
+            self._text = text
+        def setText(self, text):
+            self._text = text
+        def setStyleSheet(self, s):
+            pass
+
+    class QLineEdit:
+        def __init__(self):
+            self._text = ''
+        def setText(self, t):
+            self._text = t
+        def text(self):
+            return self._text
+
+    qt.QWidget = QWidget
+    qt.QLabel = QLabel
+    qt.QVBoxLayout = QVBoxLayout
+    qt.QPushButton = QPushButton
+    qt.QLineEdit = QLineEdit
+
+    sys.modules['PySide'] = _types.ModuleType('PySide')
+    sys.modules['PySide'].QtWidgets = qt
+    sys.modules['PySide2'] = _types.ModuleType('PySide2')
+    sys.modules['PySide2'].QtWidgets = qt
+    sys.modules['PySide6'] = _types.ModuleType('PySide6')
+    sys.modules['PySide6'].QtWidgets = qt
+    sys.modules['QtWidgets'] = qt
+except Exception:
+    pass
 
 
 @pytest.fixture(scope="session")

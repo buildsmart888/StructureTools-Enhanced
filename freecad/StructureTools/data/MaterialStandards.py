@@ -78,6 +78,8 @@ EN_STEEL = {
 CONCRETE_STANDARDS = {
     "ACI_Normal_25MPa": {
         "CompressiveStrength": "25 MPa",
+        "YieldStrength": "25 MPa",
+        "UltimateStrength": "25 MPa",
         "ModulusElasticity": "25000 MPa",
         "Density": "2400 kg/m^3",
         "PoissonRatio": 0.20,
@@ -87,6 +89,8 @@ CONCRETE_STANDARDS = {
     },
     "ACI_Normal_30MPa": {
         "CompressiveStrength": "30 MPa",
+        "YieldStrength": "30 MPa", 
+        "UltimateStrength": "30 MPa",
         "ModulusElasticity": "27000 MPa", 
         "Density": "2400 kg/m^3",
         "PoissonRatio": 0.20,
@@ -96,6 +100,8 @@ CONCRETE_STANDARDS = {
     },
     "EN_C25/30": {
         "CompressiveStrength": "25 MPa",
+        "YieldStrength": "25 MPa",
+        "UltimateStrength": "25 MPa",
         "ModulusElasticity": "31000 MPa",
         "Density": "2400 kg/m^3",
         "PoissonRatio": 0.20,

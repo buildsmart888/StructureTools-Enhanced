@@ -18,32 +18,21 @@ class Diagram:
 		#Gera a lista de membros selecionados
 		
 
-
 		obj.Proxy = self
-		obj.addProperty("App::PropertyLink", "ObjectBaseCalc", "Base", "elementos para a analise").ObjectBaseCalc = objCalc
-		obj.addProperty("App::PropertyLinkSubList", "ObjectBaseElements", "Base", "elementos para a analise").ObjectBaseElements = self.getMembers(listSelection)
 		
-
-		obj.addProperty("App::PropertyColor", "Color", "Diagram", "elementos para a analise").Color = (255,0,0,0)
-		obj.addProperty("App::PropertyInteger", "Transparency", "Diagram", "elementos para a analise").Transparency = 70		
-		obj.addProperty("App::PropertyInteger", "FontHeight", "Diagram", "Tamanho da fonte no diagrama").FontHeight = 100
-		obj.addProperty("App::PropertyInteger", "Precision", "Diagram", "precisão de casas decimais").Precision = 2
-		obj.addProperty("App::PropertyBool", "DrawText", "Diagram", "precisão de casas decimais").DrawText = True
-
-		obj.addProperty("App::PropertyBool", "MomentZ", "DiagramMoment", "Ver diagrama de momento em Z").MomentZ = False
-		obj.addProperty("App::PropertyBool", "MomentY", "DiagramMoment", "Ver diagrama de momento em Y").MomentY = False
-		obj.addProperty("App::PropertyFloat", "ScaleMoment", "DiagramMoment", "Escala dos diagramas de momento").ScaleMoment = 1
-
-
-		obj.addProperty("App::PropertyBool", "ShearZ", "DiagramShear", "Ver diagrama de cortante em Z").ShearZ = False
-		obj.addProperty("App::PropertyBool", "ShearY", "DiagramShear", "Ver diagrama de cortante em Y").ShearY = False
-		obj.addProperty("App::PropertyFloat", "ScaleShear", "DiagramShear", "Escala dos diagramas de cortante").ScaleShear = 1
+		# Base properties - only add if they don't exist
+		if not hasattr(obj, 'ObjectBaseCalc'):
+			obj.addProperty("App::PropertyLink", "ObjectBaseCalc", "Base", "elementos para a analise").ObjectBaseCalc = objCalc
+		else:
+			obj.ObjectBaseCalc = objCalc
+			
+		if not hasattr(obj, 'ObjectBaseElements'):
+			obj.addProperty("App::PropertyLinkSubList", "ObjectBaseElements", "Base", "elementos para a analise").ObjectBaseElements = self.getMembers(listSelection)
+		else:
+			obj.ObjectBaseElements = self.getMembers(listSelection)
 		
-		obj.addProperty("App::PropertyBool", "Torque", "DiagramTorque", "Ver diagrama de torque").Torque = False
-		obj.addProperty("App::PropertyFloat", "ScaleTorque", "DiagramTorque", "Escala do diagrama de torque").ScaleTorque = 1
-
-		obj.addProperty("App::PropertyBool", "AxialForce", "DiagramAxial", "Ver diagrama de força normal").AxialForce = False
-		obj.addProperty("App::PropertyFloat", "ScaleAxial", "DiagramAxial", "Escala do diagrama de força normal").ScaleAxial = 1
+		# Use the ensureRequiredProperties function to add all other properties
+		self.ensureRequiredProperties(obj)
 	
 
 
@@ -198,19 +187,54 @@ class Diagram:
 			return element
 	
 	# Gero os valores nos diagramas
-	def makeText(self, values, listMatrix, dist, fontHeight, precision):
+	def makeText(self, values, listMatrix, dist, fontHeight, precision, obj=None):
 		listWire = []
 		for i, value in enumerate(values):
-			offset = 0
+			# Get text offset from object properties
+			text_offset = getattr(obj, 'TextOffset', 0.0) if obj else 0.0
+			offset = text_offset
 			valueString = listMatrix[i] * -1
-			string = f"{valueString:.{precision}e}"
+			
+			# Format the string with or without units based on ShowUnits property
+			if obj and hasattr(obj, 'ShowUnits'):
+				if obj.ShowUnits:
+					# Determine unit based on diagram type (simplified approach)
+					if hasattr(obj, 'Torque') and obj.Torque:
+						unit = " kN·m"  # Torque unit
+					elif hasattr(obj, 'AxialForce') and obj.AxialForce:
+						unit = " kN"    # Axial force unit
+					elif (hasattr(obj, 'ShearZ') and obj.ShearZ) or (hasattr(obj, 'ShearY') and obj.ShearY):
+						unit = " kN"    # Shear force unit
+					else:
+						unit = " kN·m"  # Default to moment unit
+					string = f"{valueString:.{precision}f}{unit}"
+				else:
+					string = f"{valueString:.{precision}f}"
+			else:
+				string = f"{valueString:.{precision}f}"
+				
 			x = dist * i
 			y = value + offset if value > 0 else value - offset
 
 			text = Part.makeWireString(string, pathFont, fontHeight)
+			
+			# Get text orientation from object properties
+			text_orientation = getattr(obj, 'TextOrientation', 'Horizontal') if obj else 'Horizontal'
+			
 			for wires in text:
 				for wire in wires:
-					wire = wire.rotated(FreeCAD.Vector(0,0,0), FreeCAD.Vector(1,0,0), 90)
+					# Apply different rotations based on text orientation
+					if text_orientation == "Vertical":
+						# Rotate text to be vertical (90 degrees around X, then 90 around Z)
+						wire = wire.rotated(FreeCAD.Vector(0,0,0), FreeCAD.Vector(1,0,0), 90)
+						wire = wire.rotated(FreeCAD.Vector(0,0,0), FreeCAD.Vector(0,0,1), 90)
+					elif text_orientation == "Horizontal":
+						# Keep text horizontal (only 90 degrees around X)
+						wire = wire.rotated(FreeCAD.Vector(0,0,0), FreeCAD.Vector(1,0,0), 90)
+					elif text_orientation == "Follow_Diagram":
+						# Text follows the diagram orientation (no additional rotation)
+						wire = wire.rotated(FreeCAD.Vector(0,0,0), FreeCAD.Vector(1,0,0), 90)
+					
 					wire = wire.translate(FreeCAD.Vector(x, 0, y))
 					listWire += [wire]
 		
@@ -218,11 +242,21 @@ class Diagram:
 
 
 	# Gera o diagrama da matriz passada como argumento
-	def makeDiagram(self, matrix,nodes, members, orderMembers, nPoints, rotacao, escale, fontHeight, precision, drawText):
+	def makeDiagram(self, matrix,nodes, members, orderMembers, nPoints, rotacao, escale, fontHeight, precision, drawText, obj=None, color=None):
 		
 		# e = 1e-11
 		listDiagram = []
 		for i, nameMember in orderMembers:
+			# Check if member exists in the members dictionary
+			if nameMember not in members:
+				print(f"Warning: Member '{nameMember}' not found in members dictionary, skipping")
+				continue
+			
+			# Check if member has valid node information
+			if 'nodes' not in members[nameMember] or len(members[nameMember]['nodes']) < 2:
+				print(f"Warning: Member '{nameMember}' has invalid node data, skipping")
+				continue
+			
 			p1 = nodes[int(members[nameMember]['nodes'][0])]
 			p2 = nodes[int(members[nameMember]['nodes'][1])]
 			length = ((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2 + (p2[2] - p1[2])**2)**0.5
@@ -232,7 +266,7 @@ class Diagram:
 			ordinates = self.separatesOrdinates(values)
 			coordinates = self.generateCoordinates(ordinates, dist)
 			faces = self.generateFaces(coordinates)
-			texts = self.makeText(values, matrix[i], dist, fontHeight, precision)
+			texts = self.makeText(values, matrix[i], dist, fontHeight, precision, obj)
 			
 			# Posiciona o diagrama
 			dx = p2[0] - p1[0]
@@ -277,52 +311,226 @@ class Diagram:
 			
 			return listaNames
 
-
+	def ensureRequiredProperties(self, obj):
+		"""Ensure all required properties exist for backward compatibility"""
+		try:
+			# Basic properties
+			if not hasattr(obj, 'Color'):
+				obj.addProperty("App::PropertyColor", "Color", "Diagram", "elementos para a analise").Color = (255,0,0,0)
+			if not hasattr(obj, 'Transparency'):
+				obj.addProperty("App::PropertyInteger", "Transparency", "Diagram", "elementos para a analise").Transparency = 70
+			if not hasattr(obj, 'FontHeight'):
+				obj.addProperty("App::PropertyInteger", "FontHeight", "Diagram", "Tamanho da fonte no diagrama").FontHeight = 100
+			if not hasattr(obj, 'Precision'):
+				obj.addProperty("App::PropertyInteger", "Precision", "Diagram", "precisão de casas decimais").Precision = 2
+				
+			# Text properties
+			if not hasattr(obj, 'DrawText'):
+				obj.addProperty("App::PropertyBool", "DrawText", "Diagram", "แสดงข้อความบนไดอะแกรม").DrawText = True
+			if not hasattr(obj, 'ShowUnits'):
+				obj.addProperty("App::PropertyBool", "ShowUnits", "Diagram", "แสดงหน่วยในไดอะแกรม").ShowUnits = True
+			if not hasattr(obj, 'TextOrientation'):
+				obj.addProperty("App::PropertyEnumeration", "TextOrientation", "Diagram", "ทิศทางการแสดงข้อความ")
+				obj.TextOrientation = ["Horizontal", "Vertical", "Follow_Diagram"]
+				obj.TextOrientation = "Horizontal"
+			if not hasattr(obj, 'TextOffset'):
+				obj.addProperty("App::PropertyFloat", "TextOffset", "Diagram", "ระยะห่างของข้อความจากไดอะแกรม").TextOffset = 0.0
+			
+			# Individual text controls
+			if not hasattr(obj, 'ShowTextMoment'):
+				obj.addProperty("App::PropertyBool", "ShowTextMoment", "DiagramText", "แสดงข้อความบนไดอะแกรมโมเมนต์").ShowTextMoment = True
+			if not hasattr(obj, 'ShowTextShear'):
+				obj.addProperty("App::PropertyBool", "ShowTextShear", "DiagramText", "แสดงข้อความบนไดอะแกรมแรงเฉือน").ShowTextShear = True
+			if not hasattr(obj, 'ShowTextTorque'):
+				obj.addProperty("App::PropertyBool", "ShowTextTorque", "DiagramText", "แสดงข้อความบนไดอะแกรมแรงบิด").ShowTextTorque = True
+			if not hasattr(obj, 'ShowTextAxial'):
+				obj.addProperty("App::PropertyBool", "ShowTextAxial", "DiagramText", "แสดงข้อความบนไดอะแกรมแรงแกน").ShowTextAxial = True
+			
+			# Diagram enable/disable properties
+			if not hasattr(obj, 'MomentZ'):
+				obj.addProperty("App::PropertyBool", "MomentZ", "DiagramMoment", "แสดงไดอะแกรมโมเมนต์ทิศ Z").MomentZ = False
+			if not hasattr(obj, 'MomentY'):
+				obj.addProperty("App::PropertyBool", "MomentY", "DiagramMoment", "แสดงไดอะแกรมโมเมนต์ทิศ Y").MomentY = False
+			if not hasattr(obj, 'ScaleMoment'):
+				obj.addProperty("App::PropertyFloat", "ScaleMoment", "DiagramMoment", "สเกลไดอะแกรมโมเมนต์").ScaleMoment = 1
+			
+			if not hasattr(obj, 'ShearZ'):
+				obj.addProperty("App::PropertyBool", "ShearZ", "DiagramShear", "แสดงไดอะแกรมแรงเฉือนทิศ Z").ShearZ = False
+			if not hasattr(obj, 'ShearY'):
+				obj.addProperty("App::PropertyBool", "ShearY", "DiagramShear", "แสดงไดอะแกรมแรงเฉือนทิศ Y").ShearY = False
+			if not hasattr(obj, 'ScaleShear'):
+				obj.addProperty("App::PropertyFloat", "ScaleShear", "DiagramShear", "สเกลไดอะแกรมแรงเฉือน").ScaleShear = 1
+			
+			if not hasattr(obj, 'Torque'):
+				obj.addProperty("App::PropertyBool", "Torque", "DiagramTorque", "แสดงไดอะแกรมแรงบิด").Torque = False
+			if not hasattr(obj, 'ScaleTorque'):
+				obj.addProperty("App::PropertyFloat", "ScaleTorque", "DiagramTorque", "สเกลไดอะแกรมแรงบิด").ScaleTorque = 1
+			
+			if not hasattr(obj, 'AxialForce'):
+				obj.addProperty("App::PropertyBool", "AxialForce", "DiagramAxial", "แสดงไดอะแกรมแรงแกน").AxialForce = False
+			if not hasattr(obj, 'ScaleAxial'):
+				obj.addProperty("App::PropertyFloat", "ScaleAxial", "DiagramAxial", "สเกลไดอะแกรมแรงแกน").ScaleAxial = 1
+			
+			# Color properties
+			if not hasattr(obj, 'ColorMoment'):
+				obj.addProperty("App::PropertyColor", "ColorMoment", "DiagramMoment", "สีไดอะแกรมโมเมนต์").ColorMoment = (255,0,0,0)
+			if not hasattr(obj, 'ColorShear'):
+				obj.addProperty("App::PropertyColor", "ColorShear", "DiagramShear", "สีไดอะแกรมแรงเฉือน").ColorShear = (0,255,0,0)
+			if not hasattr(obj, 'ColorTorque'):
+				obj.addProperty("App::PropertyColor", "ColorTorque", "DiagramTorque", "สีไดอะแกรมแรงบิด").ColorTorque = (0,0,255,0)
+			if not hasattr(obj, 'ColorAxial'):
+				obj.addProperty("App::PropertyColor", "ColorAxial", "DiagramAxial", "สีไดอะแกรมแรงแกน").ColorAxial = (255,255,0,0)
+		
+		except Exception as e:
+			# If there's any error adding properties, just continue
+			print(f"Warning: Could not ensure all properties: {e}")
 
 
 	def execute(self, obj):
+		# Ensure all required properties exist (for backward compatibility)
+		self.ensureRequiredProperties(obj)
+		
 		elements = list(filter(lambda element: 'Line' in element.Name or 'Wire' in element.Name,  obj.ObjectBaseCalc.ListElements))
 		nodes = self.mapNodes(elements)
 		members = self.mapMembers(elements, nodes)
 		orderMembers = self.filterMembersSelected(obj)
 
-		listDiagram = []
-		if obj.MomentZ:
-			listDiagram += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.MomentZ),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsMoment, 0, obj.ScaleMoment, obj.FontHeight, obj.Precision, obj.DrawText)
+		# Create separate lists for each diagram type to apply different colors
+		moment_diagrams = []
+		shear_diagrams = []
+		torque_diagrams = []
+		axial_diagrams = []
 		
-		if obj.MomentY:
-			listDiagram += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.MomentY),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsMoment, 90, obj.ScaleMoment, obj.FontHeight, obj.Precision, obj.DrawText)
+		# Check and get attributes safely with defaults
+		moment_z = getattr(obj, 'MomentZ', False)
+		moment_y = getattr(obj, 'MomentY', False)
+		shear_y = getattr(obj, 'ShearY', False)
+		shear_z = getattr(obj, 'ShearZ', False)
+		torque = getattr(obj, 'Torque', False)
+		axial_force = getattr(obj, 'AxialForce', False)
 		
-		if obj.ShearY:
-			listDiagram += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.ShearY),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsShear, 0, obj.ScaleShear, obj.FontHeight, obj.Precision, obj.DrawText)
+		draw_text = getattr(obj, 'DrawText', True)
+		show_text_moment = getattr(obj, 'ShowTextMoment', True)
+		show_text_shear = getattr(obj, 'ShowTextShear', True)
+		show_text_torque = getattr(obj, 'ShowTextTorque', True)
+		show_text_axial = getattr(obj, 'ShowTextAxial', True)
+		
+		color_moment = getattr(obj, 'ColorMoment', (255,0,0,0))
+		color_shear = getattr(obj, 'ColorShear', (0,255,0,0))
+		color_torque = getattr(obj, 'ColorTorque', (0,0,255,0))
+		color_axial = getattr(obj, 'ColorAxial', (255,255,0,0))
+		
+		if moment_z:
+			show_text = draw_text and show_text_moment
+			moment_diagrams += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.MomentZ),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsMoment, 0, obj.ScaleMoment, obj.FontHeight, obj.Precision, show_text, obj, color_moment)
+		
+		if moment_y:
+			show_text = draw_text and show_text_moment
+			moment_diagrams += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.MomentY),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsMoment, 90, obj.ScaleMoment, obj.FontHeight, obj.Precision, show_text, obj, color_moment)
+		
+		if shear_y:
+			show_text = draw_text and show_text_shear
+			shear_diagrams += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.ShearY),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsShear, 0, obj.ScaleShear, obj.FontHeight, obj.Precision, show_text, obj, color_shear)
 
-		if obj.ShearZ:
-			listDiagram += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.ShearZ),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsShear, 90, obj.ScaleShear, obj.FontHeight, obj.Precision, obj.DrawText)
+		if shear_z:
+			show_text = draw_text and show_text_shear
+			shear_diagrams += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.ShearZ),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsShear, 90, obj.ScaleShear, obj.FontHeight, obj.Precision, show_text, obj, color_shear)
 		
-		if obj.Torque:
-			listDiagram += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.Torque),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsTorque, 0, obj.ScaleTorque, obj.FontHeight, obj.Precision, obj.DrawText)
+		if torque:
+			show_text = draw_text and show_text_torque
+			torque_diagrams += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.Torque),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsTorque, 0, obj.ScaleTorque, obj.FontHeight, obj.Precision, show_text, obj, color_torque)
 		
-		if obj.AxialForce:
-			listDiagram += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.AxialForce),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsAxial, 0, obj.ScaleAxial, obj.FontHeight, obj.Precision, obj.DrawText)
+		if axial_force:
+			show_text = draw_text and show_text_axial
+			axial_diagrams += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.AxialForce),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsAxial, 0, obj.ScaleAxial, obj.FontHeight, obj.Precision, show_text, obj, color_axial)
 		
-		if not listDiagram:
+		# Create colored compounds for each diagram type
+		all_shapes = []
+		
+		# Add moment diagrams with red color
+		if moment_diagrams:
+			moment_compound = Part.makeCompound(moment_diagrams)
+			all_shapes.append(moment_compound)
+		
+		# Add shear diagrams with green color
+		if shear_diagrams:
+			shear_compound = Part.makeCompound(shear_diagrams)
+			all_shapes.append(shear_compound)
+			
+		# Add torque diagrams with blue color
+		if torque_diagrams:
+			torque_compound = Part.makeCompound(torque_diagrams)
+			all_shapes.append(torque_compound)
+			
+		# Add axial diagrams with yellow color
+		if axial_diagrams:
+			axial_compound = Part.makeCompound(axial_diagrams)
+			all_shapes.append(axial_compound)
+
+		if not all_shapes:
 			shape = Part.Shape()
 		else:	
-			shape = Part.makeCompound(listDiagram)
+			shape = Part.makeCompound(all_shapes)
 
 		obj.Shape = shape
 
-		# Estilização
+		# Apply mixed colors using DiffuseColor for individual parts
+		if hasattr(obj.ViewObject, 'DiffuseColor') and all_shapes:
+			diffuse_colors = []
+			diagram_types = []
+			
+			# Track which type each compound represents
+			if moment_diagrams:
+				diagram_types.append('moment')
+			if shear_diagrams:
+				diagram_types.append('shear') 
+			if torque_diagrams:
+				diagram_types.append('torque')
+			if axial_diagrams:
+				diagram_types.append('axial')
+			
+			# Apply colors based on diagram type
+			for i, (part_shape, diagram_type) in enumerate(zip(all_shapes, diagram_types)):
+				# Get number of faces/elements to color
+				if hasattr(part_shape, 'Faces') and len(part_shape.Faces) > 0:
+					num_elements = len(part_shape.Faces)
+				elif hasattr(part_shape, 'Edges') and len(part_shape.Edges) > 0:
+					num_elements = len(part_shape.Edges)
+				else:
+					num_elements = 1
+				
+				# Apply appropriate color based on diagram type
+				if diagram_type == 'moment':
+					diffuse_colors.extend([color_moment] * num_elements)
+				elif diagram_type == 'shear':
+					diffuse_colors.extend([color_shear] * num_elements)
+				elif diagram_type == 'torque':
+					diffuse_colors.extend([color_torque] * num_elements)
+				elif diagram_type == 'axial':
+					diffuse_colors.extend([color_axial] * num_elements)
+			
+			if diffuse_colors:
+				obj.ViewObject.DiffuseColor = diffuse_colors
+
+		# General styling
 		obj.ViewObject.LineWidth = 1
 		obj.ViewObject.PointSize = 1
-		obj.ViewObject.LineColor = (int(obj.Color[0]*255),int(obj.Color[1]*255),int(obj.Color[2]*255))
-		obj.ViewObject.PointColor = (int(obj.Color[0]*255),int(obj.Color[1]*255),int(obj.Color[2]*255))
-		obj.ViewObject.ShapeAppearance = (FreeCAD.Material(DiffuseColor=obj.Color,AmbientColor=(0.33,0.33,0.33),SpecularColor=(0.53,0.53,0.53),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
-		obj.ViewObject.Transparency = obj.Transparency
+		transparency = getattr(obj, 'Transparency', 70)
+		obj.ViewObject.Transparency = transparency
 
 
 	def onChanged(self,obj,Parameter):
-		if Parameter == 'edgeLength':
+		# List of parameters that should trigger re-execution
+		trigger_params = [
+			'edgeLength', 'DrawText', 'ShowUnits', 'TextOrientation', 'TextOffset',
+			'ShowTextMoment', 'ShowTextShear', 'ShowTextTorque', 'ShowTextAxial',
+			'MomentZ', 'MomentY', 'ShearY', 'ShearZ', 'Torque', 'AxialForce',
+			'ScaleMoment', 'ScaleShear', 'ScaleTorque', 'ScaleAxial',
+			'ColorMoment', 'ColorShear', 'ColorTorque', 'ColorAxial',
+			'FontHeight', 'Precision', 'Color', 'Transparency'
+		]
+		
+		if Parameter in trigger_params:
 			self.execute(obj)
 
 

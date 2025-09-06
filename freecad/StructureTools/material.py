@@ -1,7 +1,69 @@
-import FreeCAD, App, FreeCADGui, Part, os
-from PySide import QtWidgets
+# Setup FreeCAD stubs for standalone operation
+try:
+    from .utils.freecad_stubs import setup_freecad_stubs, is_freecad_available
+    if not is_freecad_available():
+        setup_freecad_stubs()
+except ImportError:
+    pass
+
+# Import FreeCAD modules (now available via stubs if needed)
+try:
+    import FreeCAD, App, FreeCADGui, Part
+    FREECAD_AVAILABLE = True
+except ImportError:
+    FREECAD_AVAILABLE = False
+
+import os
+
+# Import GUI framework with fallbacks
+try:
+    from PySide import QtWidgets
+except ImportError:
+    try:
+        from PySide2 import QtWidgets
+    except ImportError:
+        # Mock QtWidgets for standalone operation
+        class QtWidgets:
+            class QDialog:
+                def __init__(self): pass
+            class QVBoxLayout:
+                def __init__(self): pass
+            class QLabel:
+                def __init__(self, text): pass
+
+# Import Thai units support
+try:
+    from .utils.universal_thai_units import enhance_with_thai_units, thai_material_units, get_universal_thai_units
+    from .utils.thai_units import get_thai_converter
+    from .utils.units_manager import get_units_manager, format_stress, format_modulus
+    THAI_UNITS_AVAILABLE = True
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    THAI_UNITS_AVAILABLE = False
+    GLOBAL_UNITS_AVAILABLE = False
+    enhance_with_thai_units = lambda x, t: x
+    thai_material_units = lambda f: f
+    get_universal_thai_units = lambda: None
+    get_thai_converter = lambda: None
+    get_units_manager = lambda: None
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e6:.0f} MPa"
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
+
+# Import material standards database
+try:
+    from .data.MaterialDatabase import MaterialDatabase
+    from .data.MaterialStandards import MATERIAL_STANDARDS, MATERIAL_CATEGORIES, get_material_info
+    DATABASE_AVAILABLE = True
+except ImportError:
+    # Fallback if data module not available
+    MATERIAL_STANDARDS = {}
+    MATERIAL_CATEGORIES = {}
+    MaterialDatabase = None
+    DATABASE_AVAILABLE = False
+    def get_material_info(standard_name):
+        return {}
 
 def show_error_message(msg):
     msg_box = QtWidgets.QMessageBox()
@@ -16,17 +78,144 @@ class Material:
     def __init__(self, obj):
         obj.Proxy = self
 
-        obj.addProperty("App::PropertyPressure", "ModulusElasticity", "Material", "Analise Material','Modulus of elasticity").ModulusElasticity = 0.00
-        obj.addProperty("App::PropertyFloat", "PoissonRatio", "Material", "Analise Material','v-> Poisson ratio").PoissonRatio = 0.00
-        obj.addProperty("App::PropertyDensity", "Density", "Material", "Analise Material','d-> Density").Density = 0.00
-
+        # Basic material properties
+        obj.addProperty("App::PropertyPressure", "ModulusElasticity", "Material", "Modulus of elasticity")
+        obj.ModulusElasticity = "200000 MPa"
+        
+        obj.addProperty("App::PropertyFloat", "PoissonRatio", "Material", "Poisson ratio")
+        obj.PoissonRatio = 0.30
+        
+        obj.addProperty("App::PropertyDensity", "Density", "Material", "Material density")
+        obj.Density = "7850 kg/m^3"
+        
+        # Add missing properties that calc expects
+        obj.addProperty("App::PropertyString", "Name", "Material", "Material name")
+        obj.Name = obj.Label if hasattr(obj, 'Label') else 'Material'
+        
+        # Add material standard support
+        obj.addProperty("App::PropertyEnumeration", "MaterialStandard", "Standard", "Material standard from database")
+        if MATERIAL_STANDARDS:
+            obj.MaterialStandard = list(MATERIAL_STANDARDS.keys())
+            obj.MaterialStandard = "ASTM_A992"  # Default
+        else:
+            obj.MaterialStandard = ["Custom"]
+            obj.MaterialStandard = "Custom"
+        
+        # Additional strength properties for design
+        obj.addProperty("App::PropertyPressure", "YieldStrength", "Strength", "Yield strength")
+        obj.YieldStrength = "345 MPa"
+        
+        obj.addProperty("App::PropertyPressure", "UltimateStrength", "Strength", "Ultimate strength")
+        obj.UltimateStrength = "450 MPa"
+        
+        obj.addProperty("App::PropertyString", "GradeDesignation", "Standard", "Grade designation")
+        obj.GradeDesignation = "Gr. 50"
 
     def execute(self, obj): 
-        obj.Label = 'Material'       
-        pass
+        # Update Name to match Label
+        if hasattr(obj, 'Label'):
+            obj.Name = obj.Label
+        else:
+            obj.Label = 'Material'
+            obj.Name = 'Material'
+    
+    def onChanged(self, obj, prop):
+        """Handle property changes with validation."""
+        if prop == 'Label':
+            # Update Name to match Label for calc compatibility
+            if hasattr(obj, 'Name'):
+                obj.Name = obj.Label
+        elif prop == 'MaterialStandard':
+            # Update properties based on selected standard
+            self._update_standard_properties(obj)
+        elif prop == 'PoissonRatio':
+            # Validate Poisson ratio
+            if hasattr(obj, 'PoissonRatio'):
+                nu = obj.PoissonRatio
+                if not (0.0 <= nu <= 0.5):
+                    FreeCAD.Console.PrintError(f"Invalid Poisson ratio {nu:.3f}. Must be between 0.0 and 0.5\n")
+                    obj.PoissonRatio = 0.3  # Reset to default
+    
+    def get_calc_properties(self, obj, unit_length='m', unit_force='kN'):
+        """
+        Get material properties formatted for calc integration.
         
+        This method provides compatibility with the calc system by formatting
+        material properties in the expected units and structure.
+        """
+        try:
+            # Convert density from kg/m³ to target force/volume units
+            density_kg_m3 = obj.Density.getValueAs('kg/m^3')
+            density_kn_m3 = density_kg_m3 * 9.81 / 1000  # Convert to kN/m³
+            
+            # Get elastic properties
+            E = obj.ModulusElasticity.getValueAs(f'{unit_force}/{unit_length}^2')
+            nu = obj.PoissonRatio
+            G = E / (2 * (1 + nu))  # Calculate shear modulus
+            
+            return {
+                'name': obj.Name if hasattr(obj, 'Name') else obj.Label,
+                'E': float(E),
+                'G': float(G), 
+                'nu': float(nu),
+                'density': float(density_kn_m3),
+                'unit_system': f'{unit_force}-{unit_length}'
+            }
+            
+        except Exception as e:
+            FreeCAD.Console.PrintError(f"Error getting calc properties for material: {e}\n")
+            # Return safe defaults
+            return {
+                'name': getattr(obj, 'Name', getattr(obj, 'Label', 'Material')),
+                'E': 200000.0,  # MPa default
+                'G': 77000.0,   # MPa default
+                'nu': 0.3,
+                'density': 77.0,  # kN/m³ default (7850 kg/m³ * 9.81/1000)
+                'unit_system': f'{unit_force}-{unit_length}'
+            }
+    
+    def _update_standard_properties(self, obj):
+        """Update material properties based on selected standard from database."""
+        if not hasattr(obj, 'MaterialStandard'):
+            return
         
-       
+        standard = obj.MaterialStandard
+        if standard in MATERIAL_STANDARDS:
+            props = MATERIAL_STANDARDS[standard]
+            
+            # Update properties from database
+            try:
+                if 'ModulusElasticity' in props:
+                    obj.ModulusElasticity = props['ModulusElasticity']
+                if 'PoissonRatio' in props:
+                    obj.PoissonRatio = props['PoissonRatio']
+                if 'Density' in props:
+                    obj.Density = props['Density']
+                if 'YieldStrength' in props:
+                    obj.YieldStrength = props['YieldStrength']
+                if 'UltimateStrength' in props:
+                    obj.UltimateStrength = props['UltimateStrength']
+                if 'GradeDesignation' in props:
+                    obj.GradeDesignation = props['GradeDesignation']
+                
+                FreeCAD.Console.PrintMessage(f"Updated material properties for standard: {standard}\n")
+                
+            except Exception as e:
+                FreeCAD.Console.PrintError(f"Error updating material properties: {e}\n")
+    
+    def get_available_standards(self):
+        """Get list of available material standards."""
+        return list(MATERIAL_STANDARDS.keys())
+    
+    def get_standards_by_category(self, category):
+        """Get material standards by category (Steel, Concrete, Aluminum)."""
+        if category in MATERIAL_CATEGORIES:
+            return MATERIAL_CATEGORIES[category]
+        return []
+    
+    def get_standard_info(self, standard_name):
+        """Get detailed information about a material standard."""
+        return get_material_info(standard_name)
 
 
     def onChanged(self,obj,Parameter):
@@ -420,25 +609,147 @@ static char * material_xpm[] = {
 
 
 class CommandMaterial():
-    """My new command"""
+    """Enhanced material command with database support"""
 
     def GetResources(self):
-        return {"Pixmap"  : os.path.join(ICONPATH, "icons/material.svg"), # the name of a svg file available in the resources
-                "Accel"   : "Shift+M", # a default shortcut (optional)
-                "MenuText": "Material",
-                "ToolTip" : "Adds material to structure member"}
+        return {"Pixmap"  : os.path.join(ICONPATH, "icons/material.svg"),
+                "Accel"   : "Shift+M",
+                "MenuText": "Material (Enhanced)",
+                "ToolTip" : "Create material with database standards support"}
 
     def Activated(self):
-        doc = FreeCAD.ActiveDocument
-        obj = doc.addObject("Part::FeaturePython", "Material")
+        # Show material selection dialog if standards are available
+        if MATERIAL_STANDARDS:
+            self.show_material_selection_dialog()
+        else:
+            self.create_basic_material()
 
+    def show_material_selection_dialog(self):
+        """Show dialog to select material standard from database."""
+        try:
+            from PySide2 import QtWidgets, QtCore
+        except ImportError:
+            from PySide import QtWidgets, QtCore
+        
+        # Create dialog
+        dialog = QtWidgets.QDialog()
+        dialog.setWindowTitle("Select Material Standard")
+        dialog.setMinimumWidth(400)
+        dialog.setMinimumHeight(300)
+        
+        layout = QtWidgets.QVBoxLayout()
+        
+        # Category selection
+        category_group = QtWidgets.QGroupBox("Material Category")
+        category_layout = QtWidgets.QVBoxLayout()
+        
+        category_combo = QtWidgets.QComboBox()
+        categories = list(MATERIAL_CATEGORIES.keys())
+        category_combo.addItems(categories)
+        category_layout.addWidget(category_combo)
+        category_group.setLayout(category_layout)
+        layout.addWidget(category_group)
+        
+        # Material standard selection
+        standard_group = QtWidgets.QGroupBox("Material Standard")
+        standard_layout = QtWidgets.QVBoxLayout()
+        
+        standard_list = QtWidgets.QListWidget()
+        standard_layout.addWidget(standard_list)
+        standard_group.setLayout(standard_layout)
+        layout.addWidget(standard_group)
+        
+        # Properties preview
+        preview_group = QtWidgets.QGroupBox("Properties Preview")
+        preview_layout = QtWidgets.QVBoxLayout()
+        preview_text = QtWidgets.QTextEdit()
+        preview_text.setMaximumHeight(120)
+        preview_text.setReadOnly(True)
+        preview_layout.addWidget(preview_text)
+        preview_group.setLayout(preview_layout)
+        layout.addWidget(preview_group)
+        
+        # Buttons
+        button_layout = QtWidgets.QHBoxLayout()
+        create_button = QtWidgets.QPushButton("Create Material")
+        cancel_button = QtWidgets.QPushButton("Cancel")
+        button_layout.addWidget(create_button)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+        
+        dialog.setLayout(layout)
+        
+        # Connect signals
+        def update_standards():
+            category = category_combo.currentText()
+            standard_list.clear()
+            if category in MATERIAL_CATEGORIES:
+                standards = MATERIAL_CATEGORIES[category]
+                standard_list.addItems(standards)
+        
+        def update_preview():
+            current = standard_list.currentItem()
+            if current:
+                standard_name = current.text()
+                props = get_material_info(standard_name)
+                preview_text.clear()
+                for key, value in props.items():
+                    preview_text.append(f"{key}: {value}")
+        
+        category_combo.currentTextChanged.connect(update_standards)
+        standard_list.itemClicked.connect(update_preview)
+        cancel_button.clicked.connect(dialog.reject)
+        
+        # Initialize
+        update_standards()
+        
+        def create_material():
+            current = standard_list.currentItem()
+            if current:
+                standard_name = current.text()
+                self.create_material_from_standard(standard_name)
+                dialog.accept()
+            else:
+                QtWidgets.QMessageBox.warning(dialog, "Warning", "Please select a material standard")
+        
+        create_button.clicked.connect(create_material)
+        
+        # Show dialog
+        dialog.exec_()
+
+    def create_material_from_standard(self, standard_name):
+        """Create material from selected standard."""
+        doc = FreeCAD.ActiveDocument
+        if not doc:
+            return
+        
+        # Create material object
+        obj = doc.addObject("Part::FeaturePython", f"Material_{standard_name}")
         Material(obj)
         ViewProviderMaterial(obj.ViewObject)
-        FreeCAD.ActiveDocument.recompute()        
-        return
+        
+        # Set standard
+        obj.MaterialStandard = standard_name
+        
+        # Properties will be auto-updated by onChanged handler
+        doc.recompute()
+        
+        FreeCAD.Console.PrintMessage(f"Created material with standard: {standard_name}\n")
+
+    def create_basic_material(self):
+        """Create basic material (fallback)."""
+        doc = FreeCAD.ActiveDocument
+        if not doc:
+            return
+        
+        obj = doc.addObject("Part::FeaturePython", "Material")
+        Material(obj)
+        ViewProviderMaterial(obj.ViewObject)
+        doc.recompute()
 
     def IsActive(self):
-        
-        return True
+        return FreeCAD.ActiveDocument is not None
 
-FreeCADGui.addCommand("material", CommandMaterial())
+# Only register command if FreeCAD GUI is available
+if FREECAD_AVAILABLE and 'FreeCADGui' in globals():
+    FreeCADGui.addCommand("material", CommandMaterial())

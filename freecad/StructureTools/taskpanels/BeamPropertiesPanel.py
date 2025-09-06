@@ -11,6 +11,19 @@ import FreeCADGui as Gui
 from PySide2 import QtCore, QtGui, QtWidgets
 from typing import Optional
 
+# Import Global Units System
+try:
+    from ..utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
 
 class BeamPropertiesPanel:
     """Professional task panel for beam properties."""
@@ -242,7 +255,7 @@ class BeamPropertiesPanel:
                 self.section_size_edit.setText(self.beam_obj.SectionSize)
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error populating beam form: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error populating beam form: {e}\n")
     
     def _connect_signals(self) -> None:
         """Connect UI signals."""
@@ -270,7 +283,7 @@ class BeamPropertiesPanel:
     def _browse_material(self) -> None:
         """Browse for material object."""
         # This would open material selection dialog
-        App.Console.PrintMessage("Material browser not yet implemented\n")
+        FreeCAD.Console.PrintMessage("Material browser not yet implemented\n")
     
     def accept(self) -> None:
         """Apply changes."""
@@ -303,7 +316,7 @@ class BeamPropertiesPanel:
             App.ActiveDocument.recompute()
             
         except Exception as e:
-            App.Console.PrintError(f"Error updating beam: {e}\n")
+            FreeCAD.Console.PrintError(f"Error updating beam: {e}\n")
         
         Gui.Control.closeDialog()
     

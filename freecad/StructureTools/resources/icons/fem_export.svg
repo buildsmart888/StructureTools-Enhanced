@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Structural Model (left) -->
+  <g stroke="#e74c3c" stroke-width="2" fill="none">
+    <!-- Simple beam structure -->
+    <line x1="4" y1="32" x2="28" y2="32" stroke-width="4"/>
+    
+    <!-- Supports -->
+    <g stroke="#2c3e50" stroke-width="2">
+      <path d="M2 32 L6 36 L6 28 Z" fill="#2c3e50"/>
+      <path d="M26 32 L30 36 L30 28 Z" fill="#2c3e50"/>
+    </g>
+    
+    <!-- Loads -->
+    <g stroke="#f39c12" stroke-width="2" fill="#f39c12">
+      <path d="M12 22 L12 30 M10 28 L12 30 L14 28"/>
+      <path d="M20 22 L20 30 M18 28 L20 30 L22 28"/>
+    </g>
+  </g>
+  
+  <!-- Export arrow -->
+  <g fill="#27ae60" stroke="#27ae60" stroke-width="2">
+    <path d="M32 32 L44 32 M40 28 L44 32 L40 36" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- FEM Mesh (right) -->
+  <g stroke="#3498db" stroke-width="1" fill="none">
+    <!-- Mesh grid -->
+    <g stroke="#3498db" stroke-width="0.8" opacity="0.7">
+      <!-- Horizontal lines -->
+      <line x1="48" y1="20" x2="60" y2="20"/>
+      <line x1="48" y1="24" x2="60" y2="24"/>
+      <line x1="48" y1="28" x2="60" y2="28"/>
+      <line x1="48" y1="32" x2="60" y2="32"/>
+      <line x1="48" y1="36" x2="60" y2="36"/>
+      <line x1="48" y1="40" x2="60" y2="40"/>
+      <line x1="48" y1="44" x2="60" y2="44"/>
+      
+      <!-- Vertical lines -->
+      <line x1="48" y1="20" x2="48" y2="44"/>
+      <line x1="51" y1="20" x2="51" y2="44"/>
+      <line x1="54" y1="20" x2="54" y2="44"/>
+      <line x1="57" y1="20" x2="57" y2="44"/>
+      <line x1="60" y1="20" x2="60" y2="44"/>
+    </g>
+    
+    <!-- Nodes -->
+    <g fill="#3498db">
+      <circle cx="48" cy="20" r="1"/>
+      <circle cx="51" cy="20" r="1"/>
+      <circle cx="54" cy="20" r="1"/>
+      <circle cx="57" cy="20" r="1"/>
+      <circle cx="60" cy="20" r="1"/>
+      
+      <circle cx="48" cy="24" r="1"/>
+      <circle cx="51" cy="24" r="1"/>
+      <circle cx="54" cy="24" r="1"/>
+      <circle cx="57" cy="24" r="1"/>
+      <circle cx="60" cy="24" r="1"/>
+      
+      <circle cx="48" cy="28" r="1"/>
+      <circle cx="51" cy="28" r="1"/>
+      <circle cx="54" cy="28" r="1"/>
+      <circle cx="57" cy="28" r="1"/>
+      <circle cx="60" cy="28" r="1"/>
+      
+      <circle cx="48" cy="32" r="1"/>
+      <circle cx="51" cy="32" r="1"/>
+      <circle cx="54" cy="32" r="1"/>
+      <circle cx="57" cy="32" r="1"/>
+      <circle cx="60" cy="32" r="1"/>
+      
+      <circle cx="48" cy="36" r="1"/>
+      <circle cx="51" cy="36" r="1"/>
+      <circle cx="54" cy="36" r="1"/>
+      <circle cx="57" cy="36" r="1"/>
+      <circle cx="60" cy="36" r="1"/>
+      
+      <circle cx="48" cy="40" r="1"/>
+      <circle cx="51" cy="40" r="1"/>
+      <circle cx="54" cy="40" r="1"/>
+      <circle cx="57" cy="40" r="1"/>
+      <circle cx="60" cy="40" r="1"/>
+      
+      <circle cx="48" cy="44" r="1"/>
+      <circle cx="51" cy="44" r="1"/>
+      <circle cx="54" cy="44" r="1"/>
+      <circle cx="57" cy="44" r="1"/>
+      <circle cx="60" cy="44" r="1"/>
+    </g>
+  </g>
+  
+  <!-- FEM label -->
+  <rect x="46" y="48" width="16" height="8" fill="#ecf0f1" stroke="#3498db" stroke-width="1"/>
+  <text x="54" y="53" text-anchor="middle" font-family="Arial" font-size="6" fill="#3498db">FEM ANALYSIS</text>
+  
+  <text x="32" y="62" text-anchor="middle" font-family="Arial" font-size="8" fill="#2c3e50">FEM Export</text>
+</svg>

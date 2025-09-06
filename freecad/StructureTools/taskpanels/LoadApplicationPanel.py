@@ -12,6 +12,18 @@ from PySide2 import QtCore, QtGui, QtWidgets
 import os
 from typing import Optional, Dict, List, Any
 
+# Import Global Units System
+try:
+    from ..utils.units_manager import (
+        get_units_manager, format_force, format_stress
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+
 
 class LoadApplicationPanel:
     """
@@ -547,7 +559,7 @@ class LoadApplicationPanel:
     def _preview_loads(self) -> None:
         """Preview loads in 3D view."""
         # This would create visual representations of loads
-        App.Console.PrintMessage("Load preview functionality not yet implemented\n")
+        FreeCAD.Console.PrintMessage("Load preview functionality not yet implemented\n")
     
     def _clear_all_loads(self) -> None:
         """Clear all load inputs."""
@@ -565,7 +577,7 @@ class LoadApplicationPanel:
     def accept(self) -> None:
         """Apply loads to structure object."""
         if not self.structure_obj:
-            App.Console.PrintWarning("No structure object selected for load application\n")
+            FreeCAD.Console.PrintWarning("No structure object selected for load application\n")
             return
         
         try:
@@ -576,10 +588,10 @@ class LoadApplicationPanel:
                 elif self.structure_obj.Type == "StructuralBeam":
                     self._apply_beam_loads()
             
-            App.Console.PrintMessage("Loads applied successfully\n")
+            FreeCAD.Console.PrintMessage("Loads applied successfully\n")
             
         except Exception as e:
-            App.Console.PrintError(f"Error applying loads: {e}\n")
+            FreeCAD.Console.PrintError(f"Error applying loads: {e}\n")
         
         Gui.Control.closeDialog()
     

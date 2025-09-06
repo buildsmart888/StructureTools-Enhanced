@@ -8,9 +8,32 @@ freecad_dir = os.path.join(repo_root, '..', 'freecad')
 if freecad_dir not in sys.path:
     sys.path.insert(0, freecad_dir)
 
-# Minimal FreeCAD stubs
+# Minimal FreeCAD stubs with Vector class
+class FakeVector:
+    def __init__(self, x=0, y=0, z=0):
+        self.x = x
+        self.y = y
+        self.z = z
+    
+    def __add__(self, other):
+        return FakeVector(self.x + other.x, self.y + other.y, self.z + other.z)
+    
+    def __sub__(self, other):
+        return FakeVector(self.x - other.x, self.y - other.y, self.z - other.z)
+    
+    def __mul__(self, scalar):
+        return FakeVector(self.x * scalar, self.y * scalar, self.z * scalar)
+    
+    def normalize(self):
+        length = (self.x**2 + self.y**2 + self.z**2)**0.5
+        if length > 0:
+            return FakeVector(self.x/length, self.y/length, self.z/length)
+        return FakeVector(0, 0, 0)
+
 FreeCAD = types.SimpleNamespace()
+FreeCAD.Vector = FakeVector
 App = FreeCAD
+
 class QMessageBoxStub:
     Critical = 2
     Ok = 0
@@ -37,7 +60,7 @@ class FakeFace:
 class FakeVertex:
     def __init__(self, x, y, z):
         self.X = x; self.Y = y; self.Z = z
-        self.Point = types.SimpleNamespace(x=x, y=y, z=z)
+        self.Point = FakeVector(x, y, z)
 
 class FakePlate:
     def __init__(self, name, verts):

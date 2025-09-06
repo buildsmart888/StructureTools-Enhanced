@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Status panel background -->
+  <rect x="8" y="8" width="48" height="36" fill="#f8f9fa" stroke="#2c3e50" stroke-width="2" rx="4"/>
+  
+  <!-- Status indicators -->
+  <g>
+    <!-- BIM connection status -->
+    <circle cx="16" cy="18" r="4" fill="#27ae60"/>
+    <text x="24" y="22" font-family="Arial" font-size="8" fill="#2c3e50">BIM Connected</text>
+    
+    <!-- Structural elements status -->
+    <circle cx="16" cy="28" r="4" fill="#3498db"/>
+    <text x="24" y="32" font-family="Arial" font-size="8" fill="#2c3e50">Elements: 15</text>
+    
+    <!-- Analysis status -->
+    <circle cx="16" cy="38" r="4" fill="#f39c12"/>
+    <text x="24" y="42" font-family="Arial" font-size="8" fill="#2c3e50">Analysis Ready</text>
+  </g>
+  
+  <!-- Link visualization -->
+  <g stroke="#7f8c8d" stroke-width="1" stroke-dasharray="2,2">
+    <path d="M20 18 Q30 14 40 18"/>
+    <path d="M20 28 Q30 24 40 28"/>
+    <path d="M20 38 Q30 34 40 38"/>
+  </g>
+  
+  <!-- Connected icons -->
+  <g fill="#2c3e50">
+    <rect x="38" y="14" width="8" height="8" fill="#ecf0f1" stroke="#2c3e50" stroke-width="1"/>
+    <rect x="38" y="24" width="8" height="8" fill="#e8f4fd" stroke="#3498db" stroke-width="1"/>
+    <rect x="38" y="34" width="8" height="8" fill="#fef9e7" stroke="#f39c12" stroke-width="1"/>
+  </g>
+  
+  <!-- Status title -->
+  <text x="32" y="54" text-anchor="middle" font-family="Arial" font-size="10" fill="#2c3e50" font-weight="bold">Integration Status</text>
+  
+  <text x="32" y="62" text-anchor="middle" font-family="Arial" font-size="8" fill="#2c3e50">BIM Status</text>
+</svg>

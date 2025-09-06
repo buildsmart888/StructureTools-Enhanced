@@ -12,6 +12,19 @@ from PySide2 import QtCore, QtGui, QtWidgets
 import os
 from typing import Optional, Dict, Any
 
+# Import Global Units System
+try:
+    from ..utils.units_manager import (
+        get_units_manager, format_force, format_stress, format_modulus
+    )
+    GLOBAL_UNITS_AVAILABLE = True
+except ImportError:
+    GLOBAL_UNITS_AVAILABLE = False
+    get_units_manager = lambda: None
+    format_force = lambda x: f"{x/1000:.2f} kN"
+    format_stress = lambda x: f"{x/1e6:.1f} MPa"
+    format_modulus = lambda x: f"{x/1e9:.0f} GPa"
+
 # Import material standards
 from ..data.MaterialStandards import MATERIAL_STANDARDS, MATERIAL_CATEGORIES, get_materials_by_category
 
@@ -313,7 +326,7 @@ class MaterialTaskPanel:
             self._update_validation_status()
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error populating material form: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error populating material form: {e}\n")
     
     def _connect_signals(self) -> None:
         """Connect UI signals to handlers."""
@@ -384,7 +397,7 @@ class MaterialTaskPanel:
             self._update_strength_ratio()
             
         except Exception as e:
-            App.Console.PrintWarning(f"Error updating from standard: {e}\n")
+            FreeCAD.Console.PrintWarning(f"Error updating from standard: {e}\n")
     
     def _update_calculated_values(self) -> None:
         """Update calculated values like shear modulus."""
@@ -531,10 +544,10 @@ class MaterialTaskPanel:
             self.material_obj.touch()
             App.ActiveDocument.recompute()
             
-            App.Console.PrintMessage(f"Material {self.material_obj.Label} updated successfully\n")
+            FreeCAD.Console.PrintMessage(f"Material {self.material_obj.Label} updated successfully\n")
             
         except Exception as e:
-            App.Console.PrintError(f"Error updating material: {e}\n")
+            FreeCAD.Console.PrintError(f"Error updating material: {e}\n")
         
         # Close dialog
         Gui.Control.closeDialog()
