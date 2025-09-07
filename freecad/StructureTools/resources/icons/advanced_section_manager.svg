@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Background -->
+  <rect width="64" height="64" fill="#f0f0f0" stroke="#cccccc" stroke-width="1"/>
+  
+  <!-- I-beam section outline -->
+  <g transform="translate(8, 12)">
+    <!-- Top flange -->
+    <rect x="0" y="0" width="48" height="8" fill="#4a90e2" stroke="#2171b5" stroke-width="1"/>
+    <!-- Web -->
+    <rect x="20" y="8" width="8" height="32" fill="#4a90e2" stroke="#2171b5" stroke-width="1"/>
+    <!-- Bottom flange -->
+    <rect x="0" y="32" width="48" height="8" fill="#4a90e2" stroke="#2171b5" stroke-width="1"/>
+  </g>
+  
+  <!-- Database symbol -->
+  <g transform="translate(42, 45)">
+    <!-- Database cylinders -->
+    <ellipse cx="8" cy="2" rx="6" ry="2" fill="#50c878" stroke="#228b22" stroke-width="1"/>
+    <rect x="2" y="2" width="12" height="8" fill="#50c878" stroke="#228b22" stroke-width="1"/>
+    <ellipse cx="8" cy="10" rx="6" ry="2" fill="#50c878" stroke="#228b22" stroke-width="1"/>
+    
+    <!-- Connection lines -->
+    <line x1="2" y1="2" x2="2" y2="10" stroke="#228b22" stroke-width="1"/>
+    <line x1="14" y1="2" x2="14" y2="10" stroke="#228b22" stroke-width="1"/>
+  </g>
+  
+  <!-- Gear/settings icon -->
+  <g transform="translate(4, 45)">
+    <circle cx="8" cy="8" r="6" fill="none" stroke="#666666" stroke-width="2"/>
+    <circle cx="8" cy="8" r="2" fill="#666666"/>
+    <!-- Gear teeth -->
+    <rect x="7" y="0" width="2" height="3" fill="#666666"/>
+    <rect x="7" y="13" width="2" height="3" fill="#666666"/>
+    <rect x="0" y="7" width="3" height="2" fill="#666666"/>
+    <rect x="13" y="7" width="3" height="2" fill="#666666"/>
+  </g>
+  
+  <!-- Plus symbol for "Advanced" -->
+  <g transform="translate(24, 4)">
+    <circle cx="8" cy="4" r="3" fill="#ff6b35" stroke="#cc4125" stroke-width="1"/>
+    <line x1="8" y1="2" x2="8" y2="6" stroke="white" stroke-width="1.5"/>
+    <line x1="6" y1="4" x2="10" y2="4" stroke="white" stroke-width="1.5"/>
+  </g>
+</svg>

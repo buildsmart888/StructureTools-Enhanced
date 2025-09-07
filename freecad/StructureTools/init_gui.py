@@ -105,6 +105,20 @@ class StructureTools(Gui.Workbench):
 		from freecad.StructureTools import command_design_optimizer
 		# Phase 2 - Comprehensive Reporting
 		from freecad.StructureTools import command_report_generator
+		
+		# Advanced Section Manager with steelpy integration
+		try:
+			from freecad.StructureTools.commands import advanced_section_manager
+			App.Console.PrintMessage("Advanced Section Manager command loaded successfully\n")
+		except Exception as e:
+			App.Console.PrintError(f"Failed to load Advanced Section Manager command: {e}\n")
+		
+		# TaskPanel version of Advanced Section Manager (more stable)
+		try:
+			from freecad.StructureTools.gui import SectionManagerTaskPanel
+			App.Console.PrintMessage("Advanced Section Manager TaskPanel loaded successfully\n")
+		except Exception as e:
+			App.Console.PrintError(f"Failed to load Advanced Section Manager TaskPanel: {e}\n")
 
 		
 		import DraftTools, SketcherGui
@@ -115,13 +129,13 @@ class StructureTools(Gui.Workbench):
 		self.appendToolbar('DraftTools', ["Draft_SelectPlane", "Draft_SetStyle"])
 
 		self.appendToolbar('StructureLoad', ["load_distributed","load_nodal", "load_point", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui"])
-		self.appendToolbar('StructureTools', ["member", "suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate"])
+		self.appendToolbar('StructureTools', ["member", "suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "StructureTools_AdvancedSectionManager", "StructureTools_AdvancedSectionManagerTaskPanel", "CreateStructuralPlate"])
 		self.appendToolbar('StructureResults', ["calc","diagram", "ViewReactionTable", "GenerateStructuralReport"])
 		self.appendToolbar('AdvancedAnalysis', ["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
 		self.appendToolbar('DesignCodes', ["RunAISCDesign", "RunACIDesign"])
 		self.appendToolbar('BIMIntegration', ["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])
 		
-		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "load_point", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate", "calc", "diagram", "ViewReactionTable", "GenerateStructuralReport"])
+		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "load_point", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "StructureTools_AdvancedSectionManager", "StructureTools_AdvancedSectionManagerTaskPanel", "CreateStructuralPlate", "calc", "diagram", "ViewReactionTable", "GenerateStructuralReport"])
 		self.appendMenu('Advanced Analysis',["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
 		self.appendMenu('Design Codes',["RunAISCDesign", "RunACIDesign"])
 		self.appendMenu('BIM Integration',["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])

@@ -778,7 +778,7 @@ class Calc:
 
 				ang = line.RotationSection.getValueAs('rad')
 				J  = float(App.Units.Quantity(section.MomentInertiaPolar, 'mm^4').getValueAs(unitLength+"^4"))
-				A  = float(section.AreaSection.getValueAs(unitLength+"^2"))
+				A  = float(section.Area.getValueAs(unitLength+"^2"))
 				Iy = float(App.Units.Quantity(section.MomentInertiaY, 'mm^4').getValueAs(unitLength+"^4"))
 				Iz = float(App.Units.Quantity(section.MomentInertiaZ, 'mm^4').getValueAs(unitLength+"^4"))
 				Iyz = float(App.Units.Quantity(section.ProductInertiaYZ, 'mm^4').getValueAs(unitLength+"^4"))
