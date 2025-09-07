@@ -6,8 +6,19 @@ Section Drawing System
 
 import FreeCAD as App
 import Part
-import Draft
+try:
+    import Draft
+    DRAFT_AVAILABLE = True
+except Exception:
+    DRAFT_AVAILABLE = False
+    print('[WARNING] Draft module not available; dimension helpers will be limited')
 import math
+# Optional Arch (BIM) integration for ArchProfile mapping
+try:
+    import Arch
+    ARCH_AVAILABLE = True
+except Exception:
+    ARCH_AVAILABLE = False
 
 class SectionDrawer:
     """Class for drawing steel sections from geometry data"""
@@ -242,8 +253,8 @@ class SectionDrawer:
             # Create wire and face
             wire = Part.makePolygon(vectors)
             face = Part.Face(wire)
-            
-            # Create FreeCAD object
+
+            # Create FreeCAD object (Part feature)
             section_obj = App.ActiveDocument.addObject("Part::Feature", f"Section_{section_name}")
             section_obj.Shape = face
             section_obj.Label = section_name
@@ -255,10 +266,94 @@ class SectionDrawer:
             
             App.ActiveDocument.recompute()
             
+            # If Arch is available, attempt to create an ArchProfile from the face
+            if ARCH_AVAILABLE:
+                try:
+                    # Arch.makeProfile accepts a shape or object and returns a Profile object
+                    if hasattr(Arch, 'makeProfile'):
+                        profile = Arch.makeProfile(section_obj)
+                        # Label the profile clearly
+                        try:
+                            profile.Label = f"Profile_{section_name}"
+                        except Exception:
+                            pass
+                        App.ActiveDocument.recompute()
+                        return profile
+                except Exception as e:
+                    print(f"[WARNING] Arch profile creation failed: {e}")
+
             return section_obj
-            
         except Exception as e:
             print(f"[ERROR] Failed to create section from points: {e}")
+            return None
+
+    def create_arch_profile_from_points(self, points, section_name):
+        """Create an ArchProfile from outline points when Arch module is available.
+
+        This creates a Draft wire if Draft is available (preferred), then calls
+        Arch.makeProfile() to produce a Profile object. Falls back to creating a
+        Part feature and then attempting Arch.makeProfile on it.
+        """
+        if not ARCH_AVAILABLE:
+            print("[WARNING] Arch module not available; cannot create ArchProfile")
+            return None
+
+        try:
+            # Convert to FreeCAD vectors
+            vectors = []
+            for point in points:
+                if isinstance(point, (list, tuple)) and len(point) >= 2:
+                    vectors.append(App.Vector(point[0], point[1], 0))
+
+            if len(vectors) < 3:
+                print("[ERROR] Not enough points to create ArchProfile")
+                return None
+
+            # Ensure closed polygon
+            if vectors[0] != vectors[-1]:
+                vectors.append(vectors[0])
+
+            # Prefer Draft wire when available (cleaner profile input)
+            if DRAFT_AVAILABLE:
+                try:
+                    import Draft
+                    wire_obj = Draft.makeWire(vectors, closed=True)
+                    App.ActiveDocument.recompute()
+                    if hasattr(Arch, 'makeProfile'):
+                        profile = Arch.makeProfile(wire_obj)
+                        try:
+                            profile.Label = f"Profile_{section_name}"
+                        except Exception:
+                            pass
+                        App.ActiveDocument.recompute()
+                        return profile
+                except Exception as e:
+                    print(f"[WARNING] Draft->Arch profile creation failed: {e}")
+
+            # Fallback: create a Part face and then call Arch.makeProfile
+            try:
+                wire = Part.makePolygon(vectors)
+                face = Part.Face(wire)
+                section_obj = App.ActiveDocument.addObject("Part::Feature", f"Section_{section_name}")
+                section_obj.Shape = face
+                section_obj.Label = section_name
+                App.ActiveDocument.recompute()
+
+                if hasattr(Arch, 'makeProfile'):
+                    profile = Arch.makeProfile(section_obj)
+                    try:
+                        profile.Label = f"Profile_{section_name}"
+                    except Exception:
+                        pass
+                    App.ActiveDocument.recompute()
+                    return profile
+                return section_obj
+            except Exception as e:
+                print(f"[ERROR] Failed to create ArchProfile fallback: {e}")
+                return None
+
+        except Exception as e:
+            print(f"[ERROR] Arch profile creation failed: {e}")
             return None
     
     def calculate_i_beam_outline(self, height, width, web_thickness, flange_thickness):

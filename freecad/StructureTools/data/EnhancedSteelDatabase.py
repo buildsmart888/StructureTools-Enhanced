@@ -27,9 +27,22 @@ class EnhancedSteelDatabase:
         self.database_file = Path(__file__).parent / "enhanced_steel_database.json"
         self.sections_database = {}
         self.shape_geometries = {}
-        
-        if self.available:
-            self.initialize_enhanced_database()
+
+        # If a cached database file exists, prefer loading it so imported
+        # profiles are available even when steelpy is not installed.
+        if self.database_file.exists():
+            try:
+                self.load_from_cache()
+                self.available = True
+            except Exception as e:
+                print(f"[WARNING] Failed to load cache during init: {e}")
+                # Fall back to building if steelpy is available
+                if self.available:
+                    self.initialize_enhanced_database()
+        else:
+            # No cache found: initialize only if steelpy is available
+            if self.available:
+                self.initialize_enhanced_database()
     
     def initialize_enhanced_database(self):
         """Initialize enhanced database with complete information"""
