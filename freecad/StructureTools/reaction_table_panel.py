@@ -288,8 +288,17 @@ class ReactionTablePanel:
                 if node.support_RZ: support_conditions.append("RZ")
                 detail_text += f"    Support conditions: {', '.join(support_conditions)}\n"
                 
-                # Add node coordinates
-                detail_text += f"   Node coordinates: ({node.X:.3f}, {node.Y:.3f}, {node.Z:.3f})\n"
+                # Add node coordinates in FreeCAD coordinate system for consistency
+                pynite_x = node.X * 1000 if abs(node.X) < 100 else node.X
+                pynite_y = node.Y * 1000 if abs(node.Y) < 100 else node.Y  
+                pynite_z = node.Z * 1000 if abs(node.Z) < 100 else node.Z
+                
+                # Convert to FreeCAD coordinates
+                freecad_x = pynite_x
+                freecad_y = pynite_z  # Y becomes Z
+                freecad_z = pynite_y  # Z becomes Y
+                
+                detail_text += f"   Node coordinates (FreeCAD): ({freecad_x:.3f}, {freecad_y:.3f}, {freecad_z:.3f})\n"
             
             # Add total reactions to detail text
             detail_text += f"  Total reactions - Sum FX: {sum_fx:.3f}, Sum FY: {sum_fy:.3f}, Sum FZ: {sum_fz:.3f}\n"
@@ -325,13 +334,19 @@ class ReactionTablePanel:
                 
                 # Collect reaction data for each supported node from properties
                 for i, node_name in enumerate(calc_obj.ReactionNodes):
-                    # Get node coordinates from model if possible
+                    # Get node coordinates from model if possible - Convert to FreeCAD coordinate system
                     x_pos = y_pos = z_pos = 0.0
                     
                     if model and node_name in model.nodes:
-                        x_pos = model.nodes[node_name].X
-                        y_pos = model.nodes[node_name].Y
-                        z_pos = model.nodes[node_name].Z
+                        pynite_node = model.nodes[node_name]
+                        # Convert from Pynite to FreeCAD coordinate system for consistency
+                        pynite_x = pynite_node.X * 1000 if abs(pynite_node.X) < 100 else pynite_node.X
+                        pynite_y = pynite_node.Y * 1000 if abs(pynite_node.Y) < 100 else pynite_node.Y  
+                        pynite_z = pynite_node.Z * 1000 if abs(pynite_node.Z) < 100 else pynite_node.Z
+                        
+                        x_pos = pynite_x  # X remains same
+                        y_pos = pynite_z  # Y becomes Pynite's Z (depth) - FIXED
+                        z_pos = pynite_y  # Z becomes Pynite's Y (vertical) - FIXED
                     
                     # Get reaction values from stored properties
                     rx = calc_obj.ReactionX[i] if i < len(calc_obj.ReactionX) else 0.0
@@ -378,10 +393,19 @@ class ReactionTablePanel:
                         my = node.RxnMY.get(load_combo, 0.0) if hasattr(node, 'RxnMY') else 0.0
                         mz = node.RxnMZ.get(load_combo, 0.0) if hasattr(node, 'RxnMZ') else 0.0
                         
-                        # Node coordinates
-                        x_pos = node.X
-                        y_pos = node.Y
-                        z_pos = node.Z
+                        # Node coordinates - Convert from Pynite to FreeCAD coordinate system
+                        # Pynite: X (horizontal), Y (vertical), Z (depth)  
+                        # FreeCAD: X (horizontal), Y (depth), Z (vertical)
+                        # Table should show FreeCAD coordinates for consistency
+                        
+                        pynite_x = node.X * 1000 if abs(node.X) < 100 else node.X  # Convert to mm if in meters
+                        pynite_y = node.Y * 1000 if abs(node.Y) < 100 else node.Y  # Convert to mm if in meters  
+                        pynite_z = node.Z * 1000 if abs(node.Z) < 100 else node.Z  # Convert to mm if in meters
+                        
+                        # Map to FreeCAD coordinate system for consistent display
+                        x_pos = pynite_x  # X remains same
+                        y_pos = pynite_z  # Y becomes Pynite's Z (depth) - FIXED
+                        z_pos = pynite_y  # Z becomes Pynite's Y (vertical) - FIXED
                         
                         # Format values
                         fx_formatted = float(rx) if not units_available else rx
@@ -631,6 +655,18 @@ class ReactionTablePanel:
             
             # Get current load combination
             load_combo = self.load_combo_dropdown.currentText()
+            if not load_combo:
+                load_combo = "Unknown"
+            
+            # Check if table has data
+            if self.table_widget.rowCount() == 0:
+                FreeCAD.Console.PrintWarning("No data to export to Word\n")
+                QtWidgets.QMessageBox.warning(
+                    self.form,
+                    "Export Warning",
+                    "No reaction data available to export. Please run structural analysis first."
+                )
+                return False
             
             # Create document
             doc = Document()
@@ -641,9 +677,15 @@ class ReactionTablePanel:
             # Create table
             headers = []
             for col in range(self.table_widget.columnCount()):
-                headers.append(self.table_widget.horizontalHeaderItem(col).text())
+                header_item = self.table_widget.horizontalHeaderItem(col)
+                header_text = header_item.text() if header_item else f"Column {col+1}"
+                headers.append(header_text)
             
             num_cols = len(headers)
+            if num_cols == 0:
+                FreeCAD.Console.PrintError("No table columns found\n")
+                return False
+                
             table = doc.add_table(rows=1, cols=num_cols)
             table.style = 'Table Grid'
             
@@ -652,20 +694,49 @@ class ReactionTablePanel:
             for i, header in enumerate(headers):
                 header_cells[i].text = header
             
-            # Add data
+            # Add data with enhanced error handling
             for row in range(self.table_widget.rowCount()):
-                row_cells = table.add_row().cells
-                for col in range(self.table_widget.columnCount()):
-                    item = self.table_widget.item(row, col)
-                    row_cells[col].text = item.text() if item else ""
+                try:
+                    row_cells = table.add_row().cells
+                    for col in range(self.table_widget.columnCount()):
+                        try:
+                            item = self.table_widget.item(row, col)
+                            cell_text = item.text() if item else ""
+                            # Ensure cell text is not None and convert to string
+                            row_cells[col].text = str(cell_text) if cell_text is not None else ""
+                        except Exception as e:
+                            FreeCAD.Console.PrintWarning(f"Error setting cell [{row},{col}]: {str(e)}\n")
+                            row_cells[col].text = ""
+                except Exception as e:
+                    FreeCAD.Console.PrintError(f"Error adding row {row} to Word table: {str(e)}\n")
+                    # Continue with next row instead of failing completely
             
             # Add summary
             doc.add_paragraph()
             doc.add_paragraph(f'Total Nodes: {self.table_widget.rowCount()}')
             
-            # Save document
-            doc.save(file_path)
-            return True
+            # Save document with enhanced error handling
+            try:
+                doc.save(file_path)
+                FreeCAD.Console.PrintMessage(f"Word document successfully saved: {file_path}\n")
+                return True
+            except PermissionError:
+                FreeCAD.Console.PrintError(f"Permission denied: Cannot write to {file_path}\n")
+                FreeCAD.Console.PrintError("Make sure the file is not open in another application\n")
+                QtWidgets.QMessageBox.critical(
+                    self.form,
+                    "Save Error",
+                    f"Cannot save file: {file_path}\n\nMake sure the file is not open in another application and you have write permissions."
+                )
+                return False
+            except Exception as save_error:
+                FreeCAD.Console.PrintError(f"Error saving Word document: {str(save_error)}\n")
+                QtWidgets.QMessageBox.critical(
+                    self.form,
+                    "Save Error",
+                    f"Failed to save Word document:\n{str(save_error)}"
+                )
+                return False
             
         except Exception as e:
             FreeCAD.Console.PrintError(f"Error exporting to Word: {str(e)}\n")

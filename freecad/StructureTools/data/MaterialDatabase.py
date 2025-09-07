@@ -341,8 +341,8 @@ class MaterialDatabase:
             "Normal Weight C25": {
                 "name": "Normal Weight Concrete f'c = 25 MPa",
                 "standard": "ACI 318",
-                "type": "Normal Weight Concrete",
-                "modulus_elasticity": 25743,  # MPa (4700√f'c)
+                "type": "Normal Weight Concrete", 
+                "modulus_elasticity": 25000,  # MPa - FIXED to match MaterialStandards.py
                 "poisson_ratio": 0.20,
                 "density": 2400,  # kg/m³
                 "compressive_strength": 25,  # MPa
@@ -356,7 +356,7 @@ class MaterialDatabase:
                 "name": "Normal Weight Concrete f'c = 30 MPa",
                 "standard": "ACI 318",
                 "type": "Normal Weight Concrete",
-                "modulus_elasticity": 28043,  # MPa
+                "modulus_elasticity": 27000,  # MPa - FIXED to match MaterialStandards.py
                 "poisson_ratio": 0.20,
                 "density": 2400,  # kg/m³
                 "compressive_strength": 30,  # MPa
@@ -429,6 +429,15 @@ class MaterialDatabase:
                 "description": "Lightweight concrete for reduced dead load"
             }
         }
+        
+        # Add Thai units to all concrete materials if available
+        if THAI_UNITS_AVAILABLE:
+            converter = get_thai_converter()
+            db = MaterialDatabase()
+            for key, material in materials.items():
+                materials[key] = db._add_thai_units(material)
+        
+        return materials
     
     @staticmethod
     def get_aluminum_materials():

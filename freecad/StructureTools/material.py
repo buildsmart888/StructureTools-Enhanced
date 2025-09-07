@@ -56,14 +56,27 @@ try:
     from .data.MaterialDatabase import MaterialDatabase
     from .data.MaterialStandards import MATERIAL_STANDARDS, MATERIAL_CATEGORIES, get_material_info
     DATABASE_AVAILABLE = True
-except ImportError:
-    # Fallback if data module not available
-    MATERIAL_STANDARDS = {}
-    MATERIAL_CATEGORIES = {}
-    MaterialDatabase = None
-    DATABASE_AVAILABLE = False
-    def get_material_info(standard_name):
-        return {}
+    print(f"[OK] MaterialStandards imported successfully: {len(MATERIAL_STANDARDS)} standards")
+except ImportError as e:
+    print(f"[ERROR] MaterialStandards import failed: {e}")
+    # Try absolute import as fallback
+    try:
+        import freecad.StructureTools.data.MaterialStandards as MS
+        MATERIAL_STANDARDS = MS.MATERIAL_STANDARDS
+        MATERIAL_CATEGORIES = MS.MATERIAL_CATEGORIES 
+        get_material_info = MS.get_material_info
+        DATABASE_AVAILABLE = True
+        print(f"[OK] MaterialStandards absolute import successful: {len(MATERIAL_STANDARDS)} standards")
+    except ImportError as e2:
+        print(f"[ERROR] Absolute import also failed: {e2}")
+        # Fallback if data module not available
+        MATERIAL_STANDARDS = {}
+        MATERIAL_CATEGORIES = {}
+        MaterialDatabase = None
+        DATABASE_AVAILABLE = False
+        print("[ERROR] Using empty MATERIAL_STANDARDS fallback")
+        def get_material_info(standard_name):
+            return {}
 
 def show_error_message(msg):
     msg_box = QtWidgets.QMessageBox()
@@ -78,38 +91,71 @@ class Material:
     def __init__(self, obj):
         obj.Proxy = self
 
-        # Basic material properties
+        # Basic material properties - Initialize with minimal values, user must select MaterialStandard
         obj.addProperty("App::PropertyPressure", "ModulusElasticity", "Material", "Modulus of elasticity")
-        obj.ModulusElasticity = "200000 MPa"
+        obj.ModulusElasticity = "1 MPa"  # Minimal value - user must select MaterialStandard
         
         obj.addProperty("App::PropertyFloat", "PoissonRatio", "Material", "Poisson ratio")
-        obj.PoissonRatio = 0.30
+        obj.PoissonRatio = 0.0001  # Minimal value - user must select MaterialStandard
         
         obj.addProperty("App::PropertyDensity", "Density", "Material", "Material density")
-        obj.Density = "7850 kg/m^3"
+        obj.Density = "1 kg/m^3"  # Minimal value - user must select MaterialStandard
         
         # Add missing properties that calc expects
         obj.addProperty("App::PropertyString", "Name", "Material", "Material name")
         obj.Name = obj.Label if hasattr(obj, 'Label') else 'Material'
         
-        # Add material standard support
+        # Add additional material properties with minimal defaults
+        obj.addProperty("App::PropertyPressure", "YieldStrength", "Strength", "Yield strength")
+        obj.YieldStrength = "1 MPa"  # Minimal value - user must select MaterialStandard
+        
+        obj.addProperty("App::PropertyPressure", "UltimateStrength", "Strength", "Ultimate tensile strength")
+        obj.UltimateStrength = "1 MPa"  # Minimal value - user must select MaterialStandard
+        
+        obj.addProperty("App::PropertyString", "GradeDesignation", "Standard", "Grade designation")
+        obj.GradeDesignation = "Undefined"  # User must select MaterialStandard
+        
+        # Add material standard support with intelligent default
         obj.addProperty("App::PropertyEnumeration", "MaterialStandard", "Standard", "Material standard from database")
         if MATERIAL_STANDARDS:
             obj.MaterialStandard = list(MATERIAL_STANDARDS.keys())
-            obj.MaterialStandard = "ASTM_A992"  # Default
+            
+            # Set intelligent default based on object name/label
+            default_standard = self._determine_default_standard(obj)
+            obj.MaterialStandard = default_standard
+            
+            # Force initial property update
+            self._update_standard_properties(obj)
         else:
             obj.MaterialStandard = ["Custom"]
             obj.MaterialStandard = "Custom"
         
-        # Additional strength properties for design
-        obj.addProperty("App::PropertyPressure", "YieldStrength", "Strength", "Yield strength")
-        obj.YieldStrength = "345 MPa"
+        # Note: Additional properties already added above - no duplicates needed
+    
+    def _determine_default_standard(self, obj):
+        """Determine appropriate default MaterialStandard based on object name/label."""
+        obj_name = getattr(obj, 'Label', getattr(obj, 'Name', ''))
         
-        obj.addProperty("App::PropertyPressure", "UltimateStrength", "Strength", "Ultimate strength")
-        obj.UltimateStrength = "450 MPa"
+        # Check for concrete indicators
+        if ('ACI' in obj_name and ('30MP' in obj_name or 'concrete' in obj_name.lower())):
+            return "ACI_Normal_30MPa"
+        elif ('ACI' in obj_name and ('25MP' in obj_name)):
+            return "ACI_Normal_25MPa"
+        elif 'concrete' in obj_name.lower():
+            return "ACI_Normal_30MPa"  # Default concrete
         
-        obj.addProperty("App::PropertyString", "GradeDesignation", "Standard", "Grade designation")
-        obj.GradeDesignation = "Gr. 50"
+        # Check for steel indicators
+        elif 'ASTM_A36' in obj_name:
+            return "ASTM_A36"
+        elif 'ASTM_A992' in obj_name or 'steel' in obj_name.lower():
+            return "ASTM_A992"
+        elif 'EN_S235' in obj_name:
+            return "EN_S235"
+        elif 'EN_S355' in obj_name:
+            return "EN_S355"
+        
+        # Default fallback - prefer concrete over steel for new objects
+        return "ACI_Normal_30MPa"
 
     def execute(self, obj): 
         # Update Name to match Label
@@ -164,44 +210,75 @@ class Material:
             
         except Exception as e:
             FreeCAD.Console.PrintError(f"Error getting calc properties for material: {e}\n")
-            # Return safe defaults
+            # Return warning - no defaults should be used
+            App.Console.PrintWarning(f"Material {getattr(obj, 'Name', 'Unknown')} has no valid properties. Please select MaterialStandard.\n")
             return {
                 'name': getattr(obj, 'Name', getattr(obj, 'Label', 'Material')),
-                'E': 200000.0,  # MPa default
-                'G': 77000.0,   # MPa default
-                'nu': 0.3,
-                'density': 77.0,  # kN/m³ default (7850 kg/m³ * 9.81/1000)
+                'E': 1.0,  # Minimal value to prevent calc errors - user should select material standard
+                'G': 1.0,   # Minimal value to prevent calc errors
+                'nu': 0.0001,
+                'density': 0.001,  # Minimal value to prevent calc errors
                 'unit_system': f'{unit_force}-{unit_length}'
             }
     
     def _update_standard_properties(self, obj):
         """Update material properties based on selected standard from database."""
         if not hasattr(obj, 'MaterialStandard'):
+            FreeCAD.Console.PrintWarning("Object has no MaterialStandard property\n")
             return
         
         standard = obj.MaterialStandard
+        FreeCAD.Console.PrintMessage(f"[UPDATE] Updating properties for MaterialStandard: {standard}\n")
+        
+        if not MATERIAL_STANDARDS:
+            FreeCAD.Console.PrintError("[ERROR] MATERIAL_STANDARDS is empty!\n")
+            return
+            
         if standard in MATERIAL_STANDARDS:
             props = MATERIAL_STANDARDS[standard]
+            FreeCAD.Console.PrintMessage(f"[OK] Found properties for {standard}: {props}\n")
             
             # Update properties from database
             try:
                 if 'ModulusElasticity' in props:
                     obj.ModulusElasticity = props['ModulusElasticity']
+                    FreeCAD.Console.PrintMessage(f"   [OK] ModulusElasticity: {props['ModulusElasticity']}\n")
+                    
                 if 'PoissonRatio' in props:
                     obj.PoissonRatio = props['PoissonRatio']
+                    FreeCAD.Console.PrintMessage(f"   [OK] PoissonRatio: {props['PoissonRatio']}\n")
+                    
                 if 'Density' in props:
                     obj.Density = props['Density']
-                if 'YieldStrength' in props:
+                    FreeCAD.Console.PrintMessage(f"   [OK] Density: {props['Density']}\n")
+                    
+                if 'YieldStrength' in props and hasattr(obj, 'YieldStrength'):
                     obj.YieldStrength = props['YieldStrength']
-                if 'UltimateStrength' in props:
+                    FreeCAD.Console.PrintMessage(f"   [OK] YieldStrength: {props['YieldStrength']}\n")
+                    
+                if 'UltimateStrength' in props and hasattr(obj, 'UltimateStrength'):
                     obj.UltimateStrength = props['UltimateStrength']
-                if 'GradeDesignation' in props:
+                    FreeCAD.Console.PrintMessage(f"   [OK] UltimateStrength: {props['UltimateStrength']}\n")
+                    
+                if 'GradeDesignation' in props and hasattr(obj, 'GradeDesignation'):
                     obj.GradeDesignation = props['GradeDesignation']
+                    FreeCAD.Console.PrintMessage(f"   [OK] GradeDesignation: {props['GradeDesignation']}\n")
                 
-                FreeCAD.Console.PrintMessage(f"Updated material properties for standard: {standard}\n")
+                FreeCAD.Console.PrintMessage(f"[SUCCESS] Material properties updated successfully for {standard}\n")
+                
+                # Force object and document recompute to refresh UI
+                obj.recompute()
+                if hasattr(App, 'ActiveDocument') and App.ActiveDocument:
+                    App.ActiveDocument.recompute()
                 
             except Exception as e:
-                FreeCAD.Console.PrintError(f"Error updating material properties: {e}\n")
+                FreeCAD.Console.PrintError(f"[ERROR] Error updating material properties: {e}\n")
+                import traceback
+                traceback.print_exc()
+        else:
+            available_standards = list(MATERIAL_STANDARDS.keys())
+            FreeCAD.Console.PrintError(f"[ERROR] Standard '{standard}' not found in database\n")
+            FreeCAD.Console.PrintMessage(f"Available standards: {available_standards}\n")
     
     def get_available_standards(self):
         """Get list of available material standards."""
