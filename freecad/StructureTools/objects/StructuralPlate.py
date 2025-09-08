@@ -288,8 +288,12 @@ class StructuralPlate:
                        "Include bending moments in analysis", True)
         
         if not hasattr(obj, 'IncludeShearDeformation'):
-            self._ensure_property_exists("App::PropertyBool", "IncludeShearDeformation", "Plate",
-                       "Include transverse shear deformation (thick plate)", False)
+            try:
+                obj.addProperty("App::PropertyBool", "IncludeShearDeformation", "Plate",
+                               "Include transverse shear deformation (thick plate)")
+                obj.IncludeShearDeformation = False
+            except Exception as e:
+                App.Console.PrintWarning(f"Could not create IncludeShearDeformation property: {e}\n")
         
         # Handle property changes
         if prop == "CornerNodes":
@@ -306,6 +310,15 @@ class StructuralPlate:
             # Update Thai units when loads change
             if hasattr(obj, 'UseThaiUnits') and obj.UseThaiUnits:
                 self.updateThaiUnits(obj)
+        elif prop in ["ShowMesh", "MeshDivisionsX", "MeshDivisionsY", "MeshDensity"]:
+            # Update mesh preview when mesh-related properties change
+            try:
+                if hasattr(obj, 'ShowMesh') and obj.ShowMesh:
+                    self._create_mesh_overlay(obj)
+                else:
+                    self._clear_mesh_overlay(obj)
+            except Exception:
+                pass
     
     def _update_geometry(self, obj) -> None:
         """Update geometric properties when corner nodes change."""
@@ -464,6 +477,124 @@ class StructuralPlate:
         # Update geometry if needed
         if hasattr(obj, 'CornerNodes') and obj.CornerNodes:
             self._update_geometry(obj)
+
+    def to_calc_payload(self, obj, mesh_options: dict = None, length_unit: str = 'mm') -> dict:
+        """
+        Export a deterministic payload representing this plate suitable for calc.py consumption.
+
+        Returns a dict with keys:
+          - name: plate object name
+          - nodes: {tag: {x,y,z}} in specified length_unit
+          - elements: {eid: {nodes: [tags...]}}
+          - thickness: numeric (in length_unit)
+          - material: material name or 'default'
+          - area: area in length_unit^2 if available
+
+        This function prefers a meshed payload when MeshDensity is present and PlateMesher
+        is available; otherwise it emits a single quad/tri from CornerNodes or Shape Face.
+        """
+        payload = {
+            'name': getattr(obj, 'Name', None) or getattr(obj, 'PlateID', None) or 'plate',
+            'nodes': {},
+            'elements': {},
+            'thickness': None,
+            'material': 'default',
+            'area': None,
+        }
+        try:
+            # Lazy import of qty helper to convert thickness
+            try:
+                from ..calc_utils import qty_val
+            except Exception:
+                qty_val = lambda v, f, t=None: float(v) if v is not None else 0.0
+
+            # Thickness
+            thk = getattr(obj, 'Thickness', None)
+            try:
+                payload['thickness'] = float(qty_val(thk, 'mm', length_unit))
+            except Exception:
+                try:
+                    payload['thickness'] = float(thk)
+                except Exception:
+                    payload['thickness'] = 0.0
+
+            # Material
+            mat_obj = getattr(obj, 'Material', None)
+            if mat_obj and hasattr(mat_obj, 'Name'):
+                payload['material'] = mat_obj.Name
+
+            # Prefer mesh when requested
+            use_mesh = getattr(obj, 'MeshDensity', None)
+            shape = getattr(obj, 'Shape', None)
+            if use_mesh and shape and hasattr(shape, 'Faces') and len(shape.Faces) > 0:
+                try:
+                    from ..meshing.PlateMesher import PlateMesher
+                    mesher = PlateMesher()
+                    mesh_kwargs = {}
+                    if isinstance(use_mesh, (int, float)):
+                        mesh_kwargs['target_size'] = float(use_mesh)
+                    elif isinstance(use_mesh, dict):
+                        mesh_kwargs.update(use_mesh)
+                    mesh = mesher.meshFace(shape.Faces[0], **mesh_kwargs)
+                    # Normalize mesh schema to nodes/elements
+                    nodes = mesh.get('nodes', {})
+                    elements = mesh.get('elements', {})
+                    # copy with simple numeric coords
+                    for tag, coord in nodes.items():
+                        payload['nodes'][str(tag)] = {
+                            'x': float(coord.get('x', 0)),
+                            'y': float(coord.get('y', 0)),
+                            'z': float(coord.get('z', 0)),
+                        }
+                    for eid, elem in elements.items():
+                        payload['elements'][str(eid)] = {'nodes': [str(n) for n in elem.get('nodes', [])]}
+                except Exception:
+                    # fallback to corner export
+                    pass
+
+            # If no mesh or mesh failed, export corners
+            if not payload['elements']:
+                # Try CornerNodes first
+                corner_nodes = getattr(obj, 'CornerNodes', None)
+                corners = []
+                if corner_nodes and len(corner_nodes) >= 3:
+                    for i, nd in enumerate(corner_nodes[:4]):
+                        try:
+                            pt = nd.Position
+                            tag = f'n{i+1}'
+                            payload['nodes'][tag] = {'x': float(pt.x), 'y': float(pt.y), 'z': float(pt.z)}
+                            corners.append(tag)
+                        except Exception:
+                            continue
+                elif shape and hasattr(shape, 'Faces') and len(shape.Faces) > 0:
+                    try:
+                        face = shape.Faces[0]
+                        verts = list(face.Vertexes)
+                        for i, v in enumerate(verts[:4]):
+                            tag = f'n{i+1}'
+                            p = v.Point
+                            payload['nodes'][tag] = {'x': float(p.x), 'y': float(p.y), 'z': float(p.z)}
+                            corners.append(tag)
+                    except Exception:
+                        pass
+
+                if corners:
+                    payload['elements']['e1'] = {'nodes': corners}
+
+            # Area
+            try:
+                if shape and hasattr(shape, 'Area'):
+                    payload['area'] = float(shape.Area)
+                elif hasattr(obj, 'Area'):
+                    payload['area'] = float(obj.Area) if isinstance(obj.Area, (int, float)) else None
+            except Exception:
+                payload['area'] = None
+
+        except Exception:
+            # conservative fallback
+            pass
+
+        return payload
     
     def getLoadsInThaiUnits(self, obj):
         """Get plate load values in Thai units."""
@@ -506,6 +637,99 @@ class StructuralPlate:
         """Update Thai units when properties change."""
         if hasattr(obj, 'UseThaiUnits') and obj.UseThaiUnits:
             self.getLoadsInThaiUnits(obj)
+
+    def _clear_mesh_overlay(self, obj) -> None:
+        """Clear existing mesh overlay visualization objects."""
+        try:
+            doc = App.ActiveDocument
+            if not doc:
+                return
+            if hasattr(obj, 'MeshVisualization') and obj.MeshVisualization:
+                for vis in list(obj.MeshVisualization):
+                    try:
+                        if vis and hasattr(doc, 'getObject') and doc.getObject(vis.Name):
+                            doc.removeObject(vis.Name)
+                    except Exception:
+                        continue
+                obj.MeshVisualization = []
+        except Exception:
+            return
+
+    def _create_mesh_overlay(self, obj) -> None:
+        """Create a mesh overlay using the deterministic calc payload.
+
+        Creates Part features for each mesh element and optional labels.
+        Stores created objects in obj.MeshVisualization list.
+        """
+        try:
+            doc = App.ActiveDocument
+            if not doc:
+                return
+
+            # Clear previous visualization
+            self._clear_mesh_overlay(obj)
+
+            payload = self.to_calc_payload(obj)
+            nodes = payload.get('nodes', {}) or {}
+            elements = payload.get('elements', {}) or {}
+
+            if not elements:
+                return
+
+            vis_objects = []
+            for eid, elem in elements.items():
+                try:
+                    node_tags = elem.get('nodes', [])
+                    pts = []
+                    for tag in node_tags:
+                        n = nodes.get(str(tag))
+                        if not n:
+                            continue
+                        pts.append(App.Vector(n.get('x', 0.0), n.get('y', 0.0), n.get('z', 0.0)))
+
+                    if len(pts) < 3:
+                        continue
+
+                    # make closed polygon
+                    poly_pts = pts + [pts[0]]
+                    wire = Part.makePolygon(poly_pts)
+                    try:
+                        face = Part.Face(wire)
+                    except Exception:
+                        # fallback: make wire only
+                        face = wire
+
+                    mesh_name = f"{obj.Name}_Mesh_{eid}"
+                    mesh_obj = doc.addObject("Part::Feature", mesh_name)
+                    mesh_obj.Shape = face
+                    if hasattr(mesh_obj, 'ViewObject'):
+                        try:
+                            mesh_color = getattr(obj, 'MeshColor', (0.5, 0.5, 0.5))
+                            mesh_obj.ViewObject.ShapeColor = mesh_color
+                            mesh_obj.ViewObject.Transparency = 70
+                            if hasattr(mesh_obj.ViewObject, 'LineWidth') and hasattr(obj, 'MeshLineWidth'):
+                                mesh_obj.ViewObject.LineWidth = int(getattr(obj, 'MeshLineWidth', 1))
+                        except Exception:
+                            pass
+
+                    vis_objects.append(mesh_obj)
+
+                    # Add element id label near element centroid if Draft available
+                    try:
+                        centroid = sum(pts, App.Vector(0, 0, 0)) * (1.0 / len(pts))
+                        if 'Draft' in globals():
+                            label_obj = Draft.makeText([str(eid)], centroid)
+                            label_obj.Label = f"{obj.Name}_Lbl_{eid}"
+                            vis_objects.append(label_obj)
+                    except Exception:
+                        pass
+
+                except Exception:
+                    continue
+
+            obj.MeshVisualization = vis_objects
+        except Exception:
+            return
 
 class ViewProviderStructuralPlate:
     """

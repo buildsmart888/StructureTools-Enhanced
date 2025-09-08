@@ -3,116 +3,94 @@ import sys
 
 # Setup FreeCAD stubs for standalone operation
 try:
-    from .utils.freecad_stubs import setup_freecad_stubs, is_freecad_available
-    if not is_freecad_available():
-        setup_freecad_stubs()
+	from .utils.freecad_stubs import setup_freecad_stubs, is_freecad_available
+	if not is_freecad_available():
+		setup_freecad_stubs()
 except ImportError:
-    pass
+	pass
+
+# Import utility functions
+try:
+	from .calc_utils import _find_matching_node_index
+except ImportError:
+	# Fallback implementation if calc_utils.py is not available
+	def _find_matching_node_index(nodes_map, target_node, tol=1e-6):
+		"""Find index of node in nodes_map that matches target_node within tolerance"""
+		import math
+		for i, node in enumerate(nodes_map):
+			# Calculate Euclidean distance between nodes
+			dist = math.sqrt(sum((a - b)**2 for a, b in zip(node, target_node)))
+			if dist < tol:
+				return i
+		return None
 
 # Import FreeCAD modules (now available via stubs if needed)
 try:
-    import FreeCAD as App, FreeCADGui, Part
-    FREECAD_AVAILABLE = True
+	import FreeCAD
+	import FreeCADGui
+	import Part
+	FREECAD_AVAILABLE = True
 except ImportError:
-    FREECAD_AVAILABLE = False
-    print("FreeCAD modules not available - using stub mode")
-    # Create more comprehensive mock objects for App and FreeCADGui when not available
-    class MockQuantity:
-        def __init__(self, value, unit=None):
-            self.value = value
-            self.unit = unit
-            
-        def getValueAs(self, unit):
-            return self
-            
-        def __float__(self):
-            if hasattr(self.value, '__float__'):
-                return float(self.value)
-            return 0.0
-        
-        def __mul__(self, other):
-            # Handle multiplication with numbers
-            if isinstance(other, (int, float)):
-                return MockQuantity(self.value * other, self.unit)
-            return NotImplemented
-        
-        def __rmul__(self, other):
-            # Handle reverse multiplication (10 * quantity)
-            return self.__mul__(other)
-    
-    class MockUnits:
-        def __init__(self):
-            self.Quantity = MockQuantity
-    
-    class MockConsole:
-        def PrintWarning(self, msg):
-            print("WARNING:", msg)
-            
-        def PrintMessage(self, msg):
-            print("MESSAGE:", msg)
-            
-        def PrintError(self, msg):
-            print("ERROR:", msg)
-    
-    class MockVector:
-        def __init__(self, x=0, y=0, z=0):
-            self.x = x
-            self.y = y
-            self.z = z
-    
-    class MockDocument:
-        def addObject(self, type, name):
-            class MockObject:
-                def __init__(self):
-                    self.Name = name
-                    self.ViewObject = None  # Add ViewObject attribute
-            return MockObject()
-            
-        def recompute(self):
-            pass
-    
-    class MockApp:
-        def __init__(self):
-            self.Console = MockConsole()
-            self.Units = MockUnits()
-            self.Vector = MockVector
-            self.ActiveDocument = MockDocument()
-    
-    class MockSelection:
-        @staticmethod
-        def getSelection():
-            return []
-    
-    class MockFreeCADGui:
-        def __init__(self):
-            self.Selection = MockSelection()
-            
-        def addCommand(self, name, command):
-            pass
-    
-    App = MockApp()
-    FreeCADGui = MockFreeCADGui()
-from PySide import QtWidgets
-import subprocess
+	FreeCAD = None
+	FreeCADGui = None
+	FREECAD_AVAILABLE = False
+	print("FreeCAD modules not available - using stub mode")
 
-# Import Thai units support
+# Ensure 'App' alias exists for legacy code that references App.*
 try:
-    from .utils.universal_thai_units import enhance_with_thai_units, thai_auto_units, get_universal_thai_units
-    from .utils.thai_units import get_thai_converter
-    from .utils.units_manager import get_units_manager, format_force, format_stress, format_modulus
-    THAI_UNITS_AVAILABLE = True
-    GLOBAL_UNITS_AVAILABLE = True
+	import App as _App
+	App = _App
+except Exception:
+	# If App not available, set App to FreeCAD (may be None in stub mode)
+	App = FreeCAD
+
+# Import Qt modules with better fallback handling
+QtWidgets = None
+QMessageBox = None
+
+# Try to import Qt modules in order of preference
+qt_imported = False
+
+# Try PySide2 first (most common in modern FreeCAD)
+try:
+	from PySide2 import QtWidgets
+	from PySide2.QtWidgets import QMessageBox
+	qt_imported = True
 except ImportError:
-    THAI_UNITS_AVAILABLE = False
-    GLOBAL_UNITS_AVAILABLE = False
-    enhance_with_thai_units = lambda x, t: x
-    thai_auto_units = lambda f: f
-    get_universal_thai_units = lambda: None
-    get_thai_converter = lambda: None
-    get_units_manager = lambda: None
-    format_force = lambda x: f"{x:.2f} kN"
-    format_stress = lambda x: f"{x/1e6:.1f} MPa"
-    format_modulus = lambda x: f"{x/1e6:.0f} MPa"
+	pass
+
+# Try PySide (older FreeCAD versions)
+if not qt_imported:
+	try:
+		from PySide import QtGui as QtWidgets
+		from PySide.QtGui import QMessageBox
+		qt_imported = True
+	except ImportError:
+		pass
+
+# Try PyQt5
+if not qt_imported:
+	try:
+		from PyQt5 import QtWidgets
+		from PyQt5.QtWidgets import QMessageBox
+		qt_imported = True
+	except ImportError:
+		pass
+
+# Try PyQt4 (oldest)
+if not qt_imported:
+	try:
+		from PyQt4 import QtGui as QtWidgets
+		from PyQt4.QtGui import QMessageBox
+		qt_imported = True
+	except ImportError:
+		pass
+
+# If no Qt modules are available, set to None
+if not qt_imported:
+	QtWidgets = None
+	QMessageBox = None
+	print("No Qt modules available")
 
 ICONPATH = os.path.join(os.path.dirname(__file__), "resources")
 
@@ -129,15 +107,6 @@ except ImportError:
 	HAS_MATERIAL_DATABASE = False
 
 
-def _find_matching_node_index(nodes_map, coord, tol=1e-3):
-	"""Return index of node in nodes_map whose coordinates match coord within tol, or None."""
-	import math as _math
-	for idx, n in enumerate(nodes_map):
-		if _math.isclose(n[0], coord[0], abs_tol=tol) and _math.isclose(n[1], coord[1], abs_tol=tol) and _math.isclose(n[2], coord[2], abs_tol=tol):
-			return idx
-	return None
-
-
 # Try to import PlateMesher at module import time so tests can monkeypatch module attribute
 try:
 	try:
@@ -150,10 +119,10 @@ except Exception:
 
 
 def _print_warning(msg):
-	# Try App.Console, fallback to print
+	# Try FreeCAD.Console, then App.Console, fallback to print
 	try:
-		if hasattr(App, 'Console'):
-			App.Console.PrintWarning(msg)
+		if FreeCAD is not None and hasattr(FreeCAD, 'Console'):
+			FreeCAD.Console.PrintWarning(msg)
 			return
 	except Exception:
 		pass
@@ -165,8 +134,8 @@ def _print_warning(msg):
 
 def _print_message(msg):
 	try:
-		if hasattr(App, 'Console'):
-			App.Console.PrintMessage(msg)
+		if FreeCAD is not None and hasattr(FreeCAD, 'Console'):
+			FreeCAD.Console.PrintMessage(msg)
 			return
 	except Exception:
 		pass
@@ -178,8 +147,8 @@ def _print_message(msg):
 
 def _print_error(msg):
 	try:
-		if hasattr(App, 'Console'):
-			App.Console.PrintError(msg)
+		if FreeCAD is not None and hasattr(FreeCAD, 'Console'):
+			FreeCAD.Console.PrintError(msg)
 			return
 	except Exception:
 		pass
@@ -191,17 +160,50 @@ def _print_error(msg):
 
 # helper to convert FreeCAD.Quantity or numeric values to float in desired units
 def qty_val(value, from_unit='mm', to_unit=None):
+	"""Convert quantity values with units, with fallback handling"""
+	# Import FreeCAD modules safely
+	FreeCAD = None
+	try:
+		import FreeCAD
+	except ImportError:
+		try:
+			import App as FreeCAD
+		except ImportError:
+			FreeCAD = None
+    
 	# Prefer FreeCAD Units when available
 	try:
-		if hasattr(App, 'Units') and hasattr(App.Units, 'Quantity'):
+		if FreeCAD is not None and hasattr(FreeCAD, 'Units') and hasattr(FreeCAD.Units, 'Quantity'):
+			# Handle different types of input values
+			if isinstance(value, (int, float)):
+				# Create quantity using string format to avoid constructor issues
+				quantity_str = f"{value} {from_unit}"
+				quantity = FreeCAD.Units.Quantity(quantity_str)
+			elif hasattr(value, 'getValueAs'):
+				# It's already a Quantity object
+				quantity = value
+			else:
+				# Try to convert string or other types
+				quantity_str = str(value)
+				if ' ' not in quantity_str and from_unit:
+					# If no unit in string, add the from_unit
+					quantity_str = f"{quantity_str} {from_unit}"
+				quantity = FreeCAD.Units.Quantity(quantity_str)
+            
 			if to_unit:
-				return float(App.Units.Quantity(value, from_unit).getValueAs(to_unit))
-			return float(App.Units.Quantity(value, from_unit))
-	except Exception:
+				# Convert to target unit
+				converted_value = quantity.getValueAs(to_unit)
+				return float(converted_value)
+			return float(quantity.Value)
+	except Exception as e:
+		# If FreeCAD units fail, continue to fallback
 		pass
+    
 	# Fallback: try numeric or MockQuantity
 	try:
-		if hasattr(value, 'value'):
+		if hasattr(value, 'Value'):  # Check for Value attribute first
+			return float(value.Value)
+		elif hasattr(value, 'value'):  # Then check for value attribute
 			return float(value.value)
 		return float(value)
 	except Exception:
@@ -214,37 +216,29 @@ def qty_val(value, from_unit='mm', to_unit=None):
 # 	subprocess.check_call(["pip", "install", "PyniteFEA"])
 
 def show_error_message(msg):
-	try:
-		msg_box = QtWidgets.QMessageBox()
-		msg_box.setIcon(QtWidgets.QMessageBox.Critical)  #Ícone de erro
-		msg_box.setWindowTitle("Erro")
+	if QtWidgets is not None and QMessageBox is not None:
+		msg_box = QMessageBox()
+		msg_box.setIcon(QMessageBox.Critical)
+		msg_box.setWindowTitle("Error")
 		msg_box.setText(msg)
-		msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+		msg_box.setStandardButtons(QMessageBox.Ok)
 		msg_box.exec_()
-	except Exception:
-		# Fallback if QMessageBox is not available
-		print("ERROR:", msg)
-
+	else:
+		print("Error:", msg)
 
 class Calc:
 	def __init__(self, obj, elements):
 		obj.Proxy = self
-		self.Object = obj
-		
-		# Initialize with empty model to avoid serialization issues
-		self.model = None
-		
-		# Add properties with _addProp helper
+
+		# helper to add properties when running inside FreeCAD or fallback to plain attributes for tests
 		def _addProp(prop_type, name, group, desc, default=None, set_value=None):
 			if hasattr(obj, 'addProperty'):
 				try:
 					obj.addProperty(prop_type, name, group, desc)
 				except Exception:
 					pass
-
 			if set_value is not None:
 				setattr(obj, name, set_value)
-
 			elif default is not None:
 				setattr(obj, name, default)
 
@@ -253,305 +247,24 @@ class Calc:
 		if elements is not None:
 			setattr(obj, 'ListElements', elements)
 
-		_addProp("App::PropertyString", "LengthUnit", "Calc", "set the length unit for calculation", default='m')
-		_addProp("App::PropertyString", "ForceUnit", "Calc", "set the length unit for calculation", default='kN')
-
-		# Load Case Properties (Basic load types)
-		_addProp("App::PropertyEnumeration", "LoadCase", "Load Cases", "Select primary load case type")
-		obj.LoadCase = ['DL', 'LL', 'H', 'F', 'W', 'E']
-		obj.LoadCase = 'DL'
-
-		# Load Combination Properties (Both Allowable Stress and Strength Design)
-		_addProp("App::PropertyEnumeration", "LoadCombination", "Load Combinations", "Select load combination for analysis")
-		obj.LoadCombination = [
-			'100_DL', '101_DL+LL', '102_DL+0.75(LL+W(X+))', '103_DL+0.75(LL+W(x-))',
-			'104_DL+0.75(LL+W(y+))', '105_DL+0.75(LL+W(y-))', '106_0.6DL+W(X+)', '107_0.6DL+W(x-)',
-			'108_0.6DL+W(y+)', '109_0.6DL+W(y-)', '110_DL+0.7E(X+)', '111_DL+0.7E(x-)',
-			'112_DL+0.7E(y+)', '113_DL+0.7E(y-)', '114_DL+0.525E(X+)+0.75LL', '115_DL+0.525E(x-)+0.75LL',
-			'116_DL+0.525E(Z+)+0.75LL', '117_DL+0.525E(z-)+0.75LL', '118_0.6DL+0.7E(X+)', '119_0.6DL+0.7E(x-)',
-			'120_0.6DL+0.7E(y+)', '121_0.6DL+0.7E(y-)', '122_DL+LL+H+F',
-			'1000_1.4DL', '1001_1.4DL+1.7LL', '1002_1.05DL+1.275LL+1.6W(x+)', '1003_1.05DL+1.275LL+1.6W(x-)',
-			'1004_1.05DL+1.275LL+1.6W(y+)', '1005_1.05DL+1.275LL+1.6W(y-)', '1006_0.9DL+1.6W(X+)', '1007_0.9DL+1.6W(x-)',
-			'1008_0.9DL+1.6W(y+)', '1009_0.9DL+1.6W(y-)', '1010_1.05DL+1.275LL+E(x+)', '1011_1.05DL+1.275LL+E(x-)',
-			'1012_1.05DL+1.275LL+E(y+)', '1013_1.05DL+1.275LL+E(y-)', '1014_0.9DL+E(X+)', '1015_0.9DL+E(x-)',
-			'1016_0.9DL+E(y+)', '1017_0.9DL+E(y-)', '1018_1.4DL+1.7LL+1.7H', '1019_0.9DL+1.7H',
-			'1020_1.4DL+1.7LL+1.4F', '1021_0.9DL+1.4F'
-		]
-		obj.LoadCombination = '100_DL'
-
-		# Structured per-member results (stored as a python object so tests and UI can access lists/dicts)
-		_addProp("App::PropertyPythonObject", "MemberResults", "Calc", "structured per-member results", default=[])
-
-		# Other result properties written by execute(); provide safe defaults to avoid AttributeError
-		_addProp("App::PropertyStringList", "NameMembers", "Calc", "list of member names", default=[])
-		_addProp("App::PropertyVectorList", "Nodes", "Calc", "list of node vectors", default=[])
-		# Time-series and diagram data as string lists (comma-joined values per member)
-		_addProp("App::PropertyStringList", "MomentZ", "Calc", "per-member moment Z series", default=[])
-		_addProp("App::PropertyStringList", "MomentY", "Calc", "per-member moment Y series", default=[])
-		_addProp("App::PropertyStringList", "ShearY", "Calc", "per-member shear Y series", default=[])
-		_addProp("App::PropertyStringList", "ShearZ", "Calc", "per-member shear Z series", default=[])
-		_addProp("App::PropertyStringList", "AxialForce", "Calc", "per-member axial force series", default=[])
-		_addProp("App::PropertyStringList", "Torque", "Calc", "per-member torque series", default=[])
-		_addProp("App::PropertyStringList", "DeflectionY", "Calc", "per-member deflection Y series", default=[])
-		_addProp("App::PropertyStringList", "DeflectionZ", "Calc", "per-member deflection Z series", default=[])
-
-		# Min/max scalar lists (floats)
-		_addProp("App::PropertyFloatList", "MinMomentY", "Calc", "min moment Y per member", default=[])
-		_addProp("App::PropertyFloatList", "MinMomentZ", "Calc", "min moment Z per member", default=[])
-		_addProp("App::PropertyFloatList", "MaxMomentY", "Calc", "max moment Y per member", default=[])
-		_addProp("App::PropertyFloatList", "MaxMomentZ", "Calc", "max moment Z per member", default=[])
-		_addProp("App::PropertyFloatList", "MinShearY", "Calc", "min shear Y per member", default=[])
-		_addProp("App::PropertyFloatList", "MinShearZ", "Calc", "min shear Z per member", default=[])
-		_addProp("App::PropertyFloatList", "MaxShearY", "Calc", "max shear Y per member", default=[])
-		_addProp("App::PropertyFloatList", "MaxShearZ", "Calc", "max shear Z per member", default=[])
-		_addProp("App::PropertyFloatList", "MinTorque", "Calc", "min torque per member", default=[])
-		_addProp("App::PropertyFloatList", "MaxTorque", "Calc", "max torque per member", default=[])
-		_addProp("App::PropertyFloatList", "MinDeflectionY", "Calc", "min deflection Y per member", default=[])
-		_addProp("App::PropertyFloatList", "MinDeflectionZ", "Calc", "min deflection Z per member", default=[])
-		_addProp("App::PropertyFloatList", "MaxDeflectionY", "Calc", "max deflection Y per member", default=[])
-		_addProp("App::PropertyFloatList", "MaxDeflectionZ", "Calc", "max deflection Z per member", default=[])
-
-		# Thai Units Support (Legacy)
-		_addProp("App::PropertyBool", "UseThaiUnits", "Thai Units", "enable Thai units for calculation results", default=False)
-		_addProp("App::PropertyStringList", "MomentZKsc", "Thai Units", "per-member moment Z in ksc", default=[])
-		_addProp("App::PropertyStringList", "MomentYKsc", "Thai Units", "per-member moment Y in ksc", default=[])
-		_addProp("App::PropertyStringList", "AxialForceKgf", "Thai Units", "per-member axial force in kgf", default=[])
-		_addProp("App::PropertyStringList", "AxialForceTf", "Thai Units", "per-member axial force in tf", default=[])
-		_addProp("App::PropertyStringList", "ShearYKgf", "Thai Units", "per-member shear Y in kgf", default=[])
-		_addProp("App::PropertyStringList", "ShearZKgf", "Thai Units", "per-member shear Z in kgf", default=[])
-		
-		# Global Units System (New Enhanced System)
-		_addProp("App::PropertyEnumeration", "GlobalUnitsSystem", "Global Units", "global units system")
-		# Set enum options for GlobalUnitsSystem immediately after creating the property
-		if hasattr(obj, 'GlobalUnitsSystem'):
-			obj.GlobalUnitsSystem = ["SI", "US", "THAI"]
-			obj.GlobalUnitsSystem = "SI"  # Set default value after defining enum options
-		_addProp("App::PropertyBool", "UseGlobalUnits", "Global Units", "enable global units system", default=True)
-		_addProp("App::PropertyStringList", "FormattedForces", "Global Units", "formatted force results", default=[])
-		_addProp("App::PropertyStringList", "FormattedStresses", "Global Units", "formatted stress results", default=[])
-		_addProp("App::PropertyStringList", "FormattedMoments", "Global Units", "formatted moment results", default=[])
-		# Load summary and metadata
-		_addProp("App::PropertyStringList", "LoadSummary", "Calc", "summary of active loads", default=[])
-		_addProp("App::PropertyInteger", "TotalLoads", "Calc", "total number of loads", default=0)
-		_addProp("App::PropertyString", "AnalysisType", "Calc", "text description of analysis type", default='')
-		
-		# Reaction text display properties
-		_addProp("App::PropertyBool", "ShowReactionText", "Reaction Display", "Show reaction values as text", default=False)
-		_addProp("App::PropertyBool", "ShowReactionUnits", "Reaction Display", "Show units in reaction text", default=True)
-		_addProp("App::PropertyInteger", "ReactionPrecision", "Reaction Display", "Decimal precision for reaction values", default=1)
-		_addProp("App::PropertyFloat", "ReactionTextOffset", "Reaction Display", "Text offset distance from support node", default=500.0)
-		_addProp("App::PropertyEnumeration", "ReactionTextOrientation", "Reaction Display", "Text orientation")
-		_addProp("App::PropertyFloat", "ReactionFontSize", "Reaction Display", "Font size for reaction text", default=200.0)
-		_addProp("App::PropertyColor", "ReactionTextColor", "Reaction Display", "Color for reaction text", default=(0.0, 0.0, 1.0, 0.0))
-		
-		# Set text orientation options
-		obj.ReactionTextOrientation = ["Horizontal", "Vertical"]
-		obj.ReactionTextOrientation = "Horizontal"
-		
-		# Reaction component selection
-		_addProp("App::PropertyBool", "ShowReactionForces", "Reaction Components", "Show reaction forces (Fx, Fy, Fz)", default=True)
-		_addProp("App::PropertyBool", "ShowReactionMoments", "Reaction Components", "Show reaction moments (Mx, My, Mz)", default=True)
-		_addProp("App::PropertyBool", "ShowReactionResultant", "Reaction Components", "Show resultant reaction force", default=False)
-		
-		# Internal storage for reaction text shapes
-		_addProp("App::PropertyPythonObject", "ReactionTextShapes", "Internal", "Storage for reaction text shapes", default=[])
-		
-		# Reaction values storage
-		_addProp("App::PropertyStringList", "ReactionNodes", "Reactions", "List of node indices with reactions", default=[])
-		_addProp("App::PropertyFloatList", "ReactionX", "Reactions", "Reaction forces in X direction", default=[])
-		_addProp("App::PropertyFloatList", "ReactionY", "Reactions", "Reaction forces in Y direction", default=[])
-		_addProp("App::PropertyFloatList", "ReactionZ", "Reactions", "Reaction forces in Z direction", default=[])
-		_addProp("App::PropertyFloatList", "ReactionMX", "Reactions", "Reaction moments about X axis", default=[])
-		_addProp("App::PropertyFloatList", "ReactionMY", "Reactions", "Reaction moments about Y axis", default=[])
-		_addProp("App::PropertyFloatList", "ReactionMZ", "Reactions", "Reaction moments about Z axis", default=[])
-		_addProp("App::PropertyString", "ReactionLoadCombo", "Reactions", "Current load combination for reactions", default="100_DL")
-		
-		# Self-weight consideration
-		_addProp("App::PropertyBool", "selfWeight", "Analysis", "Consider self-weight of members", default=True)
-		
-		# Number of points for diagram discretization
-		_addProp("App::PropertyInteger", "NumPointsMoment", "Diagram Points", "Number of points for moment diagram calculation", default=5)
-		_addProp("App::PropertyInteger", "NumPointsAxial", "Diagram Points", "Number of points for axial force diagram calculation", default=3)
-		_addProp("App::PropertyInteger", "NumPointsShear", "Diagram Points", "Number of points for shear force diagram calculation", default=4)
-		_addProp("App::PropertyInteger", "NumPointsTorque", "Diagram Points", "Number of points for torque diagram calculation", default=3)
-		_addProp("App::PropertyInteger", "NumPointsDeflection", "Diagram Points", "Number of points for deflection diagram calculation", default=4)
-
-
-	#  Mapeia os nós da estrutura, (inverte o eixo y e z para adequação as coordenadas do sover)
-	def mapNodes(self, elements, unitLength):	
-		# Varre todos os elementos de linha e adiciona seus vertices à tabela de nodes
-		listNodes = []
-		for element in elements:
-			for edge in element.Shape.Edges:
-				for vertex in edge.Vertexes:
-					node = [round(float(App.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(App.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(App.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)]
-					if not node in listNodes:
-						listNodes.append(node)
-
-		return listNodes
-
-	# Mapeia os membros da estrutura 
-	def mapMembers(self, elements, listNodes, unitLength):
-		listMembers = {}
-		for element in elements:
-			for i, edge in enumerate(element.Shape.Edges):
-				listIndexVertex = []
-				for vertex in edge.Vertexes:
-					node = [round(float(App.Units.Quantity(vertex.Point.x,'mm').getValueAs(unitLength)), 2), round(float(App.Units.Quantity(vertex.Point.z,'mm').getValueAs(unitLength)),2), round(float(App.Units.Quantity(vertex.Point.y,'mm').getValueAs(unitLength)),2)]
-					index = listNodes.index(node)
-					listIndexVertex.append(index)
-
-				# valida se o primeiro nó é mais auto do que o segundo nó, se sim inverte os nós do membro (necessário para manter os diagramas voltados para a posição correta)
-				n1 = listIndexVertex[0]
-				n2 = listIndexVertex[1]
-				if listNodes[n1][1] > listNodes[n2][1]:
-					aux = n1
-					n1 = n2
-					n2 = aux
-				listMembers[element.Name + '_' + str(i)] = {
-					'nodes': [str(n1), str(n2)],
-					'material': element.MaterialMember.Name,
-					'section': element.SectionMember.Name,
-					'trussMember': element.TrussMember
-					}
-		
-		return listMembers
-
-	# Cria os nós no modelo do solver
-	def setNodes(self, model, nodes_map):
-		for i, node in enumerate(nodes_map):
-			model.add_node(str(i), node[0], node[1], node[2])
-		
-		return model
-
-	# Cria os membros no modelo do solver
-	def setMembers(self, model, members_map, selfWeight=True):
-		# First add all members to the model
-		for memberName in list(members_map):  
-			model.add_member(memberName, members_map[memberName]['nodes'][0], members_map[memberName]['nodes'][1], 
-				members_map[memberName]['material'], members_map[memberName]['section'])
-			
-			# Apply truss member releases if needed
-			if members_map[memberName]['trussMember']:
-				model.def_releases(memberName, Dxi=False, Dyi=False, Dzi=False, Rxi=False, Ryi=True, Rzi=True, 
-					Dxj=False, Dyj=False, Dzj=False, Rxj=False, Ryj=True, Rzj=True)
-		
-		# Apply self-weight after all members are added
-		if selfWeight:
-			try:
-				_print_message("Adding self-weight to all members as distributed loads\n")
-				
-				# Apply self-weight as distributed loads for each member - γ · A
-				for memberName in list(members_map):
-					try:
-						# Get member material and section
-						material_name = members_map[memberName]['material']
-						section_name = members_map[memberName]['section']
-						
-						# Get material density if available
-						if material_name in model.materials:
-							density = model.materials[material_name].rho
-							
-							# Get section area if available
-							if section_name in model.sections:
-								area = model.sections[section_name].A
-								
-								# Calculate distributed load (w = γ · A)
-								line_load = density * area
-								
-								# Apply as distributed load in -Y direction (FY)
-								if abs(line_load) > 1e-10:  # Only apply if non-zero
-									_print_message(f"Member {memberName}: Applying self-weight of {line_load:.4f}\n")
-									model.add_member_dist_load(memberName, 'FY', -line_load, -line_load, case='DL')
-								else:
-									_print_message(f"Member {memberName}: Self-weight calculation resulted in zero load\n")
-									_print_message(f"  Density: {density}, Area: {area}\n")
-					except Exception as e:
-						_print_warning(f"Failed to apply self-weight to member {memberName}: {e}\n")
-			except Exception as e:
-				_print_warning(f"Failed to apply self-weight as distributed loads: {e}\n")
-				_print_message("Falling back to built-in self-weight function\n")
-				model.add_member_self_weight('FY', -1)
-		
-		return model
-
-	# Get load factors based on load case or combination
-	def getLoadFactors(self, load_case_or_combination, load_type):
-		"""Returns load factor for given load case/combination and load type"""
-		# Load combinations (Both Allowable stress design and Strength design)
-		load_combinations = {
-			# Allowable Stress Design (100 series)
-			'100_DL': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'101_DL+LL': {'DL': 1.0, 'LL': 1.0, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'102_DL+0.75(LL+W(X+))': {'DL': 1.0, 'LL': 0.75, 'W': 0.75, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'103_DL+0.75(LL+W(x-))': {'DL': 1.0, 'LL': 0.75, 'W': 0.75, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'104_DL+0.75(LL+W(y+))': {'DL': 1.0, 'LL': 0.75, 'W': 0.75, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'105_DL+0.75(LL+W(y-))': {'DL': 1.0, 'LL': 0.75, 'W': 0.75, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'106_0.6DL+W(X+)': {'DL': 0.6, 'LL': 0.0, 'W': 1.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'107_0.6DL+W(x-)': {'DL': 0.6, 'LL': 0.0, 'W': 1.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'108_0.6DL+W(y+)': {'DL': 0.6, 'LL': 0.0, 'W': 1.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'109_0.6DL+W(y-)': {'DL': 0.6, 'LL': 0.0, 'W': 1.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'110_DL+0.7E(X+)': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
-			'111_DL+0.7E(x-)': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
-			'112_DL+0.7E(y+)': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
-			'113_DL+0.7E(y-)': {'DL': 1.0, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
-			'114_DL+0.525E(X+)+0.75LL': {'DL': 1.0, 'LL': 0.75, 'W': 0.0, 'E': 0.525, 'H': 0.0, 'F': 0.0},
-			'115_DL+0.525E(x-)+0.75LL': {'DL': 1.0, 'LL': 0.75, 'W': 0.0, 'E': 0.525, 'H': 0.0, 'F': 0.0},
-			'116_DL+0.525E(Z+)+0.75LL': {'DL': 1.0, 'LL': 0.75, 'W': 0.0, 'E': 0.525, 'H': 0.0, 'F': 0.0},
-			'117_DL+0.525E(z-)+0.75LL': {'DL': 1.0, 'LL': 0.75, 'W': 0.0, 'E': 0.525, 'H': 0.0, 'F': 0.0},
-			'118_0.6DL+0.7E(X+)': {'DL': 0.6, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
-			'119_0.6DL+0.7E(x-)': {'DL': 0.6, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
-			'120_0.6DL+0.7E(y+)': {'DL': 0.6, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
-			'121_0.6DL+0.7E(y-)': {'DL': 0.6, 'LL': 0.0, 'W': 0.0, 'E': 0.7, 'H': 0.0, 'F': 0.0},
-			'122_DL+LL+H+F': {'DL': 1.0, 'LL': 1.0, 'W': 0.0, 'E': 0.0, 'H': 1.0, 'F': 1.0},
-			# Strength Design (1000 series)
-			'1000_1.4DL': {'DL': 1.4, 'LL': 0.0, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1001_1.4DL+1.7LL': {'DL': 1.4, 'LL': 1.7, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1002_1.05DL+1.275LL+1.6W(x+)': {'DL': 1.05, 'LL': 1.275, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1003_1.05DL+1.275LL+1.6W(x-)': {'DL': 1.05, 'LL': 1.275, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1004_1.05DL+1.275LL+1.6W(y+)': {'DL': 1.05, 'LL': 1.275, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1005_1.05DL+1.275LL+1.6W(y-)': {'DL': 1.05, 'LL': 1.275, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1006_0.9DL+1.6W(X+)': {'DL': 0.9, 'LL': 0.0, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1007_0.9DL+1.6W(x-)': {'DL': 0.9, 'LL': 0.0, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1008_0.9DL+1.6W(y+)': {'DL': 0.9, 'LL': 0.0, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1009_0.9DL+1.6W(y-)': {'DL': 0.9, 'LL': 0.0, 'W': 1.6, 'E': 0.0, 'H': 0.0, 'F': 0.0},
-			'1010_1.05DL+1.275LL+E(x+)': {'DL': 1.05, 'LL': 1.275, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
-			'1011_1.05DL+1.275LL+E(x-)': {'DL': 1.05, 'LL': 1.275, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
-			'1012_1.05DL+1.275LL+E(y+)': {'DL': 1.05, 'LL': 1.275, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
-			'1013_1.05DL+1.275LL+E(y-)': {'DL': 1.05, 'LL': 1.275, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
-			'1014_0.9DL+E(X+)': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
-			'1015_0.9DL+E(x-)': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
-			'1016_0.9DL+E(y+)': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
-			'1017_0.9DL+E(y-)': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 1.0, 'H': 0.0, 'F': 0.0},
-			'1018_1.4DL+1.7LL+1.7H': {'DL': 1.4, 'LL': 1.7, 'W': 0.0, 'E': 0.0, 'H': 1.7, 'F': 0.0},
-			'1019_0.9DL+1.7H': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 0.0, 'H': 1.7, 'F': 0.0},
-			'1020_1.4DL+1.7LL+1.4F': {'DL': 1.4, 'LL': 1.7, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 1.4},
-			'1021_0.9DL+1.4F': {'DL': 0.9, 'LL': 0.0, 'W': 0.0, 'E': 0.0, 'H': 0.0, 'F': 1.4}
-		}
-		
-		# Return load factor
-		if load_case_or_combination in load_combinations:
-			return load_combinations[load_case_or_combination].get(load_type, 0.0)
+		# Unit properties with proper defaults and enumeration
+		_addProp("App::PropertyEnumeration", "LengthUnit", "Calc", "set the length unit for calculation")
+		if hasattr(obj, 'addProperty'):
+			obj.LengthUnit = ['m', 'mm', 'cm']
+			obj.LengthUnit = 'm'  # default
 		else:
-			return 1.0  # Default factor
-
-	# Organize loads by type and check compatibility with selected load combination
-	def organizeLoadsByType(self, loads, load_combination):
-		"""Organizes loads by type and validates compatibility with load case"""
-		load_types = {'DL': [], 'LL': [], 'H': [], 'F': [], 'W': [], 'E': [], 'FACTOR': []}
-		
-		for load in loads:
-			load_type = getattr(load, 'LoadType', 'DL')
-			if load_type in load_types:
-				load_types[load_type].append(load)
-				
-		# Check if the selected load combination requires load types that are not present
-		# This line was incorrect - it's not needed and was causing confusion
-		# required_factors = self.getLoadFactors(load_combination, 'DL')  # Get all factors for this combination
-		
-		return load_types
-
-	# Check wind/earthquake direction compatibility
+			obj.LengthUnit = 'm'
+			
+		_addProp("App::PropertyEnumeration", "ForceUnit", "Calc", "set the force unit for calculation") 
+		if hasattr(obj, 'addProperty'):
+			obj.ForceUnit = ['kN', 'N', 'kgf', 'tf']  # เพิ่ม kgf และ tf
+			obj.ForceUnit = 'kN'  # default
+		else:
+			obj.ForceUnit = 'kN'
+			
+		# Add moment unit property (derived from force and length)
+		_addProp("App::PropertyString", "MomentUnit", "Calc", "moment unit (derived from force and length)", default='kN·m')
+		_addProp("App::PropertyBool", "selfWeight", "Calc", "include self weight in analysis", default=False)
 	def checkDirectionCompatibility(self, load_combination, load_direction):
 		"""Check if load direction is compatible with load combination direction requirements"""
 		direction_mapping = {
@@ -845,195 +558,135 @@ class Calc:
 		model = self.setMembers(model, members_map, use_self_weight)
 
 		# ---- New: map plates (StructuralPlate objects) into the FE model ----
-		# For each StructuralPlate, attempt to find four corner nodes in nodes_map and add a Plate element to the model.
 		for plate_obj in plates:
-			# Try to get corner vertices from the object's Shape (if available) or use a property named CornerNodes
+			# Try to use object-level exporter first (preferred)
+			payload = None
 			try:
-				shape = plate_obj.Shape
-			except Exception:
-				shape = None
+				if hasattr(plate_obj, 'Proxy') and hasattr(plate_obj.Proxy, 'to_calc_payload'):
+					payload = plate_obj.Proxy.to_calc_payload(plate_obj, length_unit=obj.LengthUnit)
+			except Exception as e:
+				_print_warning(f"to_calc_payload failed for plate '{getattr(plate_obj, 'Name', '')}': {e}\n")
 
-			# Determine corner node indices (best-effort). If CornerNodes property exists and matches nodes_map, prefer it.
-			corner_indices = None
-			if hasattr(plate_obj, 'CornerNodes') and plate_obj.CornerNodes:
-				# CornerNodes expected as list of FreeCAD.Vector or similar
+			# If we got a mesh payload, add mesh nodes/elements to model (try to reuse existing nodes_map)
+			if payload and payload.get('elements'):
+				node_id_map = {}
+				created_elems = []
+				for tag, coord in payload.get('nodes', {}).items():
+					try:
+						x = float(coord.get('x', 0))
+						y = float(coord.get('y', 0))
+						z = float(coord.get('z', 0))
+						coord_rounded = [round(x, 2), round(z, 2), round(y, 2)]
+						match_idx = _find_matching_node_index(nodes_map, coord_rounded, tol=1e-2)
+						if match_idx is not None:
+							node_name = str(match_idx)
+							node_id_map[str(tag)] = node_name
+							continue
+						# add new node
+						try:
+							node_name = model.add_node(None, x, y, z)
+							node_id_map[str(tag)] = node_name
+						except Exception as e:
+							_print_warning(f"Could not add mesh node {tag}: {e}\n")
+					except Exception:
+						# skip this node on any parsing error
+						continue
+
+				# Add elements
+				for eid, elem in payload.get('elements', {}).items():
+					nodes = elem.get('nodes', [])
+					if len(nodes) < 3:
+						_print_warning(f"Mesh element {eid} has insufficient nodes; skipping\n")
+						continue
+					if len(nodes) == 3:
+						nodes = nodes + [nodes[2]]
+					i_n = node_id_map.get(str(nodes[0]))
+					j_n = node_id_map.get(str(nodes[1]))
+					m_n = node_id_map.get(str(nodes[2]))
+					n_n = node_id_map.get(str(nodes[3]))
+					if None in (i_n, j_n, m_n, n_n):
+						_print_warning(f"Mesh element {eid} references unknown nodes; skipping\n")
+						continue
+					# thickness
+					thk = payload.get('thickness', getattr(plate_obj, 'Thickness', 0.1))
+					try:
+						thk = qty_val(thk, 'mm', obj.LengthUnit)
+					except Exception:
+						try:
+							thk = float(thk)
+						except Exception:
+							thk = 0.1
+					# material
+					mat_name = payload.get('material', 'default') or 'default'
+					if mat_name not in materiais:
+						# best-effort: add a default material to avoid missing reference
+						try:
+							model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+							materiais.append(mat_name)
+						except Exception:
+							_print_warning(f"Could not add material {mat_name} for plate '{plate_obj.Name}'\n")
+					# create element name
+					elem_name = f"{plate_obj.Name}_{eid}"
+					try:
+						model.add_quad(elem_name, i_n, j_n, m_n, n_n, float(thk), mat_name)
+						created_elems.append(elem_name)
+					except Exception as e:
+						_print_warning(f"Could not add mesh element {eid}: {e}\n")
+
+				# record created element names so area loads can be mapped later
+				if created_elems:
+					if not hasattr(self, '_plate_mesh_elements'):
+						self._plate_mesh_elements = {}
+					self._plate_mesh_elements[plate_obj.Name] = created_elems
+
+			else:
+				# Fallback to previous behavior (corner nodes / add_plate)
+				# Try to get corner vertices from the object's Shape (if available) or use a property named CornerNodes
 				try:
-					corner_points = [App.Vector(v) if not isinstance(v, App.Vector) else v for v in plate_obj.CornerNodes]
+					shape = plate_obj.Shape
 				except Exception:
-					corner_points = []
-				if corner_points and len(corner_points) >= 4:
-					corner_indices = []
-					for pt in corner_points[:4]:
-						node = [round(qty_val(pt.x, 'mm', obj.LengthUnit), 2), round(qty_val(pt.z, 'mm', obj.LengthUnit), 2), round(qty_val(pt.y, 'mm', obj.LengthUnit), 2)]
-						if node in nodes_map:
-							corner_indices.append(nodes_map.index(node))
+					shape = None
 
-			# Fallback: try to use the first Face's Vertexes
-			if corner_indices is None or len(corner_indices) < 4:
-				if shape and hasattr(shape, 'Faces') and len(shape.Faces) > 0:
-					face = shape.Faces[0]
-					verts = list(face.Vertexes)
-					if len(verts) >= 4:
+				corner_indices = None
+				if hasattr(plate_obj, 'CornerNodes') and plate_obj.CornerNodes:
+					try:
+						corner_points = [App.Vector(v) if not isinstance(v, App.Vector) else v for v in plate_obj.CornerNodes]
+					except Exception:
+						corner_points = []
+					if corner_points and len(corner_points) >= 4:
 						corner_indices = []
-						for v in verts[:4]:
-							node = [round(qty_val(v.Point.x, 'mm', obj.LengthUnit), 2), round(qty_val(v.Point.z, 'mm', obj.LengthUnit), 2), round(qty_val(v.Point.y, 'mm', obj.LengthUnit), 2)]
+						for pt in corner_points[:4]:
+							node = [round(qty_val(pt.x, 'mm', obj.LengthUnit), 2), round(qty_val(pt.z, 'mm', obj.LengthUnit), 2), round(qty_val(pt.y, 'mm', obj.LengthUnit), 2)]
 							if node in nodes_map:
 								corner_indices.append(nodes_map.index(node))
 
-			# If user requested a mesh (MeshDensity property) use PlateMesher to create elements
-			use_mesh = hasattr(plate_obj, 'MeshDensity') and getattr(plate_obj, 'MeshDensity')
-			if use_mesh:
-				# Prefer module-level PlateMesher (test can monkeypatch `calc.PlateMesher`).
-				_PlateMesher = PlateMesher
-				if _PlateMesher is None:
-					# Try importing as a last resort
-					try:
-						from .meshing.PlateMesher import PlateMesher as _PlateMesher
-					except Exception as e:
-						_print_warning(f"PlateMesher import failed for plate '{plate_obj.Name}': {e}\n")
-						_PlateMesher = None
-				if _PlateMesher is None:
-					mesh_data = None
-				else:
-					mesher = _PlateMesher()
-					# Determine target mesh size: prefer plate property, then mesher default if present
-					plate_mesh_density = getattr(plate_obj, 'MeshDensity', None)
-					if plate_mesh_density is None:
-						mesher_default = getattr(mesher, 'target_size', 100.0)
-						mesh_kwargs = {'target_size': float(mesher_default)}
-					else:
-						mesh_kwargs = {'target_size': float(plate_mesh_density)}
-					mesh_data = None
+				if corner_indices is None or len(corner_indices) < 4:
 					if shape and hasattr(shape, 'Faces') and len(shape.Faces) > 0:
-						try:
-							mesh_data = mesher.meshFace(shape.Faces[0], **mesh_kwargs)
-						except Exception as e:
-							_print_warning(f"PlateMesher.meshFace failed for plate '{plate_obj.Name}': {e}\n")
-					if mesh_data and 'nodes' in mesh_data and 'elements' in mesh_data:
-						# map mesh nodes to model nodes (try to reuse existing nodes_map first)
-						node_id_map = {}
-						for tag, coord in mesh_data['nodes'].items():
-							x = float(coord.get('x', 0))
-							y = float(coord.get('y', 0))
-							z = float(coord.get('z', 0))
-							# try to match against existing nodes_map using same rounding rule
-							coord_rounded = [round(x, 2), round(z, 2), round(y, 2)]
-							match_idx = _find_matching_node_index(nodes_map, coord_rounded, tol=1e-2)
-							if match_idx is not None:
-								# reuse existing node name (setNodes used str(index))
-								node_name = str(match_idx)
-								node_id_map[tag] = node_name
-								continue
-							# otherwise add a new node to the model
-							try:
-								node_name = model.add_node(None, x, y, z)
-								node_id_map[tag] = node_name
-							except Exception as e:
-								_print_warning(f"Could not add mesh node {tag}: {e}\n")
-						# add elements (support quads and fallback triangle handling)
-						created_elems = []
-						for elem_id, elem in mesh_data['elements'].items():
-							nodes = elem.get('nodes', [])
-							if len(nodes) < 3:
-								_print_warning(f"Mesh element {elem_id} has insufficient nodes; skipping\n")
-								continue
-							# If triangle, duplicate last node to create a degenerate quad (placeholder)
-							if len(nodes) == 3:
-								nodes = nodes + [nodes[2]]
-							# Lookup mapped node names
-							i_n = node_id_map.get(nodes[0])
-							j_n = node_id_map.get(nodes[1])
-							m_n = node_id_map.get(nodes[2])
-							n_n = node_id_map.get(nodes[3])
-							if None in (i_n, j_n, m_n, n_n):
-								_print_warning(f"Mesh element {elem_id} references unknown nodes; skipping\n")
-								continue
-							# thickness conversion with fallback
-							thk = getattr(plate_obj, 'Thickness', 0.1)
-							try:
-								thk = qty_val(thk, 'mm', obj.LengthUnit)
-							except Exception:
-								try:
-									thk = float(thk)
-								except Exception:
-									thk = 0.1
-							# Get material name and ensure material is added to model
-							mat_obj = getattr(plate_obj, 'Material', None)
-							if mat_obj and hasattr(mat_obj, 'Name'):
-								mat_name = mat_obj.Name
-								# Ensure plate material is added to FE model
-								if mat_name not in materiais:
-									if hasattr(mat_obj, 'Proxy') and hasattr(mat_obj.Proxy, 'get_calc_properties'):
-										try:
-											mat_props = mat_obj.Proxy.get_calc_properties(mat_obj, obj.LengthUnit, obj.ForceUnit)
-											model.add_material(mat_props['name'], mat_props['E'], mat_props['G'], mat_props['nu'], mat_props['density'])
-											materiais.append(mat_name)
-										except Exception:
-											model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
-											materiais.append(mat_name)
-									else:
-										try:
-											density = App.Units.Quantity(mat_obj.Density).getValueAs('t/m^3') * 10
-											density = float(App.Units.Quantity(density, 'kN/m^3').getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^3"))
-											E = float(mat_obj.ModulusElasticity.getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^2"))
-											nu = float(mat_obj.PoissonRatio)
-											G = E / (2 * (1 + nu))
-											model.add_material(mat_name, E, G, nu, density)
-											materiais.append(mat_name)
-										except Exception:
-											model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
-											materiais.append(mat_name)
-							else:
-								mat_name = 'default'
-							# Create a stable element name linked to the plate
-							elem_name = f"{plate_obj.Name}_{elem_id}"
-							try:
-								model.add_quad(elem_name, i_n, j_n, m_n, n_n, float(thk), mat_name)
-								created_elems.append(elem_name)
-							except Exception as e:
-								_print_warning(f"Could not add mesh element {elem_id}: {e}\n")
-						# record created element names so area loads can be mapped later
-						if created_elems:
-							if not hasattr(self, '_plate_mesh_elements'):
-								self._plate_mesh_elements = {}
-							self._plate_mesh_elements[plate_obj.Name] = created_elems
-					else:
-						_print_warning(f"PlateMesher: failed to create mesh for plate '{plate_obj.Name}'\n")
-			else:
-				# If no mesh requested and we have 4 corner node indices, add a plate to the FE model
+						face = shape.Faces[0]
+						verts = list(face.Vertexes)
+						if len(verts) >= 4:
+							corner_indices = []
+							for v in verts[:4]:
+								node = [round(qty_val(v.Point.x, 'mm', obj.LengthUnit), 2), round(qty_val(v.Point.z, 'mm', obj.LengthUnit), 2), round(qty_val(v.Point.y, 'mm', obj.LengthUnit), 2)]
+								if node in nodes_map:
+									corner_indices.append(nodes_map.index(node))
+
 				if corner_indices and len(corner_indices) >= 4:
-					# convert to string node names used by model (setNodes used str(i) indices)
 					i_name = str(corner_indices[0])
 					j_name = str(corner_indices[1])
 					m_name = str(corner_indices[2])
 					n_name = str(corner_indices[3])
-					# thickness and material
 					thk = getattr(plate_obj, 'Thickness', 0.1)
 					mat_obj = getattr(plate_obj, 'Material', None)
 					if mat_obj and hasattr(mat_obj, 'Name'):
 						mat_name = mat_obj.Name
-						# Ensure plate material is added to FE model
 						if mat_name not in materiais:
-							if hasattr(mat_obj, 'Proxy') and hasattr(mat_obj.Proxy, 'get_calc_properties'):
-								try:
-									mat_props = mat_obj.Proxy.get_calc_properties(mat_obj, obj.LengthUnit, obj.ForceUnit)
-									model.add_material(mat_props['name'], mat_props['E'], mat_props['G'], mat_props['nu'], mat_props['density'])
-									materiais.append(mat_name)
-								except Exception:
-									model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
-									materiais.append(mat_name)
-							else:
-								try:
-									density = App.Units.Quantity(mat_obj.Density).getValueAs('t/m^3') * 10
-									density = float(App.Units.Quantity(density, 'kN/m^3').getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^3"))
-									E = float(mat_obj.ModulusElasticity.getValueAs(obj.ForceUnit+"/"+obj.LengthUnit+"^2"))
-									nu = float(mat_obj.PoissonRatio)
-									G = E / (2 * (1 + nu))
-									model.add_material(mat_name, E, G, nu, density)
-									materiais.append(mat_name)
-								except Exception:
-									model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
-									materiais.append(mat_name)
+							# try to add material (best-effort)
+							try:
+								model.add_material(mat_name, 200000.0, 77000.0, 0.3, 78.5)
+								materiais.append(mat_name)
+							except Exception:
+								_print_warning(f"Could not add material {mat_name} for plate '{plate_obj.Name}'\n")
 					else:
 						mat_name = 'default'
 					try:
@@ -1059,6 +712,49 @@ class Calc:
 					pass
 
 			# Determine pressure magnitude (in force per area units)
+			# Prefer AreaLoad exporter when available
+			try:
+				if hasattr(aload, 'Proxy') and hasattr(aload.Proxy, 'to_solver_loads'):
+					# Attempt to find matching plate payload if targets exist
+					mesh_payload = None
+					if targets:
+						# Build a minimal mesh_payload if we have recorded plate meshes
+						for t in targets:
+							if hasattr(self, '_plate_mesh_elements') and t.Name in self._plate_mesh_elements:
+								mesh_payload = {'elements': {}, 'nodes': {}, 'area': None}
+								for q in self._plate_mesh_elements.get(t.Name, []):
+									mesh_payload['elements'][q] = {'nodes': []}
+					# Ask exporter for solver loads
+					loads_result = aload.Proxy.to_solver_loads(aload, mesh_payload=mesh_payload, force_unit=obj.ForceUnit, length_unit=obj.LengthUnit)
+					if loads_result and loads_result.get('entries'):
+						for entry in loads_result.get('entries', []):
+							if 'element' in entry:
+								ename = entry['element']
+								pressure = entry.get('pressure', 0.0)
+								# try to map to recorded quad names
+								if hasattr(self, '_plate_mesh_elements'):
+									for plate_name, quads in getattr(self, '_plate_mesh_elements', {}).items():
+										for qname in quads:
+											if ename == qname or ename.endswith(qname):
+												try:
+													model.add_quad_surface_pressure(qname, float(pressure), case=aload.LoadCategory if hasattr(aload, 'LoadCategory') else None)
+													_print_message(f"  Applied pressure {pressure:.4f} to quad {qname} (from exporter)\n")
+												except Exception as e:
+													_print_warning(f"Could not add quad pressure for {qname}: {e}\n")
+							elif 'plate' in entry:
+								pname = entry['plate']
+								pressure = entry.get('pressure', 0.0)
+								if pname in model.plates:
+									try:
+										model.add_plate_surface_pressure(pname, float(pressure), case=aload.LoadCategory if hasattr(aload, 'LoadCategory') else None)
+									except Exception as e:
+										_print_warning(f"Could not add plate pressure for {pname}: {e}\n")
+					# If exporter provided entries, skip geometric fallback
+					if loads_result and loads_result.get('entries'):
+						continue
+			except Exception as e:
+				_print_warning(f"AreaLoad exporter failed for '{getattr(aload, 'Name', '')}': {e}\n")
+
 			pressure_value = None
 			
 			# First try LoadIntensity property (preferred)

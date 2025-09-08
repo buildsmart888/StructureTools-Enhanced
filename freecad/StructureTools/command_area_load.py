@@ -134,6 +134,46 @@ class CreateAreaLoadCommand:
                 area_load_obj.Label = f"AreaLoad_{unique_targets[0].Label}"
             else:
                 area_load_obj.Label = f"AreaLoad_{len(unique_targets)}_faces"
+
+            # Safe defaults: set visualization and distribution without raising on enum mismatches
+            try:
+                if not hasattr(area_load_obj, 'ShowLoadArrows'):
+                    area_load_obj.addProperty("App::PropertyBool", "ShowLoadArrows", "Display", "Show load arrows")
+                try:
+                    area_load_obj.ShowLoadArrows = True
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+            # Try to set distribution safely; if enum mismatches, set alternative property
+            try:
+                try:
+                    area_load_obj.LoadDistribution = "TwoWay"
+                except Exception:
+                    # fallback to alternative property
+                    if not hasattr(area_load_obj, 'LoadDistributionMethod'):
+                        try:
+                            area_load_obj.addProperty("App::PropertyEnumeration", "LoadDistributionMethod", "Distribution", "Safe distribution choices")
+                            area_load_obj.LoadDistributionMethod = ["OneWay", "TwoWay", "OpenStructure"]
+                        except Exception:
+                            pass
+                    try:
+                        area_load_obj.LoadDistributionMethod = "TwoWay"
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            # Try set LoadCategory safely
+            try:
+                try:
+                    area_load_obj.LoadCategory = "DL"
+                except Exception:
+                    # leave as-is if incompatible
+                    pass
+            except Exception:
+                pass
             
             return area_load_obj
             

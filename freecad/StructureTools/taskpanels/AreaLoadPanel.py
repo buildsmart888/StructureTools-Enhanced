@@ -146,7 +146,11 @@ class AreaLoadApplicationPanel:
         
         # Distribution tab
         self.distribution_tab = self.createDistributionTab()
-        _safe_call_method(self.tab_widget, "addTab", self.distribution_tab, "Distribution")
+        try:
+            self.tab_widget.addTab(self.distribution_tab, "Distribution")
+        except Exception as e:
+            App.Console.PrintWarning(f"Error adding Distribution tab: {e}\n")
+            _safe_call_method(self.tab_widget, "addTab", self.distribution_tab, "Distribution")
         
         # Preview tab
         self.preview_tab = self.createPreviewTab()
@@ -359,6 +363,7 @@ class AreaLoadApplicationPanel:
     
     def createDistributionTab(self):
         """Create load distribution tab."""
+        App.Console.PrintMessage("Creating Distribution tab with OneWay/TwoWay options...\n")
         tab = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
         
@@ -374,6 +379,69 @@ class AreaLoadApplicationPanel:
         
         _safe_set_layout(pattern_group, pattern_layout)
         _safe_add_widget(layout, pattern_group)
+        
+        # Load transfer method group
+        transfer_group = QtWidgets.QGroupBox("Load Transfer Method")
+        transfer_layout = QtWidgets.QFormLayout()
+        
+        App.Console.PrintMessage("Adding OneWay/TwoWay distribution options...\n")
+        
+        # Load distribution method (OneWay vs TwoWay)
+        self.load_distribution_combo = QtWidgets.QComboBox()
+        distribution_methods = ["TwoWay", "OneWay", "OpenStructure"]
+        try:
+            self.load_distribution_combo.addItems(distribution_methods)
+            App.Console.PrintMessage(f"Added distribution methods: {distribution_methods}\n")
+        except Exception as e:
+            App.Console.PrintWarning(f"Error adding distribution methods: {e}\n")
+            _safe_call_method(self.load_distribution_combo, "addItems", distribution_methods)
+        _safe_connect(getattr(self.load_distribution_combo, "currentTextChanged", None), self.onLoadDistributionChanged)
+        transfer_layout.addRow("Distribution Method:", self.load_distribution_combo)
+        
+        # OneWay direction (enabled only for OneWay method)
+        self.oneway_direction_combo = QtWidgets.QComboBox()
+        oneway_directions = ["X", "Y", "Custom"]
+        _safe_call_method(self.oneway_direction_combo, "addItems", oneway_directions)
+        _safe_connect(getattr(self.oneway_direction_combo, "currentTextChanged", None), self.onOneWayDirectionChanged)
+        transfer_layout.addRow("OneWay Direction:", self.oneway_direction_combo)
+        
+        # Custom direction input (enabled only for Custom OneWay)
+        self.custom_direction_layout = QtWidgets.QHBoxLayout()
+        self.custom_x_input = QtWidgets.QDoubleSpinBox()
+        self.custom_x_input.setRange(-1.0, 1.0)
+        self.custom_x_input.setSingleStep(0.1)
+        self.custom_x_input.setValue(1.0)
+        self.custom_y_input = QtWidgets.QDoubleSpinBox()
+        self.custom_y_input.setRange(-1.0, 1.0)
+        self.custom_y_input.setSingleStep(0.1)
+        self.custom_y_input.setValue(0.0)
+        self.custom_z_input = QtWidgets.QDoubleSpinBox()
+        self.custom_z_input.setRange(-1.0, 1.0)
+        self.custom_z_input.setSingleStep(0.1)
+        self.custom_z_input.setValue(0.0)
+        
+        self.custom_direction_layout.addWidget(QtWidgets.QLabel("X:"))
+        self.custom_direction_layout.addWidget(self.custom_x_input)
+        self.custom_direction_layout.addWidget(QtWidgets.QLabel("Y:"))
+        self.custom_direction_layout.addWidget(self.custom_y_input)
+        self.custom_direction_layout.addWidget(QtWidgets.QLabel("Z:"))
+        self.custom_direction_layout.addWidget(self.custom_z_input)
+        
+        custom_widget = QtWidgets.QWidget()
+        custom_widget.setLayout(self.custom_direction_layout)
+        transfer_layout.addRow("Custom Direction:", custom_widget)
+        
+        # Distribution factors
+        self.distribution_factors_input = QtWidgets.QLineEdit()
+        self.distribution_factors_input.setText("1.0, 1.0, 1.0, 1.0")
+        self.distribution_factors_input.setToolTip("Distribution factors for load edges (comma-separated)")
+        transfer_layout.addRow("Distribution Factors:", self.distribution_factors_input)
+        
+        _safe_set_layout(transfer_group, transfer_layout)
+        _safe_add_widget(layout, transfer_group)
+        
+        # Initialize transfer method controls
+        self.updateLoadTransferControls()
         
         # Distribution parameters (varies by pattern)
         self.params_group = QtWidgets.QGroupBox("Distribution Parameters")
@@ -549,6 +617,44 @@ class AreaLoadApplicationPanel:
         _safe_set_layout(summary_group, summary_layout)
         return summary_group
     
+    def updateLoadTransferControls(self):
+        """Update load transfer control visibility based on selected method."""
+        try:
+            if not hasattr(self, 'load_distribution_combo'):
+                return
+                
+            method = self.load_distribution_combo.currentText()
+            
+            # Enable/disable OneWay direction controls
+            is_oneway = (method == "OneWay")
+            if hasattr(self, 'oneway_direction_combo'):
+                self.oneway_direction_combo.setEnabled(is_oneway)
+            
+            # Enable/disable custom direction inputs
+            is_custom = False
+            if is_oneway and hasattr(self, 'oneway_direction_combo'):
+                is_custom = (self.oneway_direction_combo.currentText() == "Custom")
+            
+            if hasattr(self, 'custom_x_input'):
+                self.custom_x_input.setEnabled(is_custom)
+                self.custom_y_input.setEnabled(is_custom)  
+                self.custom_z_input.setEnabled(is_custom)
+            
+            # Update preview if available
+            if hasattr(self, 'updatePreview'):
+                self.updatePreview()
+            
+        except Exception as e:
+            App.Console.PrintWarning(f"Error updating load transfer controls: {e}\n")
+    
+    def onLoadDistributionChanged(self):
+        """Handle load distribution method change."""
+        self.updateLoadTransferControls()
+    
+    def onOneWayDirectionChanged(self):
+        """Handle OneWay direction change."""
+        self.updateLoadTransferControls()
+    
     def populateSelectedFaces(self):
         """Populate the selected faces list."""
         self.face_list.clear()
@@ -601,7 +707,7 @@ class AreaLoadApplicationPanel:
             self.updateLoadSummary()
             
         except Exception as e:
-            FreeCAD.Console.PrintWarning(f"Error updating surface properties: {e}\n")
+            App.Console.PrintWarning(f"Error updating surface properties: {e}\n")
     
     def updateDistributionParameters(self):
         """Update distribution parameters based on selected pattern."""
@@ -711,7 +817,7 @@ class AreaLoadApplicationPanel:
             self.summary_direction_label.setText(self.direction_combo.currentText())
             
         except Exception as e:
-            FreeCAD.Console.PrintWarning(f"Error updating load summary: {e}\n")
+            App.Console.PrintWarning(f"Error updating load summary: {e}\n")
     
     def convertToKnM2(self, value, unit):
         """Convert magnitude to kN/m² for display."""
@@ -978,7 +1084,7 @@ class AreaLoadApplicationPanel:
                             continue
                             
         except Exception as e:
-            FreeCAD.Console.PrintWarning(f"Error creating preview arrows: {e}\n")
+            App.Console.PrintWarning(f"Error creating preview arrows: {e}\n")
         
         return arrows
     
@@ -1019,7 +1125,7 @@ class AreaLoadApplicationPanel:
             return arrow_obj
             
         except Exception as e:
-            FreeCAD.Console.PrintWarning(f"Error creating arrow: {e}\n")
+            App.Console.PrintWarning(f"Error creating arrow: {e}\n")
             return None
     
     def getLoadDirection(self, face, point):
@@ -1104,7 +1210,7 @@ class AreaLoadApplicationPanel:
                     self.load_center_label.setText(f"({center.x:.1f}, {center.y:.1f}, {center.z:.1f})")
             
         except Exception as e:
-            FreeCAD.Console.PrintWarning(f"Error updating statistics: {e}\n")
+            App.Console.PrintWarning(f"Error updating statistics: {e}\n")
     
     def updateStatus(self, message, color="blue"):
         """Update status message."""
@@ -1136,6 +1242,38 @@ class AreaLoadApplicationPanel:
                 area_load.LoadFactor = self.load_factor_input.value()
                 area_load.Description = self.description_input.text()
                 area_load.Direction = self.direction_combo.currentText()
+                
+                # Apply load distribution settings
+                if hasattr(self, 'load_distribution_combo'):
+                    # Set load distribution method
+                    if hasattr(area_load, 'LoadDistribution'):
+                        area_load.LoadDistribution = self.load_distribution_combo.currentText()
+                    
+                    # Set OneWay direction if applicable
+                    if (hasattr(area_load, 'OneWayDirection') and hasattr(self, 'oneway_direction_combo')):
+                        area_load.OneWayDirection = self.oneway_direction_combo.currentText()
+                    
+                    # Set custom direction if applicable
+                    if (hasattr(area_load, 'CustomDistributionDirection') and 
+                        hasattr(self, 'custom_x_input') and 
+                        hasattr(self, 'oneway_direction_combo') and
+                        self.oneway_direction_combo.currentText() == "Custom"):
+                        custom_dir = App.Vector(
+                            self.custom_x_input.value(),
+                            self.custom_y_input.value(), 
+                            self.custom_z_input.value()
+                        )
+                        area_load.CustomDistributionDirection = custom_dir
+                    
+                    # Set distribution factors
+                    if hasattr(area_load, 'EdgeDistributionFactors') and hasattr(self, 'distribution_factors_input'):
+                        try:
+                            factors_text = self.distribution_factors_input.text()
+                            factors = [float(f.strip()) for f in factors_text.split(',')]
+                            area_load.EdgeDistributionFactors = factors
+                        except:
+                            # Use default factors if parsing fails
+                            area_load.EdgeDistributionFactors = [1.0, 1.0, 1.0, 1.0]
                 
                 if self.direction_combo.currentText() == "Custom":
                     area_load.CustomDirection = App.Vector(
@@ -1246,7 +1384,7 @@ class AreaLoadPanel:
                     if hasattr(obj, 'Shape'):
                         selected_faces.append(obj)
         except Exception as e:
-            FreeCAD.Console.PrintWarning(f"Warning getting selected faces: {str(e)}\n")
+            App.Console.PrintWarning(f"Warning getting selected faces: {str(e)}\n")
         
         # Remove duplicates while preserving order
         unique_faces = []
@@ -1441,7 +1579,7 @@ class AreaLoadEditPanel:
                         _safe_call_method(self.surfaces_list, "addItem", target.Label)
             
         except Exception as e:
-            FreeCAD.Console.PrintWarning(f"Error populating from object: {e}\n")
+            App.Console.PrintWarning(f"Error populating from object: {e}\n")
     
     def accept(self):
         """Accept changes and update the area load object."""
@@ -1482,11 +1620,11 @@ class AreaLoadEditPanel:
             obj.recompute()
             App.ActiveDocument.recompute()
             
-            FreeCAD.Console.PrintMessage(f"Area load {obj.Label} updated successfully.\n")
+            App.Console.PrintMessage(f"Area load {obj.Label} updated successfully.\n")
             return True
             
         except Exception as e:
-            FreeCAD.Console.PrintError(f"Error updating area load: {str(e)}\n")
+            App.Console.PrintError(f"Error updating area load: {str(e)}\n")
             QtWidgets.QMessageBox.critical(None, "Error", f"Failed to update area load: {str(e)}")
             return False
     

@@ -1,0 +1,163 @@
+"""
+migrate_areaload_properties.FCMacro
+
+Migration macro for StructureTools AreaLoad objects.
+- Ensures legacy AreaLoad objects have the required properties safely
+- Creates fallback properties if enumerations conflict
+- Triggers visualization update (arrows / heatmap) where possible
+
+Usage:
+- Open your FreeCAD document
+- Run this macro via Macro -> Macros... -> Select migrate_areaload_properties -> Execute
+OR
+- From FreeCAD Python console run:
+    exec(open(r"<path-to-this-file>").read(), globals())
+
+This macro is safe to run multiple times; it attempts best-effort mapping and will not overwrite existing properties if incompatible.
+"""
+
+import FreeCAD as App
+import FreeCADGui as Gui
+
+def migrate_area_loads(only_selected=False):
+    doc = App.ActiveDocument
+    if not doc:
+        App.Console.PrintError("No active document. Open a document and try again.\n")
+        return
+
+    targets = []
+    if only_selected:
+        sel = Gui.Selection.getSelection()
+        targets = sel
+    else:
+        targets = list(doc.Objects)
+
+    processed = 0
+
+    for obj in targets:
+        try:
+            if not hasattr(obj, 'Proxy'):
+                continue
+            proxy = obj.Proxy
+            # Accept objects whose proxy Type is 'AreaLoad' or whose class name contains 'AreaLoad'
+            ptype = getattr(proxy, 'Type', None)
+            if ptype != 'AreaLoad' and 'AreaLoad' not in type(proxy).__name__:
+                continue
+
+            # Ensure helper exists; if not, create a safe fallback
+            if not hasattr(proxy, '_ensure_property_exists'):
+                try:
+                    proxy._ensure_property_exists = proxy._create_property_adder(obj)
+                except Exception:
+                    # fallback tiny adder
+                    def _tiny_adder(ptype, pname, pgroup, pdoc, default=None):
+                        try:
+                            if not hasattr(obj, pname):
+                                obj.addProperty(ptype, pname, pgroup, pdoc)
+                                if default is not None:
+                                    try:
+                                        setattr(obj, pname, default)
+                                    except Exception:
+                                        pass
+                            return True
+                        except Exception:
+                            return False
+                    proxy._ensure_property_exists = _tiny_adder
+
+            # Safe ensure of common properties (will not clobber incompatible enums)
+            try:
+                proxy._ensure_property_exists("App::PropertyBool", "ShowLoadArrows", "Display", "Show load arrows", True)
+            except Exception:
+                pass
+
+            # VectorScale alias for older/newer code
+            if not hasattr(obj, 'VectorScale'):
+                try:
+                    proxy._ensure_property_exists("App::PropertyFloat", "VectorScale", "Display", "Vector scale for arrows", getattr(obj, 'ArrowScale', 1.0))
+                    try:
+                        obj.VectorScale = getattr(obj, 'ArrowScale', 1.0)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+            # ArrowDensity
+            if not hasattr(obj, 'ArrowDensity'):
+                try:
+                    proxy._ensure_property_exists("App::PropertyInteger", "ArrowDensity", "Display", "Density of load arrows", getattr(obj, 'DisplayDensity', 10))
+                except Exception:
+                    pass
+
+            # ShowPressureHeatmap
+            try:
+                proxy._ensure_property_exists("App::PropertyBool", "ShowPressureHeatmap", "Display", "Show per-element pressure heatmap over meshed plates", False)
+            except Exception:
+                pass
+
+            # LoadDistribution safe creation
+            if not hasattr(obj, 'LoadDistribution'):
+                try:
+                    proxy._ensure_property_exists("App::PropertyEnumeration", "LoadDistribution", "Distribution", "Method for distributing load to supporting elements", None)
+                    try:
+                        # try setting list of choices and default
+                        obj.LoadDistribution = ["OneWay", "TwoWay", "OpenStructure"]
+                        obj.LoadDistribution = "TwoWay"
+                    except Exception:
+                        # some FreeCAD builds don't allow assigning enum choices this way; ignore
+                        pass
+                except Exception:
+                    pass
+
+            # Safe alternative property to avoid enum mismatch: LoadDistributionMethod
+            if not hasattr(obj, 'LoadDistributionMethod'):
+                try:
+                    proxy._ensure_property_exists("App::PropertyEnumeration", "LoadDistributionMethod", "Distribution", "Safe distribution choices", None)
+                    try:
+                        obj.LoadDistributionMethod = ["OneWay", "TwoWay", "OpenStructure"]
+                        obj.LoadDistributionMethod = "TwoWay"
+                    except Exception:
+                        pass
+                    # map existing LoadDistribution to new method if possible
+                    try:
+                        old = getattr(obj, 'LoadDistribution', None)
+                        if isinstance(old, str) and 'One' in old:
+                            try: obj.LoadDistributionMethod = "OneWay"
+                            except Exception: pass
+                        elif isinstance(old, str) and 'Two' in old:
+                            try: obj.LoadDistributionMethod = "TwoWay"
+                            except Exception: pass
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+            # Trigger visualization update
+            try:
+                if hasattr(proxy, '_update_visualization'):
+                    proxy._update_visualization(obj)
+                elif hasattr(proxy, '_createLoadVectors'):
+                    proxy._createLoadVectors(obj)
+            except Exception as e:
+                App.Console.PrintWarning("Visualization update failed for {}: {}\n".format(obj.Name, e))
+
+            # recompute
+            try:
+                obj.recompute()
+            except Exception:
+                pass
+
+            processed += 1
+
+        except Exception as e:
+            App.Console.PrintWarning("Migration error for object {}: {}\n".format(getattr(obj, 'Name', '<unknown>'), e))
+
+    App.Console.PrintMessage("AreaLoad migration attempted on {} objects\n".format(processed))
+    try:
+        doc.recompute()
+    except Exception:
+        pass
+
+# Run as macro
+if __name__ == '__main__':
+    # default: operate on all document objects; to run only selection, call migrate_area_loads(True)
+    migrate_area_loads(only_selected=False)
