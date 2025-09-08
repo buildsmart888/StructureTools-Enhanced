@@ -24,9 +24,17 @@ try:
 except ImportError:
     FEM_AVAILABLE = False
 
+try:
+    from .ProfileCalcIntegration import ProfileCalcIntegrator
+    from .ProfileCalcIntegration import apply_profile_to_member, create_calc_section_from_profile, get_profile_calc_properties
+    PROFILE_CALC_AVAILABLE = True
+except ImportError:
+    PROFILE_CALC_AVAILABLE = False
+
 __all__ = [
     'BIMStructuralIntegration', 'CommandBIMIntegration', 'CommandBIMExport', 'CommandBIMSync',
     'TechDrawStructuralIntegration', 'CommandCreateStructuralDrawing',
     'FEMStructuralBridge', 'CommandExportToFEM',
-    'BIM_AVAILABLE', 'TECHDRAW_AVAILABLE', 'FEM_AVAILABLE'
+    'ProfileCalcIntegrator', 'apply_profile_to_member', 'create_calc_section_from_profile', 'get_profile_calc_properties',
+    'BIM_AVAILABLE', 'TECHDRAW_AVAILABLE', 'FEM_AVAILABLE', 'PROFILE_CALC_AVAILABLE'
 ]

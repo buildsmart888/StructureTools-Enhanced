@@ -40,6 +40,11 @@ try:
     from .AnalysisSetupPanel import AnalysisSetupPanel
 except ImportError:
     AnalysisSetupPanel = None
+    
+try:
+    from .ProfileTaskPanel import ProfileTaskPanel
+except ImportError:
+    ProfileTaskPanel = None
 
 __all__ = [
     "PlatePropertiesPanel",
@@ -47,5 +52,6 @@ __all__ = [
     "BeamPropertiesPanel", 
     "NodePropertiesPanel",
     "LoadApplicationPanel",
-    "AnalysisSetupPanel"
+    "AnalysisSetupPanel",
+    "ProfileTaskPanel"
 ]

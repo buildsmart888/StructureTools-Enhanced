@@ -568,6 +568,10 @@ class EnhancedSteelDatabase:
             return {}
         return self.sections_database.get('shape_types', {})
     
+    def get_available_shape_types(self):
+        """Get available shape types (alias for compatibility)"""
+        return self.get_shape_types()
+    
     def get_sections_list(self, shape_type):
         """Get sections list for a shape type"""
         if not self.available or not self.sections_database:

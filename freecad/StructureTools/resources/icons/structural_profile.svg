@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="profileGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E5C8A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" fill="white" stroke="#CCCCCC" stroke-width="1"/>
+  
+  <!-- I-Beam Profile (main icon) -->
+  <g id="i-beam" fill="url(#profileGradient)" stroke="#1A3A5C" stroke-width="0.5">
+    <!-- Bottom flange -->
+    <rect x="8" y="22" width="16" height="3" />
+    <!-- Web -->
+    <rect x="14.5" y="7" width="3" height="18" />
+    <!-- Top flange -->
+    <rect x="8" y="7" width="16" height="3" />
+  </g>
+  
+  <!-- Property indicators (small geometric symbols) -->
+  <g id="properties" fill="#FF6B35" stroke="#CC5429" stroke-width="0.3">
+    <!-- Area symbol (small square) -->
+    <rect x="6" y="6" width="2" height="2" />
+    <!-- Moment symbol (small circle) -->
+    <circle cx="26" cy="7" r="1" />
+    <!-- Section modulus symbol (small triangle) -->
+    <polygon points="6,26 8,26 7,24" />
+  </g>
+  
+  <!-- Dimension lines -->
+  <g id="dimensions" stroke="#888888" stroke-width="0.5" fill="none">
+    <!-- Height dimension -->
+    <line x1="26.5" y1="7" x2="26.5" y2="25" />
+    <line x1="25.5" y1="7" x2="27.5" y2="7" />
+    <line x1="25.5" y1="25" x2="27.5" y2="25" />
+    <!-- Width dimension -->
+    <line x1="8" y1="5.5" x2="24" y2="5.5" />
+    <line x1="8" y1="4.5" x2="8" y2="6.5" />
+    <line x1="24" y1="4.5" x2="24" y2="6.5" />
+  </g>
+  
+  <!-- Text labels -->
+  <g id="labels" fill="#333333" font-family="Arial" font-size="4" font-weight="bold">
+    <text x="16" y="31" text-anchor="middle">Profile</text>
+  </g>
+</svg>

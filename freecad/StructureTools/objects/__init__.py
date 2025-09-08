@@ -16,6 +16,7 @@ from .StructuralMaterial import StructuralMaterial, ViewProviderStructuralMateri
 from .StructuralNode import StructuralNode, ViewProviderStructuralNode
 from .StructuralBeam import StructuralBeam, ViewProviderStructuralBeam
 from .StructuralPlate import StructuralPlate, ViewProviderStructuralPlate
+from .StructuralProfile import StructuralProfile, ViewProviderStructuralProfile, create_structural_profile
 
 __all__ = [
     "StructuralMaterial",
@@ -25,5 +26,8 @@ __all__ = [
     "StructuralNode", 
     "ViewProviderStructuralNode",
     "StructuralPlate",
-    "ViewProviderStructuralPlate"
+    "ViewProviderStructuralPlate",
+    "StructuralProfile",
+    "ViewProviderStructuralProfile",
+    "create_structural_profile"
 ]

@@ -5,7 +5,10 @@ members and to attach standardized/enhanced properties.
 """
 
 from typing import List
-import FreeCAD as App
+try:
+    import FreeCAD as App
+except Exception:
+    App = None
 
 try:
     import FreeCADGui as Gui
@@ -183,7 +186,10 @@ Designed to be import-safe in headless/test environments (guards FreeCAD GUI cal
 """
 
 import math
-import FreeCAD as App
+try:
+    import FreeCAD as App
+except Exception:
+    App = None
 
 try:
     import FreeCADGui as Gui
@@ -700,7 +706,7 @@ class BIMStructuralIntegration:
                             pass
 
         except Exception as e:
-                _console_error(f"Error applying section properties: {str(e)}")
+            _console_error(f"Error applying section properties: {str(e)}")
     
     def export_results_to_bim(self, structural_objects, analysis_results):
         """Export structural analysis results back to BIM objects"""
@@ -736,7 +742,7 @@ class BIMStructuralIntegration:
                         bim_obj.ViewObject.ShapeColor = (0.0, 1.0, 0.0)  # Green for safe
                         
         except Exception as e:
-                _console_error(f"Error applying results to BIM object {getattr(bim_obj, 'Label', '')}: {str(e)}")
+            _console_error(f"Error applying results to BIM object {getattr(bim_obj, 'Label', '')}: {str(e)}")
     
     def sync_geometry_changes(self):
         """Synchronize geometry changes between BIM and structural objects"""
@@ -746,7 +752,7 @@ class BIMStructuralIntegration:
                 if bim_obj.Shape.isValid() and structural_obj.Shape.isValid():
                     # Update structural object if BIM geometry changed
                     if bim_obj.Shape.BoundBox != structural_obj.Shape.BoundBox:
-                            _console_print(f"Updating structural object {structural_obj.Label} from BIM changes")
+                        _console_print(f"Updating structural object {structural_obj.Label} from BIM changes")
                         # Re-extract geometry and update
                         self.update_structural_from_bim(bim_obj, structural_obj)
 

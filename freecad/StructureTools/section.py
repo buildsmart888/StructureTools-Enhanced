@@ -1,4 +1,15 @@
-import FreeCAD, App, FreeCADGui, Part, os, math, copy
+import os, math, copy
+
+# Guard FreeCAD imports so this module can be imported in headless/test environments
+try:
+    import FreeCAD, App, FreeCADGui, Part
+    FREECAD_AVAILABLE = True
+except Exception:
+    FreeCAD = None
+    App = None
+    FreeCADGui = None
+    Part = None
+    FREECAD_AVAILABLE = False
 
 # Safe GUI imports with fallbacks
 try:
@@ -244,13 +255,24 @@ class Section:
 
 
     # Rotate face so that its normal coincides with the passed vector argument
-    def rotate(self, face, normal, position = FreeCAD.Vector(0,0,0)):
+    def rotate(self, face, normal, position=None):
+        """Rotate face so that its normal coincides with the passed vector argument.
+
+        This function is safe to import in headless/test environments where FreeCAD
+        may not be available: it will return the original face unchanged in that case.
+        """
+        # If FreeCAD is not present, avoid runtime operations during import
+        if not FREECAD_AVAILABLE:
+            return face
+
+        if position is None:
+            position = FreeCAD.Vector(0, 0, 0)
+
         normal.normalize()
         try:
-            normalface = face.normalAt(0,0)
-        except:
-            normalface = face.Faces[0].normalAt(0,0)
-            
+            normalface = face.normalAt(0, 0)
+        except Exception:
+            normalface = face.Faces[0].normalAt(0, 0)
 
         rotation = FreeCAD.Rotation(normalface, normal)
         rotatedFace = face.transformGeometry(FreeCAD.Placement(position, rotation).toMatrix())
@@ -260,6 +282,8 @@ class Section:
     def execute(self, obj):
         """Execute section object - generate geometry and calculate properties"""
         try:
+            # Ensure face is always defined to avoid unbound local errors
+            face = None
             # Validate object state
             if not hasattr(obj, 'Proxy') or obj.Proxy != self:
                 safe_console_log("Section object proxy mismatch", "error")
@@ -289,9 +313,28 @@ class Section:
                     self._calculate_and_update_properties(obj, face)
                 else:
                     # Capture face properties and add them to their respective fields
-                    face = obj.ObjectBase[0].getSubObject(obj.ObjectBase[1][0])
+                    try:
+                        face = obj.ObjectBase[0].getSubObject(obj.ObjectBase[1][0])
+                    except Exception as e:
+                        show_warning_message(
+                            "กรุณาเลือกผิว (face) ในมุมมอง 3D ก่อนดำเนินการ\n\nPlease select a face in the 3D view before proceeding",
+                            "Face Required / ต้องการผิว (Face)",
+                            str(e)
+                        )
+                        obj.Shape = Part.Shape()
+                        return
+
+            # If no geometry found at all, show bilingual popup and abort
+            if not generated_face and not obj.ObjectBase:
+                show_warning_message(
+                    "กรุณาเลือกผิว (face) ในมุมมอง 3D ก่อนดำเนินการ\n\nPlease select a face in the 3D view before proceeding",
+                    "Face Required / ต้องการผิว (Face)",
+                    "No section geometry or ObjectBase defined"
+                )
+                obj.Shape = Part.Shape()
+                return
             
-            if face and (face.ShapeType == 'Face' or hasattr(face, 'Area')): # validate if object is a face
+            if face and (getattr(face, 'ShapeType', '') == 'Face' or hasattr(face, 'Area')): # validate if object is a face
                 try:
                     # Extract geometric properties safely
                     if not hasattr(face, 'CenterOfMass') or not hasattr(face, 'Area'):
@@ -399,8 +442,13 @@ class Section:
                     obj.Shape = Part.Shape()
             else:
                 # No valid face found
+                # Provide a bilingual warning when no valid face is available
                 if not generated_face and not obj.ObjectBase:
-                    safe_console_log("No section geometry or ObjectBase defined\n")
+                    show_warning_message(
+                        "กรุณาเลือกผิว (face) ในมุมมอง 3D ก่อนดำเนินการ\n\nPlease select a face in the 3D view before proceeding",
+                        "Face Required / ต้องการผิว (Face)",
+                        "No section geometry or ObjectBase defined"
+                    )
                 else:
                     safe_console_log("Invalid face geometry for section\n")
                 obj.Shape = Part.Shape()
@@ -516,7 +564,16 @@ class Section:
                 obj.Label = f"Section_{obj.SectionStandard}"
             
             # Validate updated properties
-            errors, warnings = validate_section_properties(obj)
+            try:
+                errors, warnings = validate_section_properties(obj)
+            except AttributeError as e:
+                # Likely the object is missing a required runtime property like Area
+                show_error_message(
+                    f"Property validation failed due to missing object property: {str(e)}",
+                    "Section Validation Error",
+                    f"Section: {getattr(obj, 'SectionStandard', 'Unknown')}\nObject: {getattr(obj, 'Name', 'Unknown')}"
+                )
+                return
             
             if errors:
                 error_msg = f"Property validation failed for {obj.SectionStandard}:\n" + "\n".join(errors)
