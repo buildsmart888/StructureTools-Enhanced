@@ -29,16 +29,27 @@ Usage:
 
 from typing import Dict, List, Tuple, Optional, Any, Union
 
-from .ACI318 import (
-    ACI318,
-    ConcreteGrade,
-    RebarGrade, 
-    ConcreteMaterialProperties,
-    RebarMaterialProperties,
+# ACI318.py was consolidated into the top-level design/ACI318.py
+# Re-export from there to maintain backward compatibility
+from ..ACI318 import (
+    ACI318DesignCode as ACI318,
+    ConcreteProperties as ConcreteMaterialProperties,
+    ReinforcementProperties as RebarMaterialProperties,
     ConcreteSection,
     ConcreteDesignForces,
-    ConcreteDesignResults
+    ConcreteDesignResult as ConcreteDesignResults,
 )
+# Provide grade enums as simple stubs if not available in top-level module
+try:
+    from ..ACI318 import ConcreteStrengthMethod as ConcreteGrade, RebarSize as RebarGrade
+except ImportError:
+    class ConcreteGrade:
+        NORMAL_3000 = "3000"
+        NORMAL_4000 = "4000"
+        NORMAL_5000 = "5000"
+    class RebarGrade:
+        GRADE_60 = "60"
+        GRADE_75 = "75"
 
 from .ACI318_Extended import (
     ACIFoundations,
