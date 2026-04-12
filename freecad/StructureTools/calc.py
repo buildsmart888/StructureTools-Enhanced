@@ -157,7 +157,7 @@ def qty_val(value, from_unit='mm', to_unit=None):
 # try:
 # 	from Pynite import FEModel3D
 # except:
-# 	print('Instalando dependencias')
+# 	print('Installing dependencies')
 # 	subprocess.check_call(["pip", "install", "PyniteFEA"])
 
 def show_error_message(msg):
@@ -192,12 +192,12 @@ class Calc:
 				setattr(obj, name, default)
 
 		# Basic properties
-		_addProp("App::PropertyLinkList", "ListElements", "Calc", "elementos para a analise", default=None)
+		_addProp("App::PropertyLinkList", "ListElements", "Calc", "elements for analysis", default=None)
 		if elements is not None:
 			setattr(obj, 'ListElements', elements)
 
-		_addProp("App::PropertyString", "LengthUnit", "Calc", "set the length unit for calculation", default='m')
-		_addProp("App::PropertyString", "ForceUnit", "Calc", "set the length unit for calculation", default='kN')
+		_addProp("App::PropertyString", "LengthUnit", "Calc", "Length unit for calculation", default='m')
+		_addProp("App::PropertyString", "ForceUnit", "Calc", "Length unit for calculation", default='kN')
 
 		# Load Case Properties (Basic load types)
 		_addProp("App::PropertyEnumeration", "LoadCase", "Load Cases", "Select primary load case type")
@@ -493,7 +493,7 @@ class Calc:
 		self._ensure_properties(obj)
 		model = FEModel3D()
 		# Initialize materials list to track processed materials
-		materiais = []
+		materials = []
 		
 		# Ensure there's a default material so meshed quads can be assigned a material name
 		# Tests and minimal workflows may not define materials; create a light default.
@@ -1220,7 +1220,7 @@ class ViewProviderCalc:
 			if moment_lines:
 				lines.extend(moment_lines)
 		
-		# Calculate and display resultant force if enabled
+		# Calculatete and display resultant force if enabled
 		if show_resultant:
 			fx = reactions.get('FX', 0.0)
 			fy = reactions.get('FY', 0.0)
@@ -1238,7 +1238,7 @@ class ViewProviderCalc:
 			if not doc:
 				return None
 			
-			# Calculate text position (offset from node)
+			# Calculatete text position (offset from node)
 			node_pos = App.Vector(node.X, node.Y, node.Z)
 			text_pos = node_pos + App.Vector(offset, offset, 0)
 			
@@ -1668,27 +1668,155 @@ static char * calc_xpm[] = {
 		"""
 
 
+class _AnalysisSetupDialog(QtWidgets.QDialog):
+	"""Dialog for selecting load combination and validating model before analysis."""
+
+	LOAD_COMBOS = [
+		'100_DL', '101_DL+LL', '102_DL+0.75(LL+W(X+))', '103_DL+0.75(LL+W(x-))',
+		'104_DL+0.75(LL+W(y+))', '105_DL+0.75(LL+W(y-))', '106_0.6DL+W(X+)', '107_0.6DL+W(x-)',
+		'108_0.6DL+W(y+)', '109_0.6DL+W(y-)', '110_DL+0.7E(X+)', '111_DL+0.7E(x-)',
+		'112_DL+0.7E(y+)', '113_DL+0.7E(y-)', '114_DL+0.525E(X+)+0.75LL', '115_DL+0.525E(x-)+0.75LL',
+		'116_DL+0.525E(Z+)+0.75LL', '117_DL+0.525E(z-)+0.75LL', '118_0.6DL+0.7E(X+)', '119_0.6DL+0.7E(x-)',
+		'120_0.6DL+0.7E(y+)', '121_0.6DL+0.7E(y-)', '122_DL+LL+H+F',
+		'1000_1.4DL', '1001_1.4DL+1.7LL', '1002_1.05DL+1.275LL+1.6W(x+)', '1003_1.05DL+1.275LL+1.6W(x-)',
+		'1004_1.05DL+1.275LL+1.6W(y+)', '1005_1.05DL+1.275LL+1.6W(y-)', '1006_0.9DL+1.6W(X+)', '1007_0.9DL+1.6W(x-)',
+		'1008_0.9DL+1.6W(y+)', '1009_0.9DL+1.6W(y-)', '1010_1.05DL+1.275LL+E(x+)', '1011_1.05DL+1.275LL+E(x-)',
+		'1012_1.05DL+1.275LL+E(y+)', '1013_1.05DL+1.275LL+E(y-)', '1014_0.9DL+E(X+)', '1015_0.9DL+E(x-)',
+		'1016_0.9DL+E(y+)', '1017_0.9DL+E(y-)', '1018_1.4DL+1.7LL+1.7H', '1019_0.9DL+1.7H',
+		'1020_1.4DL+1.7LL+1.4F', '1021_0.9DL+1.4F',
+	]
+
+	def __init__(self, selection, parent=None):
+		super().__init__(parent)
+		self.selection = selection
+		self.chosen_combo = None
+		self.setWindowTitle('Analysis Setup')
+		self.setMinimumWidth(460)
+		self._build_ui()
+		self._run_validation()
+
+	def _build_ui(self):
+		layout = QtWidgets.QVBoxLayout(self)
+
+		# --- Load combination ---
+		grp_combo = QtWidgets.QGroupBox('Load Combination')
+		vbox = QtWidgets.QVBoxLayout(grp_combo)
+
+		self._search = QtWidgets.QLineEdit()
+		self._search.setPlaceholderText('Filter combinations…')
+		self._search.textChanged.connect(self._filter_combos)
+		vbox.addWidget(self._search)
+
+		self._combo_list = QtWidgets.QListWidget()
+		self._combo_list.addItems(self.LOAD_COMBOS)
+		self._combo_list.setCurrentRow(0)
+		self._combo_list.setMaximumHeight(180)
+		vbox.addWidget(self._combo_list)
+		layout.addWidget(grp_combo)
+
+		# --- Validation results ---
+		grp_val = QtWidgets.QGroupBox('Model Validation')
+		vval = QtWidgets.QVBoxLayout(grp_val)
+		self._val_text = QtWidgets.QTextEdit()
+		self._val_text.setReadOnly(True)
+		self._val_text.setMaximumHeight(110)
+		vval.addWidget(self._val_text)
+		layout.addWidget(grp_val)
+
+		# --- Buttons ---
+		btn_box = QtWidgets.QDialogButtonBox(
+			QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+		)
+		btn_box.accepted.connect(self.accept)
+		btn_box.rejected.connect(self.reject)
+		self._ok_btn = btn_box.button(QtWidgets.QDialogButtonBox.Ok)
+		layout.addWidget(btn_box)
+
+	def _filter_combos(self, text):
+		for i in range(self._combo_list.count()):
+			item = self._combo_list.item(i)
+			item.setHidden(text.lower() not in item.text().lower())
+
+	def _run_validation(self):
+		issues = []
+		warnings = []
+
+		lines = [e for e in self.selection
+		         if 'Line' in e.Name or 'Wire' in e.Name]
+		loads  = [e for e in self.selection if 'Load'   in e.Name]
+		suports = [e for e in self.selection if 'Suport' in e.Name]
+
+		if not lines:
+			issues.append('No structural members selected.')
+		else:
+			missing_mat  = [e.Label for e in lines if not getattr(e, 'MaterialMember', None)]
+			missing_sec  = [e.Label for e in lines if not getattr(e, 'SectionMember',  None)]
+			if missing_mat:
+				issues.append(f'Missing material on: {", ".join(missing_mat[:3])}{"…" if len(missing_mat) > 3 else ""}')
+			if missing_sec:
+				issues.append(f'Missing section on: {", ".join(missing_sec[:3])}{"…" if len(missing_sec) > 3 else ""}')
+
+		if not suports:
+			issues.append('No supports defined — structure will be unstable.')
+		if not loads:
+			warnings.append('No loads found — analysis will show zero results.')
+
+		lines_out = []
+		for msg in issues:
+			lines_out.append(f'✗  {msg}')
+		for msg in warnings:
+			lines_out.append(f'⚠  {msg}')
+		if not issues and not warnings:
+			lines_out.append('✓  Model looks ready for analysis.')
+
+		self._val_text.setPlainText('\n'.join(lines_out))
+
+		# Disable OK only when there are hard errors
+		if self._ok_btn:
+			self._ok_btn.setEnabled(len(issues) == 0)
+
+	def get_combination(self):
+		item = self._combo_list.currentItem()
+		return item.text() if item else self.LOAD_COMBOS[0]
+
+
 class CommandCalc():
 
     def GetResources(self):
-        return {"Pixmap"  : os.path.join(ICONPATH, "icons/calc.svg"), # the name of a svg file available in the resources
-                "Accel"   : "Shift+C", # a default shortcut (optional)
-                "MenuText": "Calc estructure",
-                "ToolTip" : "Calcula a estrutura"}
-    
+        return {"Pixmap"  : os.path.join(ICONPATH, "icons/calc.svg"),
+                "Accel"   : "Shift+C",
+                "MenuText": "Run Analysis",
+                "ToolTip" : "Select load combination and run structural analysis"}
+
     def Activated(self):
         selection = FreeCADGui.Selection.getSelection()
+
+        # Show setup dialog
+        try:
+            dlg = _AnalysisSetupDialog(selection)
+            if dlg.exec() != QtWidgets.QDialog.Accepted:
+                return
+            chosen_combo = dlg.get_combination()
+        except Exception as e:
+            _print_warning(f"Could not show analysis setup dialog: {e}\n")
+            chosen_combo = '100_DL'
+
         doc = App.ActiveDocument
         obj = doc.addObject("Part::FeaturePython", "Calc")
 
-        objSuport = Calc(obj, selection)
-        ViewProviderCalc(obj.ViewObject)           
+        objCalc = Calc(obj, selection)
+        ViewProviderCalc(obj.ViewObject)
 
-        App.ActiveDocument.recompute()        
+        # Apply the chosen load combination before recompute
+        try:
+            obj.LoadCombination = chosen_combo
+        except Exception:
+            pass
+
+        App.ActiveDocument.recompute()
         return
 
     def IsActive(self):
-        
         return True
 
 # Only register command if FreeCAD GUI is available

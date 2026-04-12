@@ -22,12 +22,12 @@ class Diagram:
 		
 		# Base properties - only add if they don't exist
 		if not hasattr(obj, 'ObjectBaseCalc'):
-			obj.addProperty("App::PropertyLink", "ObjectBaseCalc", "Base", "elementos para a analise").ObjectBaseCalc = objCalc
+			obj.addProperty("App::PropertyLink", "ObjectBaseCalc", "Base", "elements for analysis").ObjectBaseCalc = objCalc
 		else:
 			obj.ObjectBaseCalc = objCalc
 			
 		if not hasattr(obj, 'ObjectBaseElements'):
-			obj.addProperty("App::PropertyLinkSubList", "ObjectBaseElements", "Base", "elementos para a analise").ObjectBaseElements = self.getMembers(listSelection)
+			obj.addProperty("App::PropertyLinkSubList", "ObjectBaseElements", "Base", "elements for analysis").ObjectBaseElements = self.getMembers(listSelection)
 		else:
 			obj.ObjectBaseElements = self.getMembers(listSelection)
 		
@@ -331,9 +331,9 @@ class Diagram:
 		try:
 			# Basic properties
 			if not hasattr(obj, 'Color'):
-				obj.addProperty("App::PropertyColor", "Color", "Diagram", "elementos para a analise").Color = (255,0,0,0)
+				obj.addProperty("App::PropertyColor", "Color", "Diagram", "elements for analysis").Color = (255,0,0,0)
 			if not hasattr(obj, 'Transparency'):
-				obj.addProperty("App::PropertyInteger", "Transparency", "Diagram", "elementos para a analise").Transparency = 70
+				obj.addProperty("App::PropertyInteger", "Transparency", "Diagram", "elements for analysis").Transparency = 70
 			if not hasattr(obj, 'FontHeight'):
 				obj.addProperty("App::PropertyInteger", "FontHeight", "Diagram", "Tamanho da fonte no diagrama").FontHeight = 100
 			if not hasattr(obj, 'Precision'):
@@ -385,6 +385,16 @@ class Diagram:
 				obj.addProperty("App::PropertyBool", "AxialForce", "DiagramAxial", "แสดงไดอะแกรมแรงแกน").AxialForce = False
 			if not hasattr(obj, 'ScaleAxial'):
 				obj.addProperty("App::PropertyFloat", "ScaleAxial", "DiagramAxial", "สเกลไดอะแกรมแรงแกน").ScaleAxial = 1
+
+			# Deflection diagram
+			if not hasattr(obj, 'Deflection'):
+				obj.addProperty("App::PropertyBool", "Deflection", "DiagramDeflection", "Show deflection diagram").Deflection = False
+			if not hasattr(obj, 'ScaleDeflection'):
+				obj.addProperty("App::PropertyFloat", "ScaleDeflection", "DiagramDeflection", "Deflection diagram scale").ScaleDeflection = 100.0
+			if not hasattr(obj, 'ColorDeflection'):
+				obj.addProperty("App::PropertyColor", "ColorDeflection", "DiagramDeflection", "Deflection diagram colour").ColorDeflection = (0, 200, 255, 0)
+			if not hasattr(obj, 'ShowTextDeflection'):
+				obj.addProperty("App::PropertyBool", "ShowTextDeflection", "DiagramText", "Show deflection values on diagram").ShowTextDeflection = True
 			
 			# Color properties
 			if not hasattr(obj, 'ColorMoment'):
@@ -427,7 +437,8 @@ class Diagram:
 		shear_diagrams = []
 		torque_diagrams = []
 		axial_diagrams = []
-		
+		deflection_diagrams = []
+
 		# Check and get attributes safely with defaults
 		moment_z = getattr(obj, 'MomentZ', False)
 		moment_y = getattr(obj, 'MomentY', False)
@@ -435,17 +446,20 @@ class Diagram:
 		shear_z = getattr(obj, 'ShearZ', False)
 		torque = getattr(obj, 'Torque', False)
 		axial_force = getattr(obj, 'AxialForce', False)
-		
+		deflection = getattr(obj, 'Deflection', False)
+
 		draw_text = getattr(obj, 'DrawText', True)
 		show_text_moment = getattr(obj, 'ShowTextMoment', True)
 		show_text_shear = getattr(obj, 'ShowTextShear', True)
 		show_text_torque = getattr(obj, 'ShowTextTorque', True)
 		show_text_axial = getattr(obj, 'ShowTextAxial', True)
-		
+		show_text_deflection = getattr(obj, 'ShowTextDeflection', True)
+
 		color_moment = getattr(obj, 'ColorMoment', (255,0,0,0))
 		color_shear = getattr(obj, 'ColorShear', (0,255,0,0))
 		color_torque = getattr(obj, 'ColorTorque', (0,0,255,0))
 		color_axial = getattr(obj, 'ColorAxial', (255,255,0,0))
+		color_deflection = getattr(obj, 'ColorDeflection', (0, 200, 255, 0))
 		
 		if moment_z:
 			show_text = draw_text and show_text_moment
@@ -470,29 +484,45 @@ class Diagram:
 		if axial_force:
 			show_text = draw_text and show_text_axial
 			axial_diagrams += self.makeDiagram(self.getMatrix(obj.ObjectBaseCalc.AxialForce),nodes, members, orderMembers, obj.ObjectBaseCalc.NumPointsAxial, 0, obj.ScaleAxial, obj.FontHeight, obj.Precision, show_text, obj, color_axial)
-		
+
+		if deflection:
+			defl_data_y = getattr(obj.ObjectBaseCalc, 'DeflectionY', [])
+			defl_data_z = getattr(obj.ObjectBaseCalc, 'DeflectionZ', [])
+			n_defl = getattr(obj.ObjectBaseCalc, 'NumPointsDeflection', 4)
+			scale_defl = getattr(obj, 'ScaleDeflection', 100.0)
+			show_text = draw_text and show_text_deflection
+			if defl_data_y:
+				deflection_diagrams += self.makeDiagram(self.getMatrix(defl_data_y), nodes, members, orderMembers, n_defl, 0, scale_defl, obj.FontHeight, obj.Precision, show_text, obj, color_deflection)
+			if defl_data_z:
+				deflection_diagrams += self.makeDiagram(self.getMatrix(defl_data_z), nodes, members, orderMembers, n_defl, 90, scale_defl, obj.FontHeight, obj.Precision, show_text, obj, color_deflection)
+
 		# Create colored compounds for each diagram type
 		all_shapes = []
-		
+
 		# Add moment diagrams with red color
 		if moment_diagrams:
 			moment_compound = Part.makeCompound(moment_diagrams)
 			all_shapes.append(moment_compound)
-		
+
 		# Add shear diagrams with green color
 		if shear_diagrams:
 			shear_compound = Part.makeCompound(shear_diagrams)
 			all_shapes.append(shear_compound)
-			
+
 		# Add torque diagrams with blue color
 		if torque_diagrams:
 			torque_compound = Part.makeCompound(torque_diagrams)
 			all_shapes.append(torque_compound)
-			
+
 		# Add axial diagrams with yellow color
 		if axial_diagrams:
 			axial_compound = Part.makeCompound(axial_diagrams)
 			all_shapes.append(axial_compound)
+
+		# Add deflection diagrams with cyan color
+		if deflection_diagrams:
+			deflection_compound = Part.makeCompound(deflection_diagrams)
+			all_shapes.append(deflection_compound)
 
 		if not all_shapes:
 			shape = Part.Shape()
@@ -510,12 +540,14 @@ class Diagram:
 			if moment_diagrams:
 				diagram_types.append('moment')
 			if shear_diagrams:
-				diagram_types.append('shear') 
+				diagram_types.append('shear')
 			if torque_diagrams:
 				diagram_types.append('torque')
 			if axial_diagrams:
 				diagram_types.append('axial')
-			
+			if deflection_diagrams:
+				diagram_types.append('deflection')
+
 			# Apply colors based on diagram type
 			for i, (part_shape, diagram_type) in enumerate(zip(all_shapes, diagram_types)):
 				# Get number of faces/elements to color
@@ -525,7 +557,7 @@ class Diagram:
 					num_elements = len(part_shape.Edges)
 				else:
 					num_elements = 1
-				
+
 				# Apply appropriate color based on diagram type
 				if diagram_type == 'moment':
 					diffuse_colors.extend([color_moment] * num_elements)
@@ -535,6 +567,8 @@ class Diagram:
 					diffuse_colors.extend([color_torque] * num_elements)
 				elif diagram_type == 'axial':
 					diffuse_colors.extend([color_axial] * num_elements)
+				elif diagram_type == 'deflection':
+					diffuse_colors.extend([color_deflection] * num_elements)
 			
 			if diffuse_colors:
 				obj.ViewObject.DiffuseColor = diffuse_colors
@@ -550,10 +584,10 @@ class Diagram:
 		# List of parameters that should trigger re-execution
 		trigger_params = [
 			'edgeLength', 'DrawText', 'ShowUnits', 'TextOrientation', 'TextOffset',
-			'ShowTextMoment', 'ShowTextShear', 'ShowTextTorque', 'ShowTextAxial',
-			'MomentZ', 'MomentY', 'ShearY', 'ShearZ', 'Torque', 'AxialForce',
-			'ScaleMoment', 'ScaleShear', 'ScaleTorque', 'ScaleAxial',
-			'ColorMoment', 'ColorShear', 'ColorTorque', 'ColorAxial',
+			'ShowTextMoment', 'ShowTextShear', 'ShowTextTorque', 'ShowTextAxial', 'ShowTextDeflection',
+			'MomentZ', 'MomentY', 'ShearY', 'ShearZ', 'Torque', 'AxialForce', 'Deflection',
+			'ScaleMoment', 'ScaleShear', 'ScaleTorque', 'ScaleAxial', 'ScaleDeflection',
+			'ColorMoment', 'ColorShear', 'ColorTorque', 'ColorAxial', 'ColorDeflection',
 			'FontHeight', 'Precision', 'Color', 'Transparency'
 		]
 		
