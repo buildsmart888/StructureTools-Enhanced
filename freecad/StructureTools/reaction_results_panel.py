@@ -645,7 +645,7 @@ class ReactionResultsPanel:
                 writer.writerow([])
                 writer.writerow([f"Total Supported Nodes: {supported_nodes}"])
                 
-                # Calculate total reactions for sanity check
+                # Calculatete total reactions for sanity check
                 total_fx = total_fy = total_fz = 0.0
                 total_mx = total_my = total_mz = 0.0
                 

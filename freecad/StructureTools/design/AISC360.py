@@ -332,7 +332,7 @@ class AISC360DesignCode:
         # Check for compact, non-compact, or slender sections
         section_classification = self._classify_section_flexure(section, material)
         
-        # Calculate nominal flexural strength
+        # Calculatete nominal flexural strength
         if section_classification == "compact":
             # Yielding limit state (F2.1)
             Mp = material.Fy * Zx  # Plastic moment
@@ -365,7 +365,7 @@ class AISC360DesignCode:
             capacity = Mn / omega
             demand = Mu
         
-        # Calculate demand-to-capacity ratio
+        # Calculatete demand-to-capacity ratio
         ratio = demand / capacity if capacity > 0 else float('inf')
         status = "OK" if ratio <= 1.0 else "FAIL"
         
@@ -403,7 +403,7 @@ class AISC360DesignCode:
         Returns:
             DesignResult with shear check details
         """
-        # Calculate resultant shear force
+        # Calculatete resultant shear force
         Vu = forces.resultant_shear
         if Vu == 0:
             return DesignResult(
@@ -448,7 +448,7 @@ class AISC360DesignCode:
             capacity = Vn / omega
             demand = Vu
         
-        # Calculate demand-to-capacity ratio
+        # Calculatete demand-to-capacity ratio
         ratio = demand / capacity if capacity > 0 else float('inf')
         status = "OK" if ratio <= 1.0 else "FAIL"
         
@@ -550,7 +550,7 @@ class AISC360DesignCode:
             capacity = Pn / omega
             demand = Pu
         
-        # Calculate demand-to-capacity ratio
+        # Calculatete demand-to-capacity ratio
         ratio = demand / capacity if capacity > 0 else float('inf')
         status = "OK" if ratio <= 1.0 else "FAIL"
         
@@ -760,7 +760,7 @@ class AISC360DesignCode:
         if Lb == 0:
             return material.Fy * section.Zx  # No lateral-torsional buckling
         
-        # Calculate Lp and Lr
+        # Calculatete Lp and Lr
         rts = math.sqrt(section.Iy * section.Cw) / section.Sy if section.Sy > 0 else 0
         
         Lp = 1.76 * section.ry * math.sqrt(material.E / material.Fy)

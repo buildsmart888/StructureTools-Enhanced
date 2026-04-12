@@ -138,7 +138,7 @@ class ACIFoundations(ACI318):
         bo = 2 * (footing.column_L + footing.column_W + 2 * d_eff)  # Perimeter
         Vu_punch = forces.Pu - actual_pressure * (footing.column_L + d_eff) * (footing.column_W + d_eff)
         
-        # Calculate punching shear capacity
+        # Calculatete punching shear capacity
         beta_c = footing.column_L / footing.column_W if footing.column_W > 0 else 1.0
         alpha_s = 40  # For interior columns
         
@@ -152,14 +152,14 @@ class ACIFoundations(ACI318):
         punch_ratio = Vu_punch / phi_Vc_punch
         
         # Design flexural reinforcement
-        # Calculate maximum moment at critical section
+        # Calculatete maximum moment at critical section
         x_crit = (footing.L - footing.column_L) / 2
         Mu_x = actual_pressure * footing.W * x_crit**2 / 2
         
         y_crit = (footing.W - footing.column_W) / 2  
         Mu_y = actual_pressure * footing.L * y_crit**2 / 2
         
-        # Calculate required reinforcement in each direction
+        # Calculatete required reinforcement in each direction
         # X-direction (bottom bars)
         As_x = self._calculate_required_As_footing(footing.W, d_eff, Mu_x, concrete, rebar)
         
@@ -211,7 +211,7 @@ class ACIFoundations(ACI318):
         phi = self.phi_t
         Rn = Mu / (phi * width * d**2)
         
-        # Calculate reinforcement ratio
+        # Calculatete reinforcement ratio
         rho = (0.85 * concrete.fc_prime / rebar.fy) * (
             1 - math.sqrt(1 - 2 * Rn / (0.85 * concrete.fc_prime))
         )
@@ -257,13 +257,13 @@ class ACISlabs(ACI318):
         if slab.t < min_thickness:
             results.recommendations.append(f"Increase thickness to minimum: {min_thickness:.1f} in")
         
-        # Calculate design loads
+        # Calculatete design loads
         wu = self.load_factors['dead'] * dead_load + self.load_factors['live'] * live_load
         
-        # Calculate maximum moment (simply supported)
+        # Calculatete maximum moment (simply supported)
         Mu = wu * slab.b * slab.Lx**2 / 8  # Per foot width
         
-        # Calculate required reinforcement
+        # Calculatete required reinforcement
         As_required = self._calculate_required_As(slab, concrete, rebar, Mu)
         
         # Check minimum reinforcement - ACI 7.6.1.1
@@ -274,7 +274,7 @@ class ACISlabs(ACI318):
         
         As_required = max(As_required, As_min)
         
-        # Calculate flexural capacity
+        # Calculatete flexural capacity
         a = As_required * rebar.fy / (0.85 * concrete.fc_prime * slab.b)
         Mn = As_required * rebar.fy * (slab.d - a/2)
         phi_Mn = self.phi_t * Mn
@@ -347,10 +347,10 @@ class ACISlabs(ACI318):
         if slab.t < min_thickness_two_way:
             results.recommendations.append(f"Increase thickness to minimum: {min_thickness_two_way:.1f} in")
         
-        # Calculate design loads
+        # Calculatete design loads
         wu = self.load_factors['dead'] * dead_load + self.load_factors['live'] * live_load
         
-        # Calculate total static moment - ACI 8.10.3
+        # Calculatete total static moment - ACI 8.10.3
         Mo = wu * slab.Lx * slab.Ly**3 / 8
         
         # Distribute moments between column and middle strips - ACI 8.10.4
@@ -386,7 +386,7 @@ class ACISlabs(ACI318):
         # Check punching shear (if applicable)
         # This would be added for flat plates with columns
         
-        # Calculate capacities and ratios
+        # Calculatete capacities and ratios
         phi_Mn_col_neg = self._calculate_strip_capacity(As_col_neg, slab, concrete, rebar)
         flex_ratio_col_neg = Mu_neg_col / phi_Mn_col_neg if phi_Mn_col_neg > 0 else float('inf')
         
@@ -440,7 +440,7 @@ class ACISlabs(ACI318):
         phi = self.phi_t
         Rn = Mu / (phi * width * d**2)
         
-        # Calculate reinforcement ratio
+        # Calculatete reinforcement ratio
         rho = (0.85 * concrete.fc_prime / rebar.fy) * (
             1 - math.sqrt(1 - 2 * Rn / (0.85 * concrete.fc_prime))
         )
@@ -539,7 +539,7 @@ class ACIDevelopment(ACI318):
         psi_s = modification_factors.get('size_factor', 1.0)     # Size factor (0.8 for #6 and smaller)
         lambda_factor = concrete.lambda_factor                    # Lightweight factor
         
-        # Calculate basic development length
+        # Calculatete basic development length
         ld_basic = (fy * psi_t * psi_e * psi_s * lambda_factor) / (25 * math.sqrt(fc_prime)) * db
         
         # Apply additional modification factors from ACI 25.4.2.4
@@ -595,7 +595,7 @@ class ACIDevelopment(ACI318):
         Returns:
             Splice length (in)
         """
-        # Calculate basic development length
+        # Calculatete basic development length
         ld = self.calculate_development_length_tension(db, concrete, rebar)
         
         # Splice length factors

@@ -202,7 +202,7 @@ class ASCE7LoadGenerator(LoadGenerationEngine):
         # Get occupancy-specific live loads
         live_loads = self._get_occupancy_live_loads()
         
-        # Calculate tributary areas
+        # Calculatete tributary areas
         floor_area = self.building_geometry.length * self.building_geometry.width
         
         # Dead loads
@@ -272,7 +272,7 @@ class ASCE7LoadGenerator(LoadGenerationEngine):
         # Gust-effect factor
         G = 0.85  # Rigid buildings
         
-        # Calculate wind loads at different heights
+        # Calculatete wind loads at different heights
         height_increments = np.linspace(0, self.building_geometry.height, 11)
         wind_pressures = []
         
@@ -304,7 +304,7 @@ class ASCE7LoadGenerator(LoadGenerationEngine):
         # Seismic design category
         sdc = self._determine_seismic_design_category(Sds, Sd1)
         
-        # Calculate seismic base shear
+        # Calculatete seismic base shear
         base_shear_data = self._calculate_seismic_base_shear(Sds, Sd1)
         
         # Distribute base shear over building height
@@ -357,7 +357,7 @@ class ASCE7LoadGenerator(LoadGenerationEngine):
         Cs = max(Cs, 0.044 * Sds * self.site_conditions.importance_factor_seismic)
         Cs = min(Cs, Sds / (1.5 * self.site_conditions.importance_factor_seismic))
         
-        # Calculate effective seismic weight
+        # Calculatete effective seismic weight
         W = self._calculate_effective_seismic_weight()
         
         # Base shear
@@ -572,7 +572,7 @@ class ASCE7LoadGenerator(LoadGenerationEngine):
         """Distribute seismic base shear over building height."""
         story_forces = []
         
-        # Calculate story weights and heights
+        # Calculatete story weights and heights
         floor_area = self.building_geometry.length * self.building_geometry.width
         story_weight = self.load_parameters.dead_load_floor * floor_area
         
@@ -592,7 +592,7 @@ class ASCE7LoadGenerator(LoadGenerationEngine):
                 'weight_height': weight_height
             })
         
-        # Calculate story forces
+        # Calculatete story forces
         for wh in weights_heights:
             force = base_shear * (wh['weight_height'] / total_weight_height)
             story_forces.append({

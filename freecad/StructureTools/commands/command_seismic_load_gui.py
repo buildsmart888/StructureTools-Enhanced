@@ -1356,7 +1356,7 @@ class SeismicLoadGUI(QDialog):
         """Create action buttons for the GUI"""
         layout = QHBoxLayout()
         
-        # Calculate Button
+        # Calculatete Button
         self.calculate_btn = QPushButton("Calculate Seismic Loads")
         self.calculate_btn.setStyleSheet("QPushButton { background-color: #C2185B; color: white; font-weight: bold; padding: 8px; }")
         layout.addWidget(self.calculate_btn)

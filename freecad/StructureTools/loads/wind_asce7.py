@@ -310,7 +310,7 @@ class ASCE7WindGenerator:
         B = building.width  
         h = building.height
         
-        # Calculate L/B ratio for pressure coefficients
+        # Calculatete L/B ratio for pressure coefficients
         aspect_ratio = L / B if B > 0 else 1.0
         
         # External pressure coefficients from ASCE 7-22 Figure 27.3-1
@@ -342,7 +342,7 @@ class ASCE7WindGenerator:
                 Cp_roof_windward = -0.6
                 Cp_roof_leeward = -0.6
         
-        # Calculate pressures
+        # Calculatete pressures
         qh = pressures.qh
         
         pressures.windward_wall = Cp_windward * qh
@@ -356,7 +356,7 @@ class ASCE7WindGenerator:
                                    building: BuildingGeometry):
         """Calculate internal pressure per ASCE 7-22 Section 26.13"""
         
-        # Calculate opening ratio
+        # Calculatete opening ratio
         if building.total_wall_area > 0:
             opening_ratio = building.opening_area / building.total_wall_area
         else:
@@ -395,11 +395,11 @@ class ASCE7WindGenerator:
                              building: BuildingGeometry) -> WindForces:
         """Convert wind pressures to forces for structural analysis"""
         
-        # Calculate tributary areas
+        # Calculatete tributary areas
         wall_area = building.height * building.width
         roof_area = building.length * building.width
         
-        # Calculate story forces (simplified uniform distribution)
+        # Calculatete story forces (simplified uniform distribution)
         num_stories = max(1, int(building.height / 12))  # Assume 12 ft story height
         story_height = building.height / num_stories
         

@@ -1287,7 +1287,7 @@ class AreaLoadApplicationPanel:
             # Get load magnitude
             magnitude = self.magnitude_input.value()
             
-            # Calculate arrow geometry
+            # Calculatete arrow geometry
             arrow_length = magnitude * scale * 10  # Scale factor
             if arrow_length < 5:
                 arrow_length = 5
@@ -1366,7 +1366,7 @@ class AreaLoadApplicationPanel:
     def updatePreviewStatistics(self):
         """Update preview statistics display."""
         try:
-            # Calculate total force and resultant
+            # Calculatete total force and resultant
             magnitude = self.magnitude_input.value()
             unit = self.magnitude_unit_combo.currentText()
             magnitude_kn_m2 = self.convertToKnM2(magnitude, unit)
@@ -1380,13 +1380,13 @@ class AreaLoadApplicationPanel:
             
             self.total_force_label.setText(f"{total_force:.2f} kN")
             
-            # Calculate resultant direction
+            # Calculatete resultant direction
             direction = self.getLoadDirection(None, App.Vector(0, 0, 0))
             resultant = direction * total_force
             
             self.resultant_label.setText(f"({resultant.x:.1f}, {resultant.y:.1f}, {resultant.z:.1f})")
             
-            # Calculate approximate load center (simplified)
+            # Calculatete approximate load center (simplified)
             if self.selected_faces:
                 center = App.Vector(0, 0, 0)
                 count = 0

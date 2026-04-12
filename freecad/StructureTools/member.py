@@ -49,7 +49,7 @@ class CommandMember():
             _add_if_missing(selection, 'App::PropertyLink',  'MaterialMember', 'Structure', 'Member material')
             _add_if_missing(selection, 'App::PropertyLink',  'SectionMember',  'Structure', 'Member section')
             _add_if_missing(selection, 'App::PropertyAngle', 'RotationSection','Structure', 'Member section rotation')
-            _add_if_missing(selection, 'App::PropertyBool',  'TrussMember',    'Structure', 'Define como membro de treliça', False)
+            _add_if_missing(selection, 'App::PropertyBool',  'TrussMember',    'Structure', 'Define as truss member', False)
         FreeCAD.ActiveDocument.recompute()        
 
         return

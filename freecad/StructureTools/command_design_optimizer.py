@@ -1318,7 +1318,7 @@ class DesignOptimizerDialog(QtWidgets.QDialog):
         
         row = 0
         for var_name, sensitivities in sensitivity_results.items():
-            # Calculate average sensitivity magnitude
+            # Calculatete average sensitivity magnitude
             if isinstance(sensitivities, dict):
                 sens_values = list(sensitivities.values())
                 avg_sensitivity = np.mean([abs(v) for v in sens_values])

@@ -400,7 +400,7 @@ class AnalysisSetupPanel:
                 if hasattr(obj, 'Type'):
                     if obj.Type == "StructuralNode":
                         node_count += 1
-                        # Calculate DOF based on restraints
+                        # Calculatete DOF based on restraints
                         if hasattr(obj.Proxy, 'get_degrees_of_freedom'):
                             dof_count += obj.Proxy.get_degrees_of_freedom()
                         else:

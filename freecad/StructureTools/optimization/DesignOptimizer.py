@@ -546,7 +546,7 @@ class OptimizationProblem:
         # Evaluate constraints
         constraint_violations = self.evaluate_constraints(design, analysis_results)
         
-        # Calculate weighted objective
+        # Calculatete weighted objective
         total_objective = 0.0
         for obj in self.objectives:
             value = objective_values.get(obj.name, 0.0)
@@ -603,7 +603,7 @@ class OptimizationProblem:
             # Evaluate constraint function
             constraint_value = constraint.function(design, analysis_results)
             
-            # Calculate violation (penalty)
+            # Calculatete violation (penalty)
             if constraint.constraint_type == 'inequality':
                 # g(x) <= 0 format
                 violation = max(0, constraint_value - constraint.limit_value)
@@ -709,7 +709,7 @@ class MultiObjectiveOptimizer:
         domination_counts = [0] * n
         dominated_solutions = [[] for _ in range(n)]
         
-        # Calculate domination relationships
+        # Calculatete domination relationships
         for i in range(n):
             for j in range(n):
                 if i != j:
@@ -767,7 +767,7 @@ class MultiObjectiveOptimizer:
         for sol in front:
             sol['crowding_distance'] = 0.0
         
-        # Calculate distance for each objective
+        # Calculatete distance for each objective
         for obj_name in front[0]['objectives']:
             # Sort by objective value
             front.sort(key=lambda x: x['objectives'][obj_name])
@@ -776,7 +776,7 @@ class MultiObjectiveOptimizer:
             front[0]['crowding_distance'] = float('inf')
             front[-1]['crowding_distance'] = float('inf')
             
-            # Calculate normalized distances
+            # Calculatete normalized distances
             obj_range = front[-1]['objectives'][obj_name] - front[0]['objectives'][obj_name]
             if obj_range > 0:
                 for i in range(1, len(front) - 1):
@@ -814,7 +814,7 @@ class MultiObjectiveOptimizer:
             values = [sol['objectives'][obj_name] for sol in pareto_front]
             obj_ranges[obj_name] = max(values) - min(values)
         
-        # Calculate weighted scores
+        # Calculatete weighted scores
         for sol in pareto_front:
             score = 0.0
             for obj_name in obj_names:
@@ -845,7 +845,7 @@ class SensitivityAnalysis:
             var_name = var.name
             base_value = base_design[var_name]
             
-            # Calculate perturbation
+            # Calculatete perturbation
             if var.discrete_values:
                 # For discrete variables, try next/previous values
                 current_index = var.discrete_values.index(base_value)
@@ -883,7 +883,7 @@ class SensitivityAnalysis:
                 perturbed_design[var_name] = max(var.lower_bound, base_value - perturbation)
                 lower_objectives = self.problem.evaluate_objectives(perturbed_design)
                 
-                # Calculate sensitivities
+                # Calculatete sensitivities
                 for obj_name in base_objectives:
                     # Central difference
                     sensitivity = ((upper_objectives[obj_name] - lower_objectives[obj_name]) / 

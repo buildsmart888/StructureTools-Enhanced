@@ -67,7 +67,7 @@ def show_error_message(msg):
 class LoadNodal:
     def __init__(self, obj, selection):
         obj.Proxy = self
-        obj.addProperty("App::PropertyLinkSubList", "ObjectBase", "Base", "Object base")
+        obj.addProperty("App::PropertyLinkSubList", "ObjectBase", "Base", "Base object")
         obj.addProperty("App::PropertyForce", "NodalLoading", "Nodal", "Nodal loading").NodalLoading = 10000000
         obj.addProperty("App::PropertyFloat", "ScaleDraw", "Load", "Scale from drawing").ScaleDraw = 1
         
@@ -119,7 +119,7 @@ class LoadNodal:
     def drawNodeLoad(self, obj, vertex):
         pass
     
-    # Retorna o subelemento asociado
+    # Return o subelemento asociado
     def getSubelement(self, obj, nameSubElement):
         
         if 'Edge' in  nameSubElement:

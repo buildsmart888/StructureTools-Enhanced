@@ -410,15 +410,15 @@ class ThaiSeismicLoads:
         if isinstance(fa, str) or isinstance(fv, str):
             fa, fv = 1.0, 1.0  # Default for site-specific analysis
         
-        # Calculate modified spectral accelerations
+        # Calculatete modified spectral accelerations
         sms = fa * ss
         sm1 = fv * s1
         
-        # Calculate design spectral accelerations
+        # Calculatete design spectral accelerations
         sds = (2.0/3.0) * sms
         sd1 = (2.0/3.0) * sm1
         
-        # Calculate transition periods
+        # Calculatete transition periods
         ts = sd1 / sds if sds > 0 else 0.2
         t0 = 0.2 * ts
         tl = 8.0  # Long-period transition (assumed for Thailand)
@@ -484,7 +484,7 @@ class ThaiSeismicLoads:
         importance_info = self.importance_factors[building.importance_category]
         i_factor = importance_info['factor']
         
-        # Calculate design spectral acceleration
+        # Calculatete design spectral acceleration
         t = building.fundamental_period
         if t <= spectral_params.t0:
             sa = spectral_params.sds * (0.4 + 0.6 * t / spectral_params.t0)
@@ -495,7 +495,7 @@ class ThaiSeismicLoads:
         else:
             sa = spectral_params.sd1 * spectral_params.tl / (t ** 2)
         
-        # Calculate seismic response coefficient
+        # Calculatete seismic response coefficient
         cs = (sa * i_factor) / r_factor
         
         # Apply minimum and maximum limits
@@ -503,7 +503,7 @@ class ThaiSeismicLoads:
         cs = min(cs, cs_max)
         cs = max(cs, 0.01)  # Minimum value
         
-        # Calculate base shear
+        # Calculatete base shear
         base_shear = cs * building.weight * building.irregularity_factor
         
         return base_shear
@@ -512,7 +512,7 @@ class ThaiSeismicLoads:
                                             base_shear: float, story_heights: List[float], 
                                             story_weights: List[float]) -> List[float]:
         """Calculate vertical distribution of seismic forces"""
-        # Calculate story forces using inverted triangular distribution
+        # Calculatete story forces using inverted triangular distribution
         total_weight_height = sum(w * h for w, h in zip(story_weights, story_heights))
         
         story_forces = []
@@ -535,7 +535,7 @@ class ThaiSeismicLoads:
         # Get seismic zone information
         zone, ss, s1, zone_desc = self.get_seismic_zone_for_province(province)
         
-        # Calculate spectral parameters
+        # Calculatete spectral parameters
         spectral_params = self.calculate_spectral_parameters(zone, building.soil_type)
         
         # Estimate fundamental period if not provided
@@ -544,10 +544,10 @@ class ThaiSeismicLoads:
                 building.height, building.structural_system
             )
         
-        # Calculate base shear
+        # Calculatete base shear
         base_shear = self.calculate_base_shear(building, spectral_params)
         
-        # Calculate force distribution
+        # Calculatete force distribution
         if story_heights is None:
             story_heights = [building.height]  # Single story equivalent
         if story_weights is None:
@@ -660,7 +660,7 @@ class ThaiSeismicLoads:
             ss = zone_params['ss']
             s1 = zone_params['s1']
             
-            # Calculate for standard conditions
+            # Calculatete for standard conditions
             standard_soil = ThaiSoilType.SOIL_C
             spectral_params = self.calculate_spectral_parameters(zone, standard_soil)
             

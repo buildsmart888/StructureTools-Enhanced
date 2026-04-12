@@ -43,7 +43,7 @@ class BucklingAnalysisResults:
         self.critical_loads = critical_loads
         self.num_modes = len(load_factors)
         
-        # Calculate derived properties
+        # Calculatete derived properties
         self.safety_factors = self._calculate_safety_factors()
         self.mode_classifications = self._classify_buckling_modes()
         
@@ -241,7 +241,7 @@ class BucklingAnalysis:
             load_factors = eigenvalues
             buckling_modes = eigenvectors
             
-            # Calculate critical loads
+            # Calculatete critical loads
             applied_loads = self._get_applied_loads()
             critical_loads = self._calculate_critical_loads(load_factors, applied_loads)
             

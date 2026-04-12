@@ -254,7 +254,7 @@ class SeismicLoadASCE7:
             ct = 0.02   # All other structural systems
             x = 0.75
         
-        # Calculate approximate period (Equation 12.8-7)
+        # Calculatete approximate period (Equation 12.8-7)
         ta = ct * (h ** x)
         
         # Upper limit period (Equation 12.8-8)
@@ -297,10 +297,10 @@ class SeismicLoadASCE7:
         r = data.response_modification
         ie = data.importance_factor
         
-        # Calculate Cs per Equation 12.8-2
+        # Calculatete Cs per Equation 12.8-2
         cs1 = sds / (r / ie)
         
-        # Calculate Cs per Equation 12.8-3 (need not exceed)
+        # Calculatete Cs per Equation 12.8-3 (need not exceed)
         cs2 = sd1 / (period * (r / ie))
         
         # Take minimum of the two
@@ -321,19 +321,19 @@ class SeismicLoadASCE7:
     def calculate_static_seismic(self, data: BuildingSeismicData) -> SeismicForces:
         """Calculate static seismic forces per ASCE 7-22 Section 12.8"""
         
-        # Calculate fundamental periods
+        # Calculatete fundamental periods
         period_x, period_y = self.calculate_fundamental_period(data)
         
-        # Calculate seismic response coefficients
+        # Calculatete seismic response coefficients
         cs_x = self.calculate_seismic_response_coefficient(data, period_x, 'x')
         cs_y = self.calculate_seismic_response_coefficient(data, period_y, 'y')
         
-        # Calculate base shear (Equation 12.8-1)
+        # Calculatete base shear (Equation 12.8-1)
         w = data.total_weight
         base_shear_x = cs_x * w
         base_shear_y = cs_y * w
         
-        # Calculate story forces (vertical distribution)
+        # Calculatete story forces (vertical distribution)
         story_forces_x, story_forces_y, story_heights = self.calculate_story_forces(
             data, base_shear_x, base_shear_y, period_x, period_y)
         
@@ -373,13 +373,13 @@ class SeismicLoadASCE7:
         # Assume uniform weight distribution
         story_weight = data.total_weight / data.number_of_stories
         
-        # Calculate story forces for X direction
+        # Calculatete story forces for X direction
         story_forces_x = []
         story_forces_y = []
         
         for direction, base_shear, period in [('x', base_shear_x, period_x), ('y', base_shear_y, period_y)]:
             
-            # Calculate k factor (ASCE 7-22 Section 12.8.3)
+            # Calculatete k factor (ASCE 7-22 Section 12.8.3)
             if period <= 0.5:
                 k = 1.0
             elif period >= 2.5:
@@ -387,7 +387,7 @@ class SeismicLoadASCE7:
             else:
                 k = 1.0 + (period - 0.5) / 2.0
             
-            # Calculate Cvx for each story (Equation 12.8-12)
+            # Calculatete Cvx for each story (Equation 12.8-12)
             numerator_sum = 0
             cvx_values = []
             
@@ -397,7 +397,7 @@ class SeismicLoadASCE7:
                 numerator_sum += numerator
                 cvx_values.append(numerator)
             
-            # Calculate story forces
+            # Calculatete story forces
             story_forces = []
             for cvx_num in cvx_values:
                 cvx = cvx_num / numerator_sum
@@ -441,7 +441,7 @@ class SeismicLoadASCE7:
             t = i * 0.02
             periods.append(t)
             
-            # Calculate spectral acceleration per Equations 11.4-5 through 11.4-8
+            # Calculatete spectral acceleration per Equations 11.4-5 through 11.4-8
             if t <= to:
                 # Short period range
                 sa = sa_short * (0.4 + 0.6 * t / to)
@@ -526,13 +526,13 @@ def example_seismic_analysis():
     # Create calculator
     calculator = SeismicLoadASCE7()
     
-    # Calculate static seismic forces
+    # Calculatete static seismic forces
     seismic_forces = calculator.calculate_static_seismic(building)
     
     # Generate response spectrum
     periods, accelerations = calculator.generate_response_spectrum(building, "design")
     
-    # Calculate drift limits
+    # Calculatete drift limits
     drift_limits = calculator.calculate_drift_limits(building)
     
     # Validate design

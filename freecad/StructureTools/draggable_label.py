@@ -264,7 +264,7 @@ class ViewProviderDraggableReactionLabel:
             return False
         
         try:
-            # Calculate new position based on mouse movement
+            # Calculatete new position based on mouse movement
             delta = pos - self.drag_start_pos
             new_position = self.original_label_pos + FreeCAD.Vector(delta.x, delta.y, 0)
             

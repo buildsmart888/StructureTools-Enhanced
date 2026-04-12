@@ -163,15 +163,15 @@ class ThaiUnitsConverter:
         """
         remaining_area = area_m2
         
-        # Calculate rai (1 ไร่ = 1,600 ตร.ม.)
+        # Calculatete rai (1 ไร่ = 1,600 ตร.ม.)
         rai = int(remaining_area // self.conversion_factors['rai_to_m2'])
         remaining_area %= self.conversion_factors['rai_to_m2']
         
-        # Calculate ngan (1 งาน = 400 ตร.ม.)
+        # Calculatete ngan (1 งาน = 400 ตร.ม.)
         ngan = int(remaining_area // self.conversion_factors['ngan_to_m2'])
         remaining_area %= self.conversion_factors['ngan_to_m2']
         
-        # Calculate wa2 (1 ตร.วา = 4 ตร.ม.)
+        # Calculatete wa2 (1 ตร.วา = 4 ตร.ม.)
         wa2 = remaining_area / self.conversion_factors['wa2_to_m2']
         
         return {
@@ -283,7 +283,7 @@ class ThaiUnitsConverter:
         else:
             raise ValueError(f"Unsupported target unit: {to_unit}")
         
-        # Calculate total load
+        # Calculatete total load
         total_load_kn = kn_m2_value * area
         total_load_target_unit = result_value * area
         
@@ -322,7 +322,7 @@ class ThaiUnitsConverter:
         closest_ksc = min(thai_grades.keys(), key=lambda x: abs(x - ksc_value))
         closest_grade = thai_grades[closest_ksc]
         
-        # Calculate elastic modulus (Thai formula: Ec = 15000√fc' for ksc)
+        # Calculatete elastic modulus (Thai formula: Ec = 15000√fc' for ksc)
         ec_ksc = 15000 * math.sqrt(ksc_value)
         ec_mpa = 4700 * math.sqrt(mpa_value)
         

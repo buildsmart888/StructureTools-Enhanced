@@ -52,7 +52,7 @@ class SurfaceMesh:
                 skewness = []
                 
                 for element in elements:
-                    # Calculate quality metrics
+                    # Calculatete quality metrics
                     quality = self.calculateElementQuality(element, nodes, elem_type)
                     aspect = self.calculateAspectRatio(element, nodes, elem_type)
                     skew = self.calculateSkewness(element, nodes, elem_type)
@@ -109,12 +109,12 @@ class SurfaceMesh:
     def triangleQuality(self, coords):
         """Calculate triangle quality using area-to-perimeter ratio."""
         try:
-            # Calculate side lengths
+            # Calculatete side lengths
             a = self.distance3D(coords[0], coords[1])
             b = self.distance3D(coords[1], coords[2])
             c = self.distance3D(coords[2], coords[0])
             
-            # Calculate area using cross product
+            # Calculatete area using cross product
             v1 = [coords[1][i] - coords[0][i] for i in range(3)]
             v2 = [coords[2][i] - coords[0][i] for i in range(3)]
             
@@ -141,11 +141,11 @@ class SurfaceMesh:
     def quadrilateralQuality(self, coords):
         """Calculate quadrilateral quality."""
         try:
-            # Calculate diagonal lengths
+            # Calculatete diagonal lengths
             d1 = self.distance3D(coords[0], coords[2])
             d2 = self.distance3D(coords[1], coords[3])
             
-            # Calculate side lengths
+            # Calculatete side lengths
             sides = []
             for i in range(4):
                 next_i = (i + 1) % 4
@@ -238,7 +238,7 @@ class SurfaceMesh:
                 v1 = [p2[j] - p1[j] for j in range(3)]
                 v2 = [p3[j] - p1[j] for j in range(3)]
                 
-                # Calculate angle using dot product
+                # Calculatete angle using dot product
                 dot_product = sum(v1[j] * v2[j] for j in range(3))
                 mag1 = math.sqrt(sum(v1[j]**2 for j in range(3)))
                 mag2 = math.sqrt(sum(v2[j]**2 for j in range(3)))
@@ -268,7 +268,7 @@ class SurfaceMesh:
                 v1 = [p2[j] - p1[j] for j in range(3)]
                 v2 = [p3[j] - p1[j] for j in range(3)]
                 
-                # Calculate angle
+                # Calculatete angle
                 dot_product = sum(v1[j] * v2[j] for j in range(3))
                 mag1 = math.sqrt(sum(v1[j]**2 for j in range(3)))
                 mag2 = math.sqrt(sum(v2[j]**2 for j in range(3)))
@@ -404,7 +404,7 @@ class SurfaceMesh:
             FreeCAD.Console.PrintMessage("\nOVERALL ASSESSMENT:\n")
             FreeCAD.Console.PrintMessage("-" * 20 + "\n")
             
-            # Calculate overall quality score
+            # Calculatete overall quality score
             overall_quality = self.calculateOverallQuality()
             
             if overall_quality > 0.8:

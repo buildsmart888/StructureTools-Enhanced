@@ -318,7 +318,7 @@ class ASCE7SeismicGenerator:
             building.Ct = 0.020
             building.x = 0.75
         
-        # Calculate approximate period Ta = Ct * hn^x
+        # Calculatete approximate period Ta = Ct * hn^x
         building.approximate_period = building.Ct * (building.height ** building.x)
     
     def _generate_response_spectrum(self, site_data: SeismicSiteData) -> ResponseSpectrum:
@@ -328,7 +328,7 @@ class ASCE7SeismicGenerator:
         SD1 = site_data.SD1
         TL = site_data.TL
         
-        # Calculate transition periods
+        # Calculatete transition periods
         TS = SD1 / SDS if SDS > 0 else 0.2
         T0 = 0.2 * TS
         
@@ -373,7 +373,7 @@ class ASCE7SeismicGenerator:
         Ta = building.approximate_period
         forces.Ta = Ta
         
-        # Calculate Cs per ASCE 7-22 Equation 12.8-2
+        # Calculatete Cs per ASCE 7-22 Equation 12.8-2
         if Ta <= spectrum.TS:
             Sa = site_data.SDS
         elif Ta <= spectrum.TL:
@@ -418,7 +418,7 @@ class ASCE7SeismicGenerator:
         
         forces.k = k
         
-        # Calculate additional force at top (if required)
+        # Calculatete additional force at top (if required)
         if Ta > 0.7:
             forces.Ft = 0.07 * Ta * forces.V
             forces.Ft = min(forces.Ft, 0.25 * forces.V)
@@ -428,12 +428,12 @@ class ASCE7SeismicGenerator:
         # Distribute remaining force
         V_remaining = forces.V - forces.Ft
         
-        # Calculate story forces
+        # Calculatete story forces
         story_forces = []
         heights = building.story_heights
         weights = building.story_weights
         
-        # Calculate sum of wi*hi^k for normalization
+        # Calculatete sum of wi*hi^k for normalization
         sum_wh_k = sum(w * (sum(heights[:i+1])) ** k for i, w in enumerate(weights))
         
         for i, (w, h) in enumerate(zip(weights, heights)):

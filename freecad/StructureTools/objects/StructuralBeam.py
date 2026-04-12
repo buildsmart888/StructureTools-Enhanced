@@ -242,7 +242,7 @@ class StructuralBeam:
         except Exception:
             return
 
-        # Calculate length and direction. Try the original .sub API first
+        # Calculatete length and direction. Try the original .sub API first
         # (FreeCAD Vector), then fall back to Python subtraction which is
         # supported by our MockVector in tests.
         try:
@@ -429,7 +429,7 @@ class StructuralBeam:
                 # Check if calculated area is reasonable compared to property
                 if abs(area_calc - area_prop) / area_prop > 0.5:  # 50% difference
                     FreeCAD.Console.PrintWarning(
-                        f"Section area mismatch: calculated {area_calc:.0f} mm², "
+                        f"Cross-sectional area mismatch: calculated {area_calc:.0f} mm², "
                         f"property {area_prop:.0f} mm²\n"
                     )
         except Exception:

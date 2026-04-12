@@ -214,7 +214,7 @@ class ReactionResults:
         # Print detailed reaction information as requested
         self.print_detailed_reaction_info(nodes_dict, load_combo)
         
-        # Calculate auto scale factors if enabled
+        # Calculatete auto scale factors if enabled
         if obj.AutoScaleReactions:
             force_scale, moment_scale = self.calculate_auto_scale_factors(obj)
             obj.ScaleReactionForces = force_scale
@@ -306,7 +306,7 @@ class ReactionResults:
                     my = node.RxnMY.get(load_combo, 0.0) if hasattr(node, 'RxnMY') else 0.0
                     mz = node.RxnMZ.get(load_combo, 0.0) if hasattr(node, 'RxnMZ') else 0.0
                     
-                    # Calculate resultant magnitudes
+                    # Calculatete resultant magnitudes
                     force_magnitude = math.sqrt(fx*fx + fy*fy + fz*fz)
                     moment_magnitude = math.sqrt(mx*mx + my*my + mz*mz)
                     
@@ -423,7 +423,7 @@ class ReactionResults:
                 if abs(mz) > obj.MinReactionThreshold:
                     self._print_moment_ascii("MZ", mz, node_pos)
                 
-                # Calculate and print resultant force and moment
+                # Calculatete and print resultant force and moment
                 force_magnitude = math.sqrt(rx*rx + ry*ry + rz*rz)
                 moment_magnitude = math.sqrt(mx*mx + my*my + mz*mz)
                 
@@ -857,7 +857,7 @@ class ReactionResults:
             if not nodes_dict:
                 return 1.0, 1.0
                 
-            # Calculate model bounding box
+            # Calculatete model bounding box
             min_x = min_y = min_z = float('inf')
             max_x = max_y = max_z = float('-inf')
             
@@ -869,7 +869,7 @@ class ReactionResults:
                 min_z = min(min_z, node.Z)
                 max_z = max(max_z, node.Z)
                 
-            # Calculate model size
+            # Calculatete model size
             model_size = max(max_x - min_x, max_y - min_y, max_z - min_z)
             if model_size <= 0:
                 model_size = 1.0
@@ -895,7 +895,7 @@ class ReactionResults:
                             if load_combo in reaction_dict:
                                 max_moment = max(max_moment, abs(reaction_dict[load_combo]))
                                 
-            # Calculate scale factors (target arrow length is 5% of model size)
+            # Calculatete scale factors (target arrow length is 5% of model size)
             target_length = model_size * 0.05
             
             force_scale = 1.0

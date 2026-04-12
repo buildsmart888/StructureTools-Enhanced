@@ -392,7 +392,7 @@ class ReportGeneratorDialog(QtWidgets.QDialog):
         tab = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(tab)
         
-        # Calculation Details Group
+        # Calculatetion Details Group
         calc_group = QtWidgets.QGroupBox("Calculation Detail Level")
         calc_layout = QtWidgets.QVBoxLayout(calc_group)
         

@@ -248,10 +248,10 @@ class StructuralPlate:
             if not obj.CornerNodes:
                 return
             
-            # Calculate area and perimeter
+            # Calculatete area and perimeter
             self.updateGeometry(obj)
             
-            # Calculate aspect ratio
+            # Calculatete aspect ratio
             if hasattr(obj, 'Area') and obj.Area > 0:
                 # Simplified aspect ratio calculation
                 obj.AspectRatio = math.sqrt(obj.Area.Value / 1000000)  # Basic estimate
@@ -289,7 +289,7 @@ class StructuralPlate:
             obj.Area = face.Area
             obj.Perimeter = face.Perimeter
             
-            # Calculate local axes
+            # Calculatete local axes
             self.calculateLocalAxes(obj, points)
             
         except Exception as e:
@@ -426,11 +426,11 @@ class StructuralPlate:
                 FreeCAD.Console.PrintWarning("Plate supports 3 or 4 corner nodes only\n")
                 return
             
-            # Calculate geometric properties
+            # Calculatete geometric properties
             obj.Area = f"{face.Area} mm^2"
             obj.Perimeter = f"{wire.Length} mm"
             
-            # Calculate local coordinate system
+            # Calculatete local coordinate system
             self._calculate_local_coordinates(obj, points)
             
             # Update visual representation
@@ -459,7 +459,7 @@ class StructuralPlate:
             local_y = local_z.cross(local_x)
             obj.LocalYAxis = local_y
             
-            # Calculate aspect ratio
+            # Calculatete aspect ratio
             if len(points) == 4:
                 length1 = points[0].distanceToPoint(points[1])
                 length2 = points[1].distanceToPoint(points[2])
@@ -476,7 +476,7 @@ class StructuralPlate:
         material = obj.Material
         if hasattr(material, 'ModulusElasticity') and hasattr(material, 'PoissonRatio'):
             try:
-                # Calculate membrane/bending stiffness ratio
+                # Calculatete membrane/bending stiffness ratio
                 E = material.ModulusElasticity.getValueAs('MPa')
                 nu = material.PoissonRatio
                 t = obj.Thickness.getValueAs('mm') if hasattr(obj, 'Thickness') else 200

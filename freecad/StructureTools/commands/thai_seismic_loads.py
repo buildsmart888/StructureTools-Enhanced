@@ -282,7 +282,7 @@ class ThaiSeismicLoad:
         soil_factor = self.soil_factors[data.soil_type]
         response_factor = self.response_factors[data.structural_system]
         
-        # Calculate fundamental period
+        # Calculatete fundamental period
         period = self.calculate_fundamental_period_thai(data)
         
         # Thai seismic design base shear coefficient
@@ -318,10 +318,10 @@ class ThaiSeismicLoad:
         # Minimum coefficient
         cs = max(cs, 0.02 * z * i)
         
-        # Calculate base shear
+        # Calculatete base shear
         base_shear = cs * w
         
-        # Calculate story forces distribution
+        # Calculatete story forces distribution
         story_forces_x, story_forces_y, story_heights = self.calculate_thai_story_forces(
             data, base_shear, period)
         
@@ -374,7 +374,7 @@ class ThaiSeismicLoad:
                 wx_h_values.append(wx_h)
                 total_wx_h += wx_h
             
-            # Calculate forces
+            # Calculatete forces
             for wx_h in wx_h_values:
                 fx = (wx_h / total_wx_h) * base_shear
                 story_forces_x.append(fx)
@@ -477,11 +477,11 @@ class ThaiSeismicLoad:
                 response_modification=thai_data.response_modification
             )
             
-            # Calculate ASCE forces
+            # Calculatete ASCE forces
             asce_calc = SeismicLoadASCE7()
             asce_results = asce_calc.calculate_static_seismic(asce_data)
             
-            # Calculate Thai forces
+            # Calculatete Thai forces
             thai_results = self.calculate_thai_static_seismic(thai_data)
             
             return {
@@ -536,13 +536,13 @@ def example_thai_seismic_analysis():
     # Create calculator
     calculator = ThaiSeismicLoad()
     
-    # Calculate Thai seismic forces
+    # Calculatete Thai seismic forces
     thai_results = calculator.calculate_thai_static_seismic(building)
     
     # Generate Thai response spectrum
     periods, accelerations = calculator.generate_thai_response_spectrum(building)
     
-    # Calculate drift limits
+    # Calculatete drift limits
     drift_limits = calculator.calculate_thai_drift_limits(building)
     
     # Validate design

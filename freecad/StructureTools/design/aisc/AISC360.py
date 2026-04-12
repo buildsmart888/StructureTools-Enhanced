@@ -162,7 +162,7 @@ class AISC360:
             recommendations=[]
         )
         
-        # Calculate design strengths
+        # Calculatete design strengths
         
         # 1. Yielding of gross section (D2.1)
         Pn_yielding = material.Fy * section.A
@@ -240,7 +240,7 @@ class AISC360:
             recommendations=[]
         )
         
-        # Calculate slenderness ratios
+        # Calculatete slenderness ratios
         KLr_x = K * Lx / section.rx
         KLr_y = K * Ly / section.ry
         KLr = max(KLr_x, KLr_y)
@@ -249,10 +249,10 @@ class AISC360:
         if KLr > 200:
             results.recommendations.append(f"Slenderness ratio {KLr:.1f} exceeds limit of 200")
         
-        # Calculate elastic buckling stress (E3.4)
+        # Calculatete elastic buckling stress (E3.4)
         Fe = math.pi**2 * material.E / KLr**2
         
-        # Calculate critical stress (E3.2, E3.3)
+        # Calculatete critical stress (E3.2, E3.3)
         lambda_c = math.sqrt(material.Fy / Fe)
         
         if lambda_c <= 1.5:
@@ -326,13 +326,13 @@ class AISC360:
         
         # Major axis bending (F2 - I-shaped members)
         if section.bf > 0 and section.tf > 0:  # I-shaped section
-            # Calculate limit states
+            # Calculatete limit states
             
             # Yielding (F2.1)
             Mp = material.Fy * section.Zx
             
             # Lateral-torsional buckling (F2.2)
-            # Calculate Lp and Lr
+            # Calculatete Lp and Lr
             Lp = 1.76 * section.ry * math.sqrt(material.E / material.Fy)
             
             # Simplified Lr calculation

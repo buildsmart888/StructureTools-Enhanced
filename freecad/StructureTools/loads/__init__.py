@@ -254,7 +254,7 @@ class LoadGenerator:
         if load_params is None:
             load_params = LoadParameters()
         
-        # Calculate building properties
+        # Calculatete building properties
         floor_area = length * width
         roof_area = length * width
         total_volume = length * width * height
@@ -492,7 +492,7 @@ class LoadGenerator:
         if load_params is None:
             load_params = LoadParameters()
         
-        # Calculate building properties
+        # Calculatete building properties
         floor_area = length * width
         roof_area = length * width
         
@@ -520,7 +520,7 @@ class LoadGenerator:
             topography=topography
         )
         
-        # Calculate Thai loads
+        # Calculatete Thai loads
         thai_result = self.thai_load_system.calculate_combined_loads(thai_config)
         
         # Convert Thai results to GeneratedLoads format

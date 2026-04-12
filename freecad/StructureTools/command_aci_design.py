@@ -700,7 +700,7 @@ class ACIDesignDialog(QtWidgets.QDialog):
             height = self.section_height.value()
             cover = self.concrete_cover.value()
             
-            # Calculate areas
+            # Calculatete areas
             tension_area = RebarSize.get_bar_properties(tension_bar).area * tension_count
             
             comp_area = 0

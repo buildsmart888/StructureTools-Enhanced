@@ -43,7 +43,7 @@ class ModalAnalysisResults:
         self.effective_mass = effective_mass
         self.num_modes = len(frequencies)
         
-        # Calculate periods
+        # Calculatete periods
         self.periods = np.where(frequencies > 0, 1.0 / frequencies, np.inf)
         
         # Classify mode types
@@ -522,7 +522,7 @@ class ModalAnalysis:
             total_mass_y = self._get_total_mass_direction(M, 1) 
             total_mass_z = self._get_total_mass_direction(M, 2)
             
-            # Calculate effective masses for each mode
+            # Calculatete effective masses for each mode
             effective_mass_x = 0.0
             effective_mass_y = 0.0
             effective_mass_z = 0.0

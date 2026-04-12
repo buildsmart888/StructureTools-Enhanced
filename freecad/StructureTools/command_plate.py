@@ -161,20 +161,20 @@ class CreateStructuralPlateCommand:
         try:
             face = face_info['face']
             
-            # Calculate face properties
+            # Calculatete face properties
             area = face.Area
             perimeter = face.Length  # Perimeter length
             
             # Get face center
             center = face.CenterOfMass
             
-            # Calculate face normal (local Z-axis)
+            # Calculatete face normal (local Z-axis)
             # Use face normal at center
             u, v = face.Surface.parameter(center)
             normal = face.normalAt(u, v)
             normal.normalize()
             
-            # Calculate local X and Y axes
+            # Calculatete local X and Y axes
             # Use the face's U and V parameter directions
             try:
                 u_dir = face.Surface.uIso(v).tangent(u)[0]
@@ -200,7 +200,7 @@ class CreateStructuralPlateCommand:
             plate_obj.LocalYAxis = local_y
             plate_obj.LocalZAxis = normal
             
-            # Calculate aspect ratio (approximate)
+            # Calculatete aspect ratio (approximate)
             # Find bounding box in local coordinates
             bbox = face.BoundBox
             length = max(bbox.XLength, bbox.YLength, bbox.ZLength)

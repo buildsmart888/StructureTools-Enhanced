@@ -306,19 +306,19 @@ class StructuralColumn:
             return
         
         try:
-            # Calculate height
+            # Calculatete height
             base = obj.BasePoint
             top = obj.TopPoint
             height_vector = top - base
             height = height_vector.Length
             obj.Height = f"{height} mm"
             
-            # Calculate inclination
+            # Calculatete inclination
             vertical = App.Vector(0, 0, 1)
             inclination = math.degrees(height_vector.getAngle(vertical))
             obj.Inclination = f"{inclination} deg"
             
-            # Calculate local coordinate system
+            # Calculatete local coordinate system
             self._calculate_local_coordinates(obj, height_vector)
             
             # Update visual representation
@@ -413,12 +413,12 @@ class StructuralColumn:
             Ky = obj.EffectiveLengthFactorY
             Kz = obj.EffectiveLengthFactorZ
             
-            # Calculate slenderness ratios
+            # Calculatete slenderness ratios
             obj.SlendernessRatioX = (Kx * height) / rx if rx > 0 else 0
             obj.SlendernessRatioY = (Ky * height) / ry if ry > 0 else 0
             obj.SlendernessRatioZ = (Kz * height) / min(rx, ry) if min(rx, ry) > 0 else 0
             
-            # Calculate elastic buckling loads (Euler buckling)
+            # Calculatete elastic buckling loads (Euler buckling)
             I_x = rx * rx * obj.GrossArea.getValueAs('mm^2') if hasattr(obj, 'GrossArea') else 1000000
             I_y = ry * ry * obj.GrossArea.getValueAs('mm^2') if hasattr(obj, 'GrossArea') else 1000000
             
@@ -444,13 +444,13 @@ class StructuralColumn:
             return
         
         try:
-            # Calculate nominal compressive strength (AISC 360)
+            # Calculatete nominal compressive strength (AISC 360)
             self._calculate_compressive_strength(obj)
             
-            # Calculate flexural strengths
+            # Calculatete flexural strengths
             self._calculate_flexural_strengths(obj)
             
-            # Calculate interaction ratios
+            # Calculatete interaction ratios
             self._calculate_interaction_ratios(obj)
             
         except Exception as e:
@@ -471,15 +471,15 @@ class StructuralColumn:
             if Ag <= 0:
                 return
             
-            # Calculate effective slenderness ratios
+            # Calculatete effective slenderness ratios
             KL_r_x = obj.SlendernessRatioX if hasattr(obj, 'SlendernessRatioX') else 50
             KL_r_y = obj.SlendernessRatioY if hasattr(obj, 'SlendernessRatioY') else 50
             KL_r = max(KL_r_x, KL_r_y)  # Governing slenderness ratio
             
-            # Calculate elastic buckling stress
+            # Calculatete elastic buckling stress
             Fe = (math.pi**2 * E) / (KL_r**2) if KL_r > 0 else E
             
-            # Calculate critical stress based on AISC 360
+            # Calculatete critical stress based on AISC 360
             lambda_c = math.sqrt(Fy / Fe)
             
             if lambda_c <= 1.5:
@@ -541,7 +541,7 @@ class StructuralColumn:
             if Pc <= 0 or Mcx <= 0 or Mcy <= 0:
                 return
             
-            # Calculate interaction for each load combination
+            # Calculatete interaction for each load combination
             num_combos = max(len(obj.AxialLoads), len(obj.MomentsX), len(obj.MomentsY))
             
             for i in range(num_combos):

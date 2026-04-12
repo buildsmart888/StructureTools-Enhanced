@@ -498,7 +498,7 @@ class StructuralMaterial:
             # Get elastic properties in target units
             E = obj.ModulusElasticity.getValueAs(f'{unit_force}/{unit_length}^2')
             nu = obj.PoissonRatio
-            G = E / (2 * (1 + nu))  # Calculate shear modulus
+            G = E / (2 * (1 + nu))  # Calculatete shear modulus
             
             return {
                 'name': obj.Name,

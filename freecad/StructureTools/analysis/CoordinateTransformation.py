@@ -201,7 +201,7 @@ class DrillingDOFHandler:
         n_dofs = K_local.shape[0]
         n_nodes = n_dofs // 6
         
-        # Calculate characteristic drilling stiffness
+        # Calculatete characteristic drilling stiffness
         # Based on membrane stiffness
         G = E / (2 * (1 + 0.3))  # Shear modulus (assume nu=0.3)
         K_drill = self.stiffness_factor * G * t

@@ -232,7 +232,7 @@ class ProjectDocumentationGenerator:
                                 loads: GeneratedLoads) -> str:
         """Generate project summary document"""
         
-        # Calculate summary statistics
+        # Calculatete summary statistics
         total_members = len(design_results)
         passing_members = sum(1 for result in design_results if result.passed)
         

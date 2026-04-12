@@ -386,7 +386,7 @@ class ThaiWindLoads:
         for province, zone in self.province_wind_zones.items():
             basic_speed = self.basic_wind_speeds[zone]
             
-            # Calculate for standard 25m building
+            # Calculatete for standard 25m building
             standard_height = 25.0
             standard_terrain = ThaiTerrainCategory.CATEGORY_III
             standard_importance = ThaiBuildingImportance.STANDARD

@@ -67,7 +67,7 @@ class LoadDistributionVisualizer:
         
         A, B, C, D = corners[:4]
         
-        # Calculate spans
+        # Calculatete spans
         span_AB = (B - A).Length  # mm
         span_BC = (C - B).Length  # mm
         
@@ -79,7 +79,7 @@ class LoadDistributionVisualizer:
             short_span = span_BC
             long_span = span_AB
         
-        # Calculate center point (intersection of yield lines)
+        # Calculatete center point (intersection of yield lines)
         center = (A + B + C + D) * 0.25
         
         # For rectangular slab, yield lines go at 45° from corners
@@ -94,7 +94,7 @@ class LoadDistributionVisualizer:
         # Create the star pattern lines
         yield_lines = []
         
-        # Calculate yield line intersection points
+        # Calculatete yield line intersection points
         # For a 4-edge supported slab, lines from corners meet along centerline
         if span_AB <= span_BC:
             # AB and CD are short spans (triangular loads)
@@ -347,7 +347,7 @@ class LoadDistributionVisualizer:
             t = i / num_arrows
             pos = start + beam_dir * (beam_length * t)
             
-            # Calculate load magnitude at this point
+            # Calculatete load magnitude at this point
             if load_type == "uniform":
                 w = w1
             elif load_type == "triangular":
@@ -454,7 +454,7 @@ class SlabLoadCalculator:
         
         A, B, C, D = slab_corners[:4]
         
-        # Calculate spans (in mm)
+        # Calculatete spans (in mm)
         Lx = (B - A).Length / 1000  # m
         Ly = (C - B).Length / 1000  # m
         
@@ -667,7 +667,7 @@ def visualize_slab_with_beam_loads(self, corners: List[App.Vector],
         # Visualize slab
         self.visualize_two_way_yield_line(corners, load_intensity, name_prefix)
         
-        # Calculate beam loads
+        # Calculatete beam loads
         beam_loads = calc.calculate_two_way_beam_loads(corners, load_intensity)
     else:
         self.visualize_one_way_distribution(corners, "short", load_intensity, name_prefix)

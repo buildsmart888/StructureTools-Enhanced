@@ -191,7 +191,7 @@ class ConcreteSection:
         self.area = self.width * self.height
         self.effective_depth = self.height - self.cover - 0.5  # Approximate d
         
-        # Calculate reinforcement areas
+        # Calculatete reinforcement areas
         self.As_tension = sum(
             RebarSize.get_bar_properties(bar_size).area * count
             for bar_size, count in self.tension_bars
@@ -421,7 +421,7 @@ class ACI318DesignCode:
                 code_section="9.6.1.2"
             )
         
-        # Calculate balanced reinforcement ratio
+        # Calculatete balanced reinforcement ratio
         # ACI 318-19 Section 22.2.2
         epsilon_cu = 0.003  # Ultimate concrete strain
         epsilon_y = fy / Es  # Yield strain of steel
@@ -452,12 +452,12 @@ class ACI318DesignCode:
                 ) * (epsilon_t - 0.002) / 0.003
                 control_type = "transition"
         
-        # Calculate nominal moment strength
+        # Calculatete nominal moment strength
         # Rectangular stress block method (ACI 318-19 Section 22.2.2.4.1)
         a = As * fy / (0.85 * fc * b)  # Depth of equivalent stress block
         
         if a <= section.height:  # Check if compression zone is within section
-            # Calculate moment capacity
+            # Calculatete moment capacity
             Mn = As * fy * (d - a/2)
             
             # Include compression reinforcement if present
@@ -473,7 +473,7 @@ class ACI318DesignCode:
         # Design moment capacity
         phi_Mn = phi * Mn
         
-        # Calculate demand-to-capacity ratio
+        # Calculatete demand-to-capacity ratio
         ratio = Mu / phi_Mn if phi_Mn > 0 else float('inf')
         status = "OK" if ratio <= 1.0 else "FAIL"
         
@@ -558,7 +558,7 @@ class ACI318DesignCode:
             stirrup_req = "Minimum stirrups"
             code_section = "9.6.3"
         else:
-            # Calculate required stirrup reinforcement
+            # Calculatete required stirrup reinforcement
             # ACI 318-19 Section 22.5.10.5.3
             Vs_req = Vu / phi - Vc  # Required shear from stirrups
             
@@ -587,7 +587,7 @@ class ACI318DesignCode:
                 stirrup_req = f"Required: #{section.stirrups} @ {s_req:.1f} in. (provided: {s_actual} in.)"
                 code_section = "22.5.10.5.3"
         
-        # Calculate demand-to-capacity ratio
+        # Calculatete demand-to-capacity ratio
         ratio = Vu / capacity if capacity > 0 else float('inf')
         status = "OK" if ratio <= 1.0 else "FAIL"
         
@@ -694,7 +694,7 @@ class ACI318DesignCode:
             # Reduce capacity for slenderness effects
             phi_Pn *= (1.0 / moment_magnification)
         
-        # Calculate demand-to-capacity ratio
+        # Calculatete demand-to-capacity ratio
         ratio = Pu / phi_Pn if phi_Pn > 0 else float('inf')
         status = "OK" if ratio <= 1.0 else "FAIL"
         
@@ -885,11 +885,11 @@ class ACI318DesignCode:
         # Required moment strength (unfactored)
         Mn_req = Mu / self.phi_factors['tension_controlled']
         
-        # Calculate required reinforcement
+        # Calculatete required reinforcement
         # Use Ru = Mn / (bd²) approach
         Ru = Mn_req / (b * d**2)
         
-        # Calculate reinforcement ratio
+        # Calculatete reinforcement ratio
         m = fy / (0.85 * fc)
         rho_req = (1/m) * (1 - math.sqrt(1 - 2*m*Ru/fy)) if (2*m*Ru/fy) <= 1 else 0
         

@@ -212,7 +212,7 @@ class ForceConverter:
                 if source_unit == target_unit:
                     table[source_unit][target_unit] = 1.0
                 else:
-                    # Calculate conversion factor: source -> N -> target
+                    # Calculatete conversion factor: source -> N -> target
                     factor = self.conversion_factors[source_unit] / self.conversion_factors[target_unit]
                     table[source_unit][target_unit] = factor
                     

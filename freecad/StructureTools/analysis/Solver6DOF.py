@@ -340,7 +340,7 @@ class Solver6DOF:
         
         reactions = {}
         
-        # Calculate F = K * U for constrained nodes
+        # Calculatete F = K * U for constrained nodes
         if self.sparse:
             F_reactions = self.K_global @ self.U_global
         else:

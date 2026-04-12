@@ -98,7 +98,7 @@ class VisualizeLoadDistributionCommand:
                     name_prefix=f"{area_load_obj.Name}_OneWay"
                 )
             
-            # Calculate and display beam loads
+            # Calculatete and display beam loads
             if show_beam_loads:
                 self.show_beam_load_summary(corners, load_intensity, dist_type)
             

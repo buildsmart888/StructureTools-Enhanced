@@ -248,7 +248,7 @@ class ACI318:
             recommendations=[]
         )
         
-        # Calculate required reinforcement if As not provided
+        # Calculatete required reinforcement if As not provided
         if section.As == 0:
             section.As = self._calculate_required_As(section, concrete, rebar, Mu)
         
@@ -263,7 +263,7 @@ class ACI318:
             results.recommendations.append(f"Increase As to minimum: {As_min:.2f} in²")
             section.As = As_min
         
-        # Calculate balanced reinforcement ratio
+        # Calculatete balanced reinforcement ratio
         rho_b = self.calculate_balanced_reinforcement(concrete, rebar, section)
         rho = section.As / (section.b * section.d)
         
@@ -272,7 +272,7 @@ class ACI318:
         if rho > rho_max:
             results.recommendations.append("Reinforcement ratio exceeds maximum - add compression steel")
         
-        # Calculate nominal moment strength (ACI 9.3.2)
+        # Calculatete nominal moment strength (ACI 9.3.2)
         if rho <= rho_max:
             # Single reinforcement
             a = section.As * rebar.fy / (0.85 * concrete.fc_prime * section.b)
@@ -346,7 +346,7 @@ class ACI318:
         phi = self.phi_t
         Rn = Mu / (phi * section.b * section.d**2)
         
-        # Calculate reinforcement ratio
+        # Calculatete reinforcement ratio
         rho = (0.85 * concrete.fc_prime / rebar.fy) * (
             1 - math.sqrt(1 - 2 * Rn / (0.85 * concrete.fc_prime))
         )
@@ -362,12 +362,12 @@ class ACI318:
         # This would be expanded for full implementation
         phi = self.phi_c  # Conservative assumption
         
-        # Calculate contribution from tension steel
+        # Calculatete contribution from tension steel
         As1 = 0.75 * self.calculate_balanced_reinforcement(concrete, rebar, section) * section.b * section.d
         a1 = As1 * rebar.fy / (0.85 * concrete.fc_prime * section.b)
         M1 = As1 * rebar.fy * (section.d - a1 / 2)
         
-        # Calculate contribution from compression steel (simplified)
+        # Calculatete contribution from compression steel (simplified)
         As2 = section.As - As1
         M2 = As2 * rebar.fy * (section.d - section.d_prime)
         
@@ -401,7 +401,7 @@ class ACI318:
             recommendations=[]
         )
         
-        # Calculate concrete shear strength (ACI 9.8.3)
+        # Calculatete concrete shear strength (ACI 9.8.3)
         lambda_factor = concrete.lambda_factor
         Vc = 2 * lambda_factor * math.sqrt(concrete.fc_prime) * section.b * section.d
         phi_Vc = self.phi_v * Vc
@@ -422,7 +422,7 @@ class ACI318:
             section.Av = Av_min
             results.recommendations.append("Minimum shear reinforcement provided")
         else:
-            # Calculate required shear reinforcement
+            # Calculatete required shear reinforcement
             Vs_required = Vu / self.phi_v - Vc
             
             # Check maximum shear that can be carried
@@ -432,7 +432,7 @@ class ACI318:
                 results.recommendations.append("Section too small for required shear - increase size")
                 results.passed = False
             else:
-                # Calculate required Av/s
+                # Calculatete required Av/s
                 if section.s == 0:
                     section.s = min(section.d / 4, 24)  # Default spacing
                 
@@ -448,7 +448,7 @@ class ACI318:
                 if Av_s_required < Av_s_min:
                     section.Av = Av_s_min * section.s
         
-        # Calculate design shear strength
+        # Calculatete design shear strength
         if section.Av > 0 and section.s > 0:
             Vs = section.Av * rebar.fy * section.d / section.s
         else:
@@ -511,7 +511,7 @@ class ACI318:
             recommendations=[]
         )
         
-        # Calculate slenderness ratio
+        # Calculatete slenderness ratio
         r = min(section.b, section.h) / math.sqrt(12)  # Radius of gyration
         kLu_r = k * Lu / r
         
@@ -519,7 +519,7 @@ class ACI318:
         if kLu_r > 100:
             results.recommendations.append(f"Slenderness ratio {kLu_r:.1f} exceeds limit of 100")
         
-        # Calculate required reinforcement ratio
+        # Calculatete required reinforcement ratio
         if section.As == 0:
             # Estimate required reinforcement (simplified)
             # This would use interaction diagrams in full implementation
@@ -532,7 +532,7 @@ class ACI318:
             rho_est = min(max(forces.Pu / (rebar.fy * Ag), rho_min), rho_max)
             section.As = rho_est * Ag
         
-        # Calculate design strength (simplified)
+        # Calculatete design strength (simplified)
         Ag = section.b * section.h
         
         # Pure compression capacity

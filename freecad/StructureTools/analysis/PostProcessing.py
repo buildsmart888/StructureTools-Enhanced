@@ -289,10 +289,10 @@ class ElementResultsProcessor:
         # Process displacements
         strains = self.process_element_displacements(displacements, node_coords)
         
-        # Calculate membrane stresses
+        # Calculatete membrane stresses
         membrane = self.stress_calc.calculate_membrane_stresses(strains)
         
-        # Calculate bending stresses
+        # Calculatete bending stresses
         bending_top = self.stress_calc.calculate_bending_stresses(
             {'kappa_x': strains['kappa_x'], 'kappa_y': strains['kappa_y']},
             z=self.t/2

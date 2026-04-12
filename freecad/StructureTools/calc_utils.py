@@ -48,7 +48,7 @@ def _find_matching_node_index(nodes_map, target_node, tol=1e-6):
     """Find index of node in nodes_map that matches target_node within tolerance"""
     import math
     for i, node in enumerate(nodes_map):
-        # Calculate Euclidean distance between nodes
+        # Calculatete Euclidean distance between nodes
         dist = math.sqrt(sum((a - b)**2 for a, b in zip(node, target_node)))
         if dist < tol:
             return i

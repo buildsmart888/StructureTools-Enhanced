@@ -73,7 +73,7 @@ def show_error_message(msg, english_msg=None):
 class LoadDistributed:
     def __init__(self, obj, selection):
         obj.Proxy = self
-        obj.addProperty("App::PropertyLinkSubList", "ObjectBase", "Base", "Object base")
+        obj.addProperty("App::PropertyLinkSubList", "ObjectBase", "Base", "Base object")
         obj.addProperty("App::PropertyForce", "InitialLoading", "Distributed", "Initial loading (load per unit length)").InitialLoading = 10000000
         obj.addProperty("App::PropertyForce", "FinalLoading", "Distributed", "Final loading (load per unit length)").FinalLoading = 10000000
         obj.addProperty("App::PropertyFloat", "ScaleDraw", "Load", "Scale from drawing").ScaleDraw = 1
@@ -142,7 +142,7 @@ class LoadDistributed:
     def drawNodeLoad(self, obj, vertex):
         pass
     
-    # Retorna o subelemento asociado
+    # Return o subelemento asociado
     def getSubelement(self, obj, nameSubElement):
         try:
             if not nameSubElement:
@@ -222,7 +222,7 @@ class LoadDistributed:
                 FEend = obj.FinalLoading / obj.InitialLoading #fator de escala entre as forças 'end' e 'start'
                 distEndStart = subelement.Length
 
-                # Calculate start and end positions for load visualization
+                # Calculatete start and end positions for load visualization
                 start_pos = 0.0
                 end_pos = subelement.Length
                 
@@ -266,7 +266,7 @@ class LoadDistributed:
                 pInit = subelement.Vertexes[0].Point
                 dist = distEndStart / nArrow if nArrow > 0 else 0
                 
-                # Calculate direction vector for the edge
+                # Calculatete direction vector for the edge
                 edge_vec = FreeCAD.Vector(
                     subelement.Vertexes[1].Point.x - subelement.Vertexes[0].Point.x,
                     subelement.Vertexes[1].Point.y - subelement.Vertexes[0].Point.y,
@@ -284,7 +284,7 @@ class LoadDistributed:
                 else:
                     unit_dir_vec = FreeCAD.Vector(0,0,0)
                 
-                # Calculate start point based on start position
+                # Calculatete start point based on start position
                 start_point = FreeCAD.Vector(
                     subelement.Vertexes[0].Point.x + (unit_dir_vec.x * start_pos),
                     subelement.Vertexes[0].Point.y + (unit_dir_vec.y * start_pos),
@@ -296,7 +296,7 @@ class LoadDistributed:
                     # Generate the actual number of arrows to display between start_pos and end_pos
                     nArrow = min(max(int(nArrow * (distEndStart / subelement.Length)), 3), 50)
                     
-                    # Calculate step vector for arrow placement - only along the specified section
+                    # Calculatete step vector for arrow placement - only along the specified section
                     step_length = distEndStart / max(1, nArrow - 1)  # Ensure we don't divide by zero
                     step_vec = FreeCAD.Vector(
                         unit_dir_vec.x * step_length,
@@ -318,10 +318,10 @@ class LoadDistributed:
                     try:
                         listArrow = []            
                         for i in range(len(listPoints)):
-                            # Calculate load value at this position for scaling
+                            # Calculatete load value at this position for scaling
                             load_value = obj.InitialLoading
                             if distEndStart > 0:
-                                # Calculate position ratio between 0 and 1 based on position in the array
+                                # Calculatete position ratio between 0 and 1 based on position in the array
                                 position_ratio = float(i) / max(1, len(listPoints) - 1)  # Avoid division by zero
                                 # Interpolate between initial and final loading
                                 load_value = obj.InitialLoading + (obj.FinalLoading - obj.InitialLoading) * position_ratio

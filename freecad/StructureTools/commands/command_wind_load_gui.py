@@ -750,7 +750,7 @@ class WindLoadGUI(QDialog):
         """Create action buttons"""
         layout = QHBoxLayout()
         
-        # Calculate Button
+        # Calculatete Button
         self.calculate_btn = QPushButton("Calculate Wind Loads")
         self.calculate_btn.setStyleSheet("QPushButton { background-color: #2E86AB; color: white; font-weight: bold; padding: 8px; }")
         layout.addWidget(self.calculate_btn)
@@ -817,7 +817,7 @@ class WindLoadGUI(QDialog):
                 heights.append(current_height)
                 current_height += height_inc
             
-            # Calculate pressures based on a simplified equation
+            # Calculatete pressures based on a simplified equation
             # In a real implementation, this would use the proper wind pressure equation based on code
             # For now, we'll use a simple increasing function with height
             base_pressure = 1000.0  # Base pressure in N/m²
@@ -936,7 +936,7 @@ class WindLoadGUI(QDialog):
             results_text = f"Wind Load Calculation Results\n"
             results_text += "="*40 + "\n\n"
             
-            # Calculate based on selected code
+            # Calculatete based on selected code
             if "ASCE" in self.parameters.design_code:
                 self.calculate_asce_loads()
                 results_text += "ASCE 7-22 Wind Loads:\n"

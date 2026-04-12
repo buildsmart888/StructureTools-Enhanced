@@ -165,7 +165,7 @@ class ModelBuilder:
                                 area = getattr(model.sections[section_name], 'A', 0.0)
                                 if area > 0:
                                     
-                                    # Calculate distributed load (w = γ · A)
+                                    # Calculatete distributed load (w = γ · A)
                                     line_load = density * area
                                     
                                     # Apply as distributed load in -Y direction (FY)

@@ -826,7 +826,7 @@ class LoadGeneratorDialog(QtWidgets.QDialog):
         options_group.setLayout(options_layout)
         layout.addWidget(options_group)
         
-        # Calculation Method
+        # Calculatetion Method
         method_group = QtWidgets.QGroupBox("Calculation Methods")
         method_layout = QtWidgets.QFormLayout()
         

@@ -36,12 +36,12 @@ class ShellElement(ABC):
         self.t = material_props.get('t', 200)     # Thickness (mm)
         self.rho = material_props.get('rho', 7850e-9)  # Density (kg/mm³)
         
-        # Calculate membrane and bending stiffness factors
+        # Calculatete membrane and bending stiffness factors
         self.D_membrane = self.E * self.t / (1 - self.nu**2)  # Membrane stiffness
         self.D_bending = self.E * self.t**3 / (12 * (1 - self.nu**2))  # Bending stiffness
         self.D_shear = self.E / (2 * (1 + self.nu))  # Shear stiffness
         
-        # Calculate local coordinate system
+        # Calculatete local coordinate system
         self._compute_local_coords()
     
     def _compute_local_coords(self):

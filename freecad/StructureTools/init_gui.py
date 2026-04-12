@@ -115,18 +115,37 @@ class StructureTools(Gui.Workbench):
 		self.appendToolbar('DraftSnap', ["Draft_Snap_Lock", "Draft_Snap_Endpoint", "Draft_Snap_Midpoint", "Draft_Snap_Center", "Draft_Snap_Angle", "Draft_Snap_Intersection", "Draft_Snap_Perpendicular", "Draft_Snap_Extension", "Draft_Snap_Parallel", "Draft_Snap_Special", "Draft_Snap_Near", "Draft_Snap_Ortho", "Draft_Snap_Grid", "Draft_Snap_WorkingPlane", "Draft_Snap_Dimensions", "Draft_ToggleGrid"])
 		self.appendToolbar('DraftTools', ["Draft_SelectPlane", "Draft_SetStyle"])
 
-		self.appendToolbar('StructureLoad', ["load_distributed","load_nodal", "CreateAreaLoad", "VisualizeLoadDistribution", "ClearLoadDistribution", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui"])
-		self.appendToolbar('StructureTools', ["member", "suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate"])
-		self.appendToolbar('StructureResults', ["calc","diagram", "ReactionResults", "ReactionTablePanel", "ViewReactionTable", "ViewMemberForceSummary", "GenerateStructuralReport"])
+		# ── Toolbars (only fully implemented commands) ──────────────────────
+		self.appendToolbar('Structure Loads', [
+			"load_distributed", "load_nodal", "CreateAreaLoad",
+			"VisualizeLoadDistribution", "ClearLoadDistribution",
+			"wind_load_gui", "seismic_load_gui",
+		])
+		self.appendToolbar('Structure Objects', [
+			"member", "suport", "section", "material",
+			"CreateMaterial", "MaterialDatabaseManager",
+		])
+		self.appendToolbar('Analysis & Results', [
+			"calc", "diagram",
+			"ReactionResults", "ViewReactionTable",
+			"ViewMemberForceSummary",
+		])
 
-		self.appendToolbar('AdvancedAnalysis', ["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
-		self.appendToolbar('DesignCodes', ["RunSteelDesign", "RunConcreteDesign", "RunAISCDesign", "RunACIDesign", "ShowDesignStatus"])
-		self.appendToolbar('BIMIntegration', ["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])
-		
-		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "CreateAreaLoad", "VisualizeLoadDistribution", "ClearLoadDistribution", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate", "calc", "diagram", "ReactionResults", "ViewReactionTable", "ViewMemberForceSummary", "GenerateStructuralReport"])
-		self.appendMenu('Advanced Analysis',["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
-		self.appendMenu('Design Codes',["RunAISCDesign", "RunACIDesign"])
-		self.appendMenu('BIM Integration',["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])
+		# ── Menus ────────────────────────────────────────────────────────────
+		self.appendMenu('StructureTools', [
+			"load_distributed", "load_nodal", "CreateAreaLoad",
+			"VisualizeLoadDistribution", "ClearLoadDistribution",
+			"wind_load_gui", "seismic_load_gui",
+			"member", "suport", "section", "material",
+			"CreateMaterial", "MaterialDatabaseManager",
+			"calc", "diagram",
+			"ReactionResults", "ViewReactionTable", "ViewMemberForceSummary",
+		])
+
+		# ── Coming soon (hidden until implemented) ───────────────────────────
+		# RunModalAnalysis, ViewModalResults, RunBucklingAnalysis
+		# RunDesignOptimizer, RunAISCDesign, RunACIDesign
+		# BIM_Import, BIM_Export, BIM_Sync, CreateStructuralDrawing, ExportToFEM
 
 	def Activated(self):
 		'''
@@ -144,7 +163,7 @@ class StructureTools(Gui.Workbench):
 		'''
 		App.Console.PrintMessage(translate(
 			"Log",
-			"Workbench StructureTools de-activated.") + "\n")
+			"Workbench StructureTools deactivated.") + "\n")
 
 
 Gui.addWorkbench(StructureTools())

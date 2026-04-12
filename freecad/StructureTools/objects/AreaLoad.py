@@ -325,7 +325,7 @@ class AreaLoad:
             if not obj.TargetFaces:
                 return
                 
-            # Calculate total loaded area
+            # Calculatete total loaded area
             total_area = 0.0
             for face_obj in obj.TargetFaces:
                 if hasattr(face_obj, 'Shape') and hasattr(face_obj.Shape, 'Area'):
@@ -333,12 +333,12 @@ class AreaLoad:
                     
             obj.LoadedArea = total_area
             
-            # Calculate total force
+            # Calculatete total force
             if hasattr(obj, 'LoadIntensity'):
                 intensity = self.parseLoadIntensity(obj.LoadIntensity)
                 obj.TotalForce = intensity * total_area
                 
-            # Calculate center of pressure
+            # Calculatete center of pressure
             self.calculateCenterOfPressure(obj)
             
             # Update Thai units if enabled
@@ -354,7 +354,7 @@ class AreaLoad:
             if not obj.TargetFaces:
                 return
                 
-            # Calculate total loaded area
+            # Calculatete total loaded area
             total_area = 0.0
             for face_obj in obj.TargetFaces:
                 if hasattr(face_obj, 'Shape') and hasattr(face_obj.Shape, 'Area'):
@@ -362,12 +362,12 @@ class AreaLoad:
                     
             obj.LoadedArea = total_area
             
-            # Calculate total force
+            # Calculatete total force
             if hasattr(obj, 'LoadIntensity'):
                 intensity = self.parseLoadIntensity(obj.LoadIntensity)
                 obj.TotalForce = intensity * total_area
                 
-            # Calculate center of pressure
+            # Calculatete center of pressure
             self.calculateCenterOfPressure(obj)
             
         except Exception as e:
@@ -572,7 +572,7 @@ class AreaLoad:
                     # Get face center
                     center = face_obj.Shape.CenterOfMass
                     
-                    # Calculate load direction and magnitude
+                    # Calculatete load direction and magnitude
                     direction = obj.LoadDirection
                     if obj.ProjectToSurface and hasattr(face_obj.Shape, 'normalAt'):
                         # Use surface normal
@@ -652,7 +652,7 @@ class AreaLoad:
                     force = intensity * area  # kN
                     total_force += force
                     
-                    # Calculate moments about origin
+                    # Calculatete moments about origin
                     center = face_obj.Shape.CenterOfMass
                     moment_x += force * (center.y / 1000)  # kN⋅m
                     moment_y += force * (center.x / 1000)  # kN⋅m
@@ -890,7 +890,7 @@ class AreaLoad:
             total_load = magnitude * area * distribution_factor
             obj.TotalLoad = total_load
             
-            # Calculate load resultant vector
+            # Calculatete load resultant vector
             direction_vector = self._get_direction_vector(obj)
             obj.LoadResultant = direction_vector * total_load
             
@@ -1111,7 +1111,7 @@ class AreaLoad:
         try:
             doc = App.ActiveDocument
             
-            # Calculate arrow length based on magnitude and scale
+            # Calculatete arrow length based on magnitude and scale
             arrow_length = magnitude * scale * 100  # Scale factor
             if arrow_length < 10:  # Minimum arrow length
                 arrow_length = 10
@@ -1160,7 +1160,7 @@ class AreaLoad:
         self._update_loaded_area(obj)
         self._update_load_center(obj)
         
-        # Calculate loads
+        # Calculatete loads
         self._calculate_total_load(obj)
         
         # Update visualization

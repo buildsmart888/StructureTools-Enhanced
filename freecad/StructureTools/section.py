@@ -40,7 +40,7 @@ def show_error_message(msg):
 class Section:
     def __init__(self, obj, selection):
 
-        # Define os objetos pré celecionados
+        # Store pre-selected objects
         if len(selection) > 0:
             sub = selection[0].SubElementNames[0] if selection[0].SubElementNames else ''
             objectSelected = (selection[0].Object, sub)
@@ -49,14 +49,14 @@ class Section:
             
         
         obj.Proxy = self
-        obj.addProperty("App::PropertyLinkSub", "ObjectBase", "Base", "Object base").ObjectBase = objectSelected
+        obj.addProperty("App::PropertyLinkSub", "ObjectBase", "Base", "Base object").ObjectBase = objectSelected
         
-        # Propriedades da seção
-        obj.addProperty("App::PropertyFloat", "MomentInertiaY", "SectionProprety", "Inertia in the local Y axis").MomentInertiaY = 0.00
-        obj.addProperty("App::PropertyFloat", "MomentInertiaZ", "SectionProprety", "Inertia in the local Z axis").MomentInertiaZ = 0.00
-        obj.addProperty("App::PropertyFloat", "MomentInertiaPolar", "SectionProprety", "Polar Moment of Inertia J").MomentInertiaPolar = 0.00
+        # Section properties
+        obj.addProperty("App::PropertyFloat", "MomentInertiaY", "SectionProprety", "Moment of inertia about local Y axis").MomentInertiaY = 0.00
+        obj.addProperty("App::PropertyFloat", "MomentInertiaZ", "SectionProprety", "Moment of inertia about local Z axis").MomentInertiaZ = 0.00
+        obj.addProperty("App::PropertyFloat", "MomentInertiaPolar", "SectionProprety", "Polar moment of inertia J").MomentInertiaPolar = 0.00
         obj.addProperty("App::PropertyFloat", "ProductInertiaYZ", "SectionProprety", "Product of Inertia").ProductInertiaYZ = 0.00
-        obj.addProperty("App::PropertyArea", "AreaSection", "SectionProprety", "Section area").AreaSection = 0.00
+        obj.addProperty("App::PropertyArea", "AreaSection", "SectionProprety", "Cross-sectional area").AreaSection = 0.00
         obj.addProperty("App::PropertyFloat", "SectionModulusY", "SectionProprety", "Section Modulus about Y").SectionModulusY = 0.00
         obj.addProperty("App::PropertyFloat", "SectionModulusZ", "SectionProprety", "Section Modulus about Z").SectionModulusZ = 0.00
 
@@ -120,11 +120,11 @@ class Section:
                 if not hasattr(obj, 'SectionModulusZ'):
                     obj.addProperty("App::PropertyFloat", "SectionModulusZ", "Section", "Section modulus about Z axis").SectionModulusZ = 0.0
 
-                # Calculate Section Modulus (Generic approximation using BoundingBox)
+                # Calculatete Section Modulus (Generic approximation using BoundingBox)
                 # Assumes face is somewhat aligned or uses principal axes roughly
                 try:
                     bbox = face.BoundBox
-                    # Calculate max distance from centroid to extremes
+                    # Calculatete max distance from centroid to extremes
                     # Note: These axes (X,Y,Z) depend on face orientation.
                     # Usually for a sketch on XY plane:
                     # Iz relates to X-axis (Ixx), distance is Y

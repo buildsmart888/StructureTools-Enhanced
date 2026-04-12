@@ -24,10 +24,10 @@ def calculate_seismic_coefficient(sds: float, sd1: float, period: float,
     Returns:
         Seismic response coefficient Cs
     """
-    # Calculate Cs according to ASCE 7-22 Equation 12.8-2
+    # Calculatete Cs according to ASCE 7-22 Equation 12.8-2
     cs_max = sds / (r_factor / importance_factor)
     
-    # Calculate Cs according to ASCE 7-22 Equation 12.8-3
+    # Calculatete Cs according to ASCE 7-22 Equation 12.8-3
     cs_period = sd1 / (period * (r_factor / importance_factor))
     
     # Take the minimum of the two values
@@ -71,7 +71,7 @@ def distribute_forces_asce(base_shear: float, story_heights: List[float],
     n_stories = len(story_heights)
     forces = [0.0] * n_stories
     
-    # Calculate k factor based on period (ASCE 7-22 Section 12.8.3)
+    # Calculatete k factor based on period (ASCE 7-22 Section 12.8.3)
     if period <= 0.5:
         k = 1.0
     elif period >= 2.5:
@@ -79,11 +79,11 @@ def distribute_forces_asce(base_shear: float, story_heights: List[float],
     else:
         k = 1.0 + 0.5 * (period - 0.5) / 2.0
     
-    # Calculate story weights times height to the power of k
+    # Calculatete story weights times height to the power of k
     weight_height_k = [w * (h ** k) for w, h in zip(story_weights, story_heights)]
     sum_weight_height_k = sum(weight_height_k)
     
-    # Calculate forces
+    # Calculatete forces
     if sum_weight_height_k > 0:
         for i in range(n_stories):
             forces[i] = base_shear * weight_height_k[i] / sum_weight_height_k
@@ -105,10 +105,10 @@ def distribute_forces_linear(base_shear: float, story_heights: List[float]) -> L
     n_stories = len(story_heights)
     forces = [0.0] * n_stories
     
-    # Calculate sum of heights
+    # Calculatete sum of heights
     sum_heights = sum(story_heights)
     
-    # Calculate forces
+    # Calculatete forces
     if sum_heights > 0:
         for i in range(n_stories):
             forces[i] = base_shear * story_heights[i] / sum_heights
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     r_factor = 8.0
     importance_factor = 1.0
     
-    # Calculations
+    # Calculatetions
     cs = calculate_seismic_coefficient(sds, sd1, period, r_factor, importance_factor)
     base_shear = calculate_base_shear(total_weight, cs)
     

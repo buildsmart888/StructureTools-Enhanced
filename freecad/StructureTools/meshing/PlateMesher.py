@@ -446,7 +446,7 @@ class PlateMesher:
         width = bbox.XMax - bbox.XMin
         height = bbox.YMax - bbox.YMin
         
-        # Calculate number of divisions
+        # Calculatete number of divisions
         nx = max(2, int(width / self.target_size))
         ny = max(2, int(height / self.target_size))
         
@@ -576,7 +576,7 @@ class PlateMesher:
                 FreeCAD.Console.PrintWarning(f"Error analyzing element {elem_id}: {e}\n")
                 continue
         
-        # Calculate averages
+        # Calculatete averages
         if element_count > 0:
             total_angles = element_count * 3 if self.element_type.startswith("Tri") else element_count * 4
             quality_metrics['avg_angle'] = angle_sum / total_angles if total_angles > 0 else 0
@@ -612,7 +612,7 @@ class PlateMesher:
                 node = nodes[node_id]
                 points.append(App.Vector(node['x'], node['y'], node['z']))
         
-        # Calculate angles
+        # Calculatete angles
         num_points = len(points)
         for i in range(num_points):
             p1 = points[(i - 1) % num_points]
@@ -623,7 +623,7 @@ class PlateMesher:
             v1 = (p1 - p2).normalize()
             v2 = (p3 - p2).normalize()
             
-            # Calculate angle
+            # Calculatete angle
             dot_product = v1.dot(v2)
             dot_product = max(-1.0, min(1.0, dot_product))  # Clamp to valid range
             angle = math.degrees(math.acos(dot_product))
@@ -648,7 +648,7 @@ class PlateMesher:
         if len(points) < 3:
             return 1.0
         
-        # Calculate edge lengths
+        # Calculatete edge lengths
         edge_lengths = []
         num_points = len(points)
         
@@ -686,7 +686,7 @@ class PlateMesher:
                     points.append(App.Vector(node['x'], node['y'], node['z']))
             
             if len(points) == 3:
-                # Calculate area using cross product
+                # Calculatete area using cross product
                 v1 = points[1] - points[0]
                 v2 = points[2] - points[0]
                 area = 0.5 * v1.cross(v2).Length

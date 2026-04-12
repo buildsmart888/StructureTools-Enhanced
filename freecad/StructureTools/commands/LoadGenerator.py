@@ -78,7 +78,7 @@ class LoadGeneratorManager:
                     material = member.get("material", {})
                     geometry = member.get("geometry", {})
                     
-                    # Calculate self-weight
+                    # Calculatete self-weight
                     density = material.get("density", 2400)  # kg/m³
                     volume = self.calculateMemberVolume(geometry)
                     
@@ -99,7 +99,7 @@ class LoadGeneratorManager:
                     material = plate.get("material", {})
                     geometry = plate.get("geometry", {})
                     
-                    # Calculate plate self-weight
+                    # Calculatete plate self-weight
                     density = material.get("density", 2400)
                     thickness = geometry.get("thickness", 0.2)
                     area = geometry.get("area", 1.0)

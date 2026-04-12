@@ -81,7 +81,7 @@ class ConcreteDesignChecker:
         
         phi = 0.9
         
-        # Calculation for Bottom Steel (Positive Moment Capacity)
+        # Calculatetion for Bottom Steel (Positive Moment Capacity)
         # Note: If Mz is negative (hogging), we should use As_top.
         # But 'forces' passed here is MAX ABSOLUTE. We don't know sign.
         # Conservative: Check max moment against available steel.
@@ -89,7 +89,7 @@ class ConcreteDesignChecker:
         # MVP: Check against As_bot (assuming simple beam Positive moment is critical).
         # Improvement: Check both if As_top is defined?
         
-        # Calculate 'a' block depth
+        # Calculatete 'a' block depth
         # fc is usually concrete strength. 0.85 factor is standard.
         if fc <= 0: fc = 28000.0
         

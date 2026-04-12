@@ -225,7 +225,7 @@ class ThaiLoadStandards:
             exposure_category=terrain_map.get(config.terrain_category, ThaiTerrainCategory.CATEGORY_III)
         )
         
-        # Calculate wind loads
+        # Calculatete wind loads
         result = self.wind_calculator.analyze_building_wind_loads(
             province=config.province,
             building_geometry=building_geometry,
@@ -276,7 +276,7 @@ class ThaiLoadStandards:
             occupancy_type=config.occupancy_type
         )
         
-        # Calculate seismic loads
+        # Calculatete seismic loads
         result = self.seismic_calculator.analyze_building_seismic_loads(
             province=config.province,
             building=building
@@ -289,17 +289,17 @@ class ThaiLoadStandards:
         wind_result = None
         seismic_result = None
         
-        # Calculate wind loads
+        # Calculatete wind loads
         if config.load_type in [ThaiLoadType.WIND_TIS_1311_50, ThaiLoadType.WIND_MINISTRY_2566, 
                                ThaiLoadType.COMBINED_WIND_SEISMIC]:
             wind_result = self.calculate_wind_loads(config)
         
-        # Calculate seismic loads
+        # Calculatete seismic loads
         if config.load_type in [ThaiLoadType.SEISMIC_TIS_1301_61, ThaiLoadType.SEISMIC_TIS_1302_61,
                                ThaiLoadType.COMBINED_WIND_SEISMIC]:
             seismic_result = self.calculate_seismic_loads(config)
         
-        # Calculate design forces with load combinations
+        # Calculatete design forces with load combinations
         design_forces = {}
         combination_factors = {}
         

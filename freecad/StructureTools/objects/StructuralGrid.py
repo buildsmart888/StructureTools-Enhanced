@@ -233,7 +233,7 @@ class StructuralGrid:
     def _update_grid_geometry(self, obj) -> None:
         """Update grid geometry when spacing changes."""
         try:
-            # Calculate grid boundaries
+            # Calculatete grid boundaries
             x_coords = self._calculate_grid_coordinates(obj.XSpacing, obj.GridOrigin.x)
             y_coords = self._calculate_grid_coordinates(obj.YSpacing, obj.GridOrigin.y)
             z_coords = [obj.GridOrigin.z + level for level in obj.ZLevels]

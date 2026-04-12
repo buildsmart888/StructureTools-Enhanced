@@ -285,7 +285,7 @@ class StaticSeismicAnalyzer:
         ct = building_type_params['ct']
         x = building_type_params['x']
         
-        # Calculate period based on seismic code
+        # Calculatete period based on seismic code
         if self.parameters.seismic_code == SeismicCode.ASCE_7_22:
             return ct * (self.parameters.building_height ** x)
         elif self.parameters.seismic_code == SeismicCode.TIS_1301_61:
@@ -395,7 +395,7 @@ class StaticSeismicAnalyzer:
     
     def perform_analysis(self) -> Dict[str, Any]:
         """Perform complete static seismic analysis"""
-        # Calculate key parameters
+        # Calculatete key parameters
         self.period = self.calculate_fundamental_period()
         self.base_shear = self.calculate_base_shear()
         self.story_forces = self.calculate_story_forces()
