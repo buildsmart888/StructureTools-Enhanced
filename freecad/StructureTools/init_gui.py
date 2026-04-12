@@ -1,7 +1,6 @@
 import os
 import FreeCADGui as Gui
 import FreeCAD as App
-import subprocess
 
 # Import Global Units System
 try:
@@ -31,13 +30,6 @@ Gui.updateLocale()
 
 
 from .Pynite_main.FEModel3D import FEModel3D
-
-# from .Pynite_main.FEModel3D import FEModel3D
-# try:
-# 	from Pynite import FEModel3D
-# except:
-# 	print('Instalando dependencias')
-# 	subprocess.check_call(["pip", "install", "PyniteFEA"])
 
 class StructureTools(Gui.Workbench):
 	"""

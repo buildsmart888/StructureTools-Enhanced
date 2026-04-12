@@ -31,7 +31,7 @@ class UnitManager:
             # Often Quantity().Value is base unit value
             try:
                 return float(value.Value)
-            except:
+            except Exception:
                 pass
 
         # If standard FreeCAD Units module is available
@@ -53,7 +53,7 @@ class UnitManager:
         # Fallback: just try to float it
         try:
             return float(value)
-        except:
+        except Exception:
             return 0.0
 
     @staticmethod

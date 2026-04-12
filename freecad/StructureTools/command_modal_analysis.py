@@ -64,7 +64,7 @@ class RunModalAnalysisCommand:
         
         # Show modal analysis setup dialog
         dialog = ModalAnalysisDialog(calc_obj)
-        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+        if dialog.exec() == QtWidgets.QDialog.Accepted:
             self.run_modal_analysis(calc_obj, dialog.get_parameters())
     
     def run_modal_analysis(self, calc_obj, parameters):
@@ -312,7 +312,7 @@ class ViewModalResultsCommand:
             
             # Show results dialog
             dialog = ModalResultsDialog(results)
-            dialog.exec_()
+            dialog.exec()
         else:
             QtWidgets.QMessageBox.information(
                 None,

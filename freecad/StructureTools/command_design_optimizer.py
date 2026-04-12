@@ -1511,7 +1511,7 @@ APPLICATIONS:
         layout.addWidget(close_btn)
         
         help_dialog.setLayout(layout)
-        help_dialog.exec_()
+        help_dialog.exec()
     
     def update_model_source(self):
         """Update UI based on model source selection."""

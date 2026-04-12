@@ -865,7 +865,7 @@ class MaterialSelectionPanel:
                                         std_fc = float(std_props['CompressiveStrength'].split()[0])
                                         if abs(fc - std_fc) < 5:  # Within 5 MPa tolerance
                                             return standard_name
-                            except:
+                            except Exception:
                                 pass
                         # If no strength match, return first concrete standard found
                         return standard_name

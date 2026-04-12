@@ -288,7 +288,7 @@ class StructuralBeam:
             try:
                 modulus = material.ModulusElasticity.getValueAs('MPa')
                 obj.EffectiveModulus = f"{modulus} MPa"
-            except:
+            except Exception:
                 pass
     
     def _update_section_properties(self, obj) -> None:
@@ -394,7 +394,7 @@ class StructuralBeam:
                 
                 obj.Shape = beam_solid
                 
-            except:
+            except Exception:
                 # Fallback to line representation
                 obj.Shape = line
         else:
@@ -432,7 +432,7 @@ class StructuralBeam:
                         f"Section area mismatch: calculated {area_calc:.0f} mm², "
                         f"property {area_prop:.0f} mm²\n"
                     )
-        except:
+        except Exception:
             pass
     
     def _validate_load_consistency(self, obj) -> None:

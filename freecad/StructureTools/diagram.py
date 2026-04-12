@@ -11,7 +11,7 @@ def show_error_message(msg):
 	msg_box.setWindowTitle("Erro")
 	msg_box.setText(msg)
 	msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-	msg_box.exec_()
+	msg_box.exec()
 
 class Diagram:
 	def __init__(self, obj, objCalc, listSelection):
@@ -198,7 +198,7 @@ class Diagram:
 			rotacao = FreeCAD.Rotation(dirStart, dirEnd)
 			elementoRotacionado = element.transformGeometry(FreeCAD.Placement(position,rotacao).toMatrix())
 			return elementoRotacionado
-		except:
+		except Exception:
 			print('Erro ao rotacionar diagrama.')
 			return element
 	

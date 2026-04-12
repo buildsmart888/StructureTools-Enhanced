@@ -1193,7 +1193,7 @@ class LoadGeneratorCommand:
         try:
             if QtWidgets:
                 dialog = LoadGeneratorDialog()
-                dialog.exec_()
+                dialog.exec()
             else:
                 App.Console.PrintError("Qt libraries not available - cannot open Load Generator GUI\n")
                 App.Console.PrintMessage("Load Generator functionality available through Python API\n")

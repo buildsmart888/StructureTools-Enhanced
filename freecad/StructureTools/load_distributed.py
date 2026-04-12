@@ -67,7 +67,7 @@ def show_error_message(msg, english_msg=None):
     msg_box.setWindowTitle("Error")
     msg_box.setText(full_msg)
     msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    msg_box.exec_()
+    msg_box.exec()
 
 
 class LoadDistributed:

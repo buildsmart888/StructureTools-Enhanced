@@ -209,7 +209,7 @@ class MaterialDatabaseManagerCommand:
         close_button.clicked.connect(dialog.close)
         
         # Show dialog
-        dialog.exec_()
+        dialog.exec()
     
     def populate_category_tree(self):
         """Populate the category tree with materials."""

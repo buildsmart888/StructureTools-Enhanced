@@ -277,7 +277,7 @@ class BeamPropertiesPanel:
             end = App.Vector(self.end_x.value(), self.end_y.value(), self.end_z.value())
             length = start.distanceToPoint(end)
             self.length_label.setText(f"{length:.1f} mm")
-        except:
+        except Exception:
             self.length_label.setText("0 mm")
     
     def _browse_material(self) -> None:

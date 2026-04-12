@@ -159,7 +159,7 @@ class ReactionResults:
             try:
                 if hasattr(react_obj, 'Document') and react_obj.Document:
                     react_obj.Document.removeObject(react_obj.Name)
-            except:
+            except Exception:
                 pass
         
         self.reaction_objects.clear()
@@ -732,7 +732,7 @@ class ReactionResults:
                             value = float(value_str)
                             if abs(value) > 0.05:  # Only show moments > 0.05 (threshold for visibility)
                                 display_lines.append(component)
-                        except:
+                        except Exception:
                             display_lines.append(component)  # Include if can't parse
                         break
             

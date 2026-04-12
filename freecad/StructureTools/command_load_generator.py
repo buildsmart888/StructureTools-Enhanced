@@ -335,7 +335,7 @@ Click "Continue to Load Generator" to proceed with detailed load calculation and
         layout.addWidget(close_btn)
         
         help_dialog.setLayout(layout)
-        help_dialog.exec_()
+        help_dialog.exec()
     
     def get_preferences(self):
         """Get user preferences from the dialog."""
@@ -1728,7 +1728,7 @@ For detailed code requirements, refer to:
         layout.addWidget(close_btn)
         
         help_dialog.setLayout(layout)
-        help_dialog.exec_()
+        help_dialog.exec()
     
     def update_status(self, message: str):
         """Update status display."""
@@ -1749,7 +1749,7 @@ class LoadGeneratorCommand:
     def Activated(self):
         # Show selection dialog first
         selection_dialog = LoadGeneratorSelectionDialog()
-        result = selection_dialog.exec_()
+        result = selection_dialog.exec()
         
         if result == QtWidgets.QDialog.Accepted:
             # Get user preferences
@@ -1762,7 +1762,7 @@ class LoadGeneratorCommand:
             if preferences:
                 dialog.apply_preferences(preferences)
             
-            dialog.exec_()  # Use exec_() instead of show() to make it modal
+            dialog.exec()  # Use exec_() instead of show() to make it modal
     
     def IsActive(self):
         return True

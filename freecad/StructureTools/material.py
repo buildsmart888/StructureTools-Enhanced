@@ -71,7 +71,7 @@ def show_error_message(msg):
     msg_box.setWindowTitle("Erro")
     msg_box.setText(msg)
     msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    msg_box.exec_()
+    msg_box.exec()
 
 
 class Material:
@@ -716,7 +716,7 @@ class CommandMaterial():
         create_button.clicked.connect(create_material)
         
         # Show dialog
-        dialog.exec_()
+        dialog.exec()
 
     def create_material_from_standard(self, standard_name):
         """Create material from selected standard."""

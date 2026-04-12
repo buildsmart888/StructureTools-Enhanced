@@ -51,7 +51,7 @@ class VisualizeLoadDistributionCommand:
         
         # Show dialog to choose distribution type
         dialog = LoadDistributionDialog(area_load_obj)
-        result = dialog.exec_()
+        result = dialog.exec()
         
         if result == QtWidgets.QDialog.Accepted:
             dist_type = dialog.get_distribution_type()
@@ -205,7 +205,7 @@ class LoadDistributionDialog(QtWidgets.QDialog):
                 intensity_str = str(self.area_load_obj.LoadIntensity)
                 intensity_val = float(intensity_str.split()[0])
                 self.spin_intensity.setValue(intensity_val)
-            except:
+            except Exception:
                 pass
         
         load_layout.addRow("Load Intensity:", self.spin_intensity)
@@ -294,7 +294,7 @@ class ClearLoadDistributionCommand:
                 try:
                     doc.removeObject(obj.Name)
                     removed_count += 1
-                except:
+                except Exception:
                     pass
         
         if removed_count > 0:

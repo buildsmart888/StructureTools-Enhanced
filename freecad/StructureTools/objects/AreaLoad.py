@@ -382,7 +382,7 @@ class AreaLoad:
             # Handle unit strings like "2.4 kN/m^2"
             value_str = str(intensity_str).split()[0]
             return float(value_str)
-        except:
+        except Exception:
             return 0.0
     
     def calculateCenterOfPressure(self, obj):
@@ -972,7 +972,7 @@ class AreaLoad:
                             normal = face.normalAt(0.5, 0.5)  # Normal at center
                             total_normal = total_normal + normal
                             face_count += 1
-                        except:
+                        except Exception:
                             continue
         
         if face_count > 0:
@@ -1186,7 +1186,7 @@ class AreaLoad:
                 mag = obj.Magnitude.getValueAs('N/mm^2')
                 if mag <= 0:
                     warnings.append("Load magnitude should be positive")
-            except:
+            except Exception:
                 is_valid = False
                 warnings.append("Invalid load magnitude")
         

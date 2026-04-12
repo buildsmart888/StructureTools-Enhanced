@@ -795,7 +795,7 @@ class AISCDesignCommand:
             
             # Show the AISC design dialog
             dialog = AISCDesignDialog()
-            dialog.exec_()
+            dialog.exec()
             
         except Exception as e:
             QtWidgets.QMessageBox.critical(

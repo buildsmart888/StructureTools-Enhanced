@@ -140,7 +140,7 @@ class DraggableReactionLabel:
             if obj and hasattr(obj, 'Document') and obj.Document:
                 try:
                     obj.Document.removeObject(obj.Name)
-                except:
+                except Exception:
                     pass
         
         self.text_object = None
@@ -295,7 +295,7 @@ class ViewProviderDraggableReactionLabel:
             # Simple distance check (can be improved with proper screen projection)
             distance = (pos - label_pos).Length
             return distance < 50  # 50 units threshold
-        except:
+        except Exception:
             return False
 
 

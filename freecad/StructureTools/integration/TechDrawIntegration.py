@@ -202,7 +202,7 @@ class CommandCreateStructuralDrawing:
             # Switch to TechDraw workbench to view the drawing
             try:
                 Gui.activateWorkbench("TechDrawWorkbench")
-            except:
+            except Exception:
                 FreeCAD.Console.PrintWarning("TechDraw workbench not available\n")
         else:
             FreeCAD.Console.PrintError("Failed to create structural drawing\n")

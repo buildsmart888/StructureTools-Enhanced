@@ -411,7 +411,7 @@ class MaterialTaskPanel:
                 self.shear_edit.setText(f"{G:.0f}")
             else:
                 self.shear_edit.setText("")
-        except:
+        except Exception:
             self.shear_edit.setText("")
     
     def _update_strength_ratio(self) -> None:
@@ -437,7 +437,7 @@ class MaterialTaskPanel:
             else:
                 self.ratio_label.setText("")
                 self.ratio_label.setStyleSheet("color: gray; font-style: italic;")
-        except:
+        except Exception:
             self.ratio_label.setText("Error")
             self.ratio_label.setStyleSheet("color: red;")
     

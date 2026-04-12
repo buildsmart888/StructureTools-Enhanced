@@ -9,7 +9,7 @@ def show_error_message(msg):
     msg_box.setWindowTitle("Erro")
     msg_box.setText(msg)
     msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    msg_box.exec_()
+    msg_box.exec()
 
 
 class Suport:
@@ -121,7 +121,11 @@ class Suport:
         obj.Shape = Part.makeCompound(listSimbols)
         obj.Placement.Base = simbol.Placement.Base
         obj.ViewObject.DisplayMode = 'Shaded'
-        obj.ViewObject.ShapeAppearance = (FreeCAD.Material(DiffuseColor=(0.00,0.67,0.00),AmbientColor=(0.00,0.00,0.00),SpecularColor=(0.00,0.00,0.00),EmissiveColor=(0.00,0.00,0.00),Shininess=(0.90),Transparency=(0.00),))
+        try:
+            # FreeCAD 1.x: set colour directly on ViewObject
+            obj.ViewObject.ShapeColor = (0.00, 0.67, 0.00)
+        except Exception:
+            pass
         obj.Label = 'Suport'
         
         
@@ -351,7 +355,7 @@ class CommandSuport():
                         show_error_message("Seleciona um nó para adicionar um suporte.")
             
             FreeCAD.ActiveDocument.recompute()
-        except:
+        except Exception:
             show_error_message("Seleciona um nó para adicionar um suporte.")
         return
 

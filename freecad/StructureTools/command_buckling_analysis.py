@@ -64,7 +64,7 @@ class RunBucklingAnalysisCommand:
         
         # Show buckling analysis setup dialog
         dialog = BucklingAnalysisDialog(calc_obj)
-        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+        if dialog.exec() == QtWidgets.QDialog.Accepted:
             self.run_buckling_analysis(calc_obj, dialog.get_parameters())
     
     def run_buckling_analysis(self, calc_obj, parameters):
@@ -355,7 +355,7 @@ class ViewBucklingResultsCommand:
             
             # Show results dialog
             dialog = BucklingResultsDialog(results)
-            dialog.exec_()
+            dialog.exec()
         else:
             QtWidgets.QMessageBox.information(
                 None,

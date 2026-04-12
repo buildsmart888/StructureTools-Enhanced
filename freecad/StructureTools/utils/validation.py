@@ -348,7 +348,7 @@ class StructuralValidator:
                     if rounded_pos not in locations:
                         locations[rounded_pos] = []
                     locations[rounded_pos].append(element.Name)
-            except:
+            except Exception:
                 continue
         
         # Report duplicates
@@ -377,7 +377,7 @@ class StructuralValidator:
                         start = vertices[0].Point
                         end = vertices[-1].Point
                         beam_endpoints.extend([start, end])
-            except:
+            except Exception:
                 continue
         
         # Find isolated endpoints (not connected to other members)

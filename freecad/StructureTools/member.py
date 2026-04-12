@@ -18,7 +18,7 @@ def show_error_message(msg):
     msg_box.setWindowTitle("Erro")
     msg_box.setText(msg)
     msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    msg_box.exec_()
+    msg_box.exec()
 
 
 
@@ -36,11 +36,20 @@ class CommandMember():
         selections = FreeCADGui.Selection.getSelection()
         selection = list(filter(lambda element: 'Wire' in element.Name or 'Line' in element.Name, selections ))
              
+        def _add_if_missing(obj, prop_type, name, group, desc, default=None):
+            if not hasattr(obj, name):
+                try:
+                    obj.addProperty(prop_type, name, group, desc)
+                    if default is not None:
+                        setattr(obj, name, default)
+                except Exception:
+                    pass
+
         for selection in selections:
-            selection.addProperty('App::PropertyLink', 'MaterialMember', 'Structure','Member material')
-            selection.addProperty('App::PropertyLink', 'SectionMember', 'Structure','Member section')
-            selection.addProperty('App::PropertyAngle', 'RotationSection', 'Structure','Member section rotation')
-            selection.addProperty('App::PropertyBool', 'TrussMember', 'Structure','Define como membro de treliça').TrussMember = False
+            _add_if_missing(selection, 'App::PropertyLink',  'MaterialMember', 'Structure', 'Member material')
+            _add_if_missing(selection, 'App::PropertyLink',  'SectionMember',  'Structure', 'Member section')
+            _add_if_missing(selection, 'App::PropertyAngle', 'RotationSection','Structure', 'Member section rotation')
+            _add_if_missing(selection, 'App::PropertyBool',  'TrussMember',    'Structure', 'Define como membro de treliça', False)
         FreeCAD.ActiveDocument.recompute()        
 
         return

@@ -1270,7 +1270,7 @@ class AreaLoadApplicationPanel:
                             arrow = self.createSingleArrow(point, f, scale)
                             if arrow:
                                 arrows.append(arrow)
-                        except:
+                        except Exception:
                             continue
                             
         except Exception as e:
@@ -1327,7 +1327,7 @@ class AreaLoadApplicationPanel:
                 # Get surface normal at point
                 normal = face.normalAt(0.5, 0.5)  # Simplified
                 return normal.normalize()
-            except:
+            except Exception:
                 return App.Vector(0, 0, -1)
         elif direction_type == "+X Global":
             return App.Vector(1, 0, 0)
@@ -1357,7 +1357,7 @@ class AreaLoadApplicationPanel:
                 try:
                     if hasattr(obj, 'Name') and doc.getObject(obj.Name):
                         doc.removeObject(obj.Name)
-                except:
+                except Exception:
                     pass
         
         self.preview_objects.clear()
@@ -1694,7 +1694,7 @@ class AreaLoadEditPanel:
                 try:
                     magnitude_val = float(magnitude_str.split()[0])
                     _safe_call_method(self.magnitude_input, "setValue", magnitude_val)
-                except:
+                except Exception:
                     _safe_call_method(self.magnitude_input, "setValue", 5.0)
             
             if hasattr(obj, 'LoadType'):

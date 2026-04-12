@@ -1198,7 +1198,7 @@ class WindLoadCommand:
         """Called when the command is activated"""
         dialog = show_wind_load_gui()
         if dialog:
-            dialog.exec_()
+            dialog.exec()
     
     def IsActive(self):
         return True

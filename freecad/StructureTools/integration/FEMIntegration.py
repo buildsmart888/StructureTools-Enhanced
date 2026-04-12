@@ -111,7 +111,7 @@ class FEMStructuralBridge:
                     E = float(material.ModulusElasticity.getValueAs('Pa'))
                     nu = float(material.PoissonRatio)
                     density = float(material.Density.getValueAs('kg/m^3'))
-                except:
+                except Exception:
                     # Fallback values
                     E = 200e9  # Pa
                     nu = 0.3
@@ -307,7 +307,7 @@ class CommandExportToFEM:
                 
                 if reply == QtWidgets.QMessageBox.Yes:
                     Gui.activateWorkbench("FemWorkbench")
-            except:
+            except Exception:
                 FreeCAD.Console.PrintMessage("Switch to FEM workbench manually to continue\n")
         else:
             FreeCAD.Console.PrintError("Failed to export to FEM\n")

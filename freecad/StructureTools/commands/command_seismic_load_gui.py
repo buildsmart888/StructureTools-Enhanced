@@ -139,7 +139,7 @@ except ImportError:
                 for func in self.connections:
                     try:
                         func(*args, **kwargs)
-                    except:
+                    except Exception:
                         pass
             def __call__(self, *args, **kwargs):
                 """Allow signal to be called directly"""
@@ -2496,7 +2496,7 @@ class SeismicLoadCommand:
         """Called when the command is activated"""
         dialog = show_seismic_load_gui()
         if dialog and QT_AVAILABLE:
-            dialog.exec_()
+            dialog.exec()
     
     def IsActive(self):
         return True

@@ -34,7 +34,7 @@ def show_error_message(msg):
     msg_box.setWindowTitle("Erro")
     msg_box.setText(msg)
     msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    msg_box.exec_()
+    msg_box.exec()
 
 
 class Section:
@@ -76,7 +76,7 @@ class Section:
         normal.normalize()
         try:
             normalface = face.normalAt(0,0)
-        except:
+        except Exception:
             normalface = face.Faces[0].normalAt(0,0)
             
 

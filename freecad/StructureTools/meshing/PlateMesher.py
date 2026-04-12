@@ -234,7 +234,7 @@ class PlateMesher:
             try:
                 import gmsh
                 gmsh.finalize()
-            except:
+            except Exception:
                 pass
             raise e
     
@@ -464,7 +464,7 @@ class PlateMesher:
                     point = face.valueAt(u, v)
                     nodes[node_id] = {'x': point.x, 'y': point.y, 'z': point.z}
                     node_id += 1
-                except:
+                except Exception:
                     # Fallback to linear interpolation
                     x = bbox.XMin + u * width
                     y = bbox.YMin + v * height

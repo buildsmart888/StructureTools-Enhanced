@@ -1094,7 +1094,7 @@ class ACIDesignCommand:
             
             # Show the ACI design dialog
             dialog = ACIDesignDialog()
-            dialog.exec_()
+            dialog.exec()
             
         except Exception as e:
             QtWidgets.QMessageBox.critical(

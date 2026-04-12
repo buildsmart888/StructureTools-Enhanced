@@ -167,7 +167,7 @@ def show_error_message(msg):
 		msg_box.setWindowTitle("Erro")
 		msg_box.setText(msg)
 		msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-		msg_box.exec_()
+		msg_box.exec()
 	except Exception:
 		# Fallback if QMessageBox is not available
 		print("ERROR:", msg)
@@ -845,12 +845,13 @@ class Calc:
 			# Solution: Wrap the existing raw model in the Adapter just for results?
 			# PyniteAdapter.__init__ creates a NEW FEModel3D(). We need to inject the existing one.
 			
-			# HACK for migration: Create a PyniteAdapter that accepts an existing model
-			# I need to modify PyniteAdapter to accept an optional existing_model
-			
+			if model is None:
+				_print_warning("FE model is None after analysis — skipping result extraction\n")
+				return
+
 			adapter = PyniteAdapter()
-			adapter.model = model # Inject the populated model
-			
+			adapter.model = model  # Inject populated model into adapter
+
 			result_manager = ResultManager(adapter)
 			
 			# Configuration for result points

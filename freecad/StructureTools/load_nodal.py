@@ -61,7 +61,7 @@ def show_error_message(msg):
     msg_box.setWindowTitle("Erro")
     msg_box.setText(msg)
     msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    msg_box.exec_()
+    msg_box.exec()
 
 
 class LoadNodal:
@@ -86,7 +86,6 @@ class LoadNodal:
         obj.GlobalDirection = ['+X','-X', '+Y','-Y', '+Z','-Z']
         obj.GlobalDirection = '-Z'
         
-        print(selection)
         obj.ObjectBase = (selection[0], selection[1])
     
     def getLoadInThaiUnits(self, obj):
@@ -300,7 +299,7 @@ class CommandLoadNodal():
                     ViewProviderLoadNodal(obj.ViewObject)
             
             FreeCAD.ActiveDocument.recompute()
-        except:
+        except Exception:
             show_error_message("Seleciona um ponto ou uma barra para adicionar um carregamento.")
         return
 

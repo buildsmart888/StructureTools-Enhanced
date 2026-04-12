@@ -596,7 +596,7 @@ class UnitsManager:
                 try:
                     converted = self.convert_value(value, from_unit, unit, "force")
                     conversions[unit] = f"{converted:.3f} {unit}"
-                except:
+                except Exception:
                     pass
         return conversions
     

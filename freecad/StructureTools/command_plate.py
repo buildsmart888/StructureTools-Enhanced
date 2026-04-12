@@ -180,7 +180,7 @@ class CreateStructuralPlateCommand:
                 u_dir = face.Surface.uIso(v).tangent(u)[0]
                 u_dir.normalize()
                 local_x = u_dir
-            except:
+            except Exception:
                 # Fallback: use global X direction projected onto face
                 global_x = App.Vector(1, 0, 0)
                 local_x = global_x - (global_x.dot(normal) * normal)

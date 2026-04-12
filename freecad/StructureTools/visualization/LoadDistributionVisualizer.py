@@ -43,7 +43,7 @@ class LoadDistributionVisualizer:
             try:
                 if self.doc.getObject(obj.Name):
                     self.doc.removeObject(obj.Name)
-            except:
+            except Exception:
                 pass
         self.visualization_objects = []
     
@@ -299,7 +299,7 @@ class LoadDistributionVisualizer:
             
             created_objects.append(face_obj)
             self.visualization_objects.append(face_obj)
-        except:
+        except Exception:
             pass
         
         # Add load label
