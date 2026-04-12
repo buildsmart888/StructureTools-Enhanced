@@ -41,7 +41,11 @@ class Section:
     def __init__(self, obj, selection):
 
         # Define os objetos pré celecionados
-        objectSelected = (selection[0].Object, selection[0].SubElementNames[0]) if len(selection) > 0 else ()
+        if len(selection) > 0:
+            sub = selection[0].SubElementNames[0] if selection[0].SubElementNames else ''
+            objectSelected = (selection[0].Object, sub)
+        else:
+            objectSelected = ()
             
         
         obj.Proxy = self
@@ -53,6 +57,14 @@ class Section:
         obj.addProperty("App::PropertyFloat", "MomentInertiaPolar", "SectionProprety", "Polar Moment of Inertia J").MomentInertiaPolar = 0.00
         obj.addProperty("App::PropertyFloat", "ProductInertiaYZ", "SectionProprety", "Product of Inertia").ProductInertiaYZ = 0.00
         obj.addProperty("App::PropertyArea", "AreaSection", "SectionProprety", "Section area").AreaSection = 0.00
+        obj.addProperty("App::PropertyFloat", "SectionModulusY", "SectionProprety", "Section Modulus about Y").SectionModulusY = 0.00
+        obj.addProperty("App::PropertyFloat", "SectionModulusZ", "SectionProprety", "Section Modulus about Z").SectionModulusZ = 0.00
+
+        # Concrete / Reinforcement Properties
+        obj.addProperty("App::PropertyArea", "RebarAreaTop", "Reinforcement", "Area of top reinforcement (As')").RebarAreaTop = 0.00
+        obj.addProperty("App::PropertyArea", "RebarAreaBottom", "Reinforcement", "Area of bottom reinforcement (As)").RebarAreaBottom = 0.00
+        obj.addProperty("App::PropertyLength", "ConcreteCover", "Reinforcement", "Concrete cover to centroid of rebar").ConcreteCover = "40 mm"
+        obj.addProperty("App::PropertyPressure", "RebarYieldStrength", "Reinforcement", "Yield strength of reinforcement").RebarYieldStrength = "420 MPa"
 
         obj.addProperty("App::PropertyBool", "ViewSection", "DrawSection", "Ver a seção no membro").ViewSection = False
         obj.addProperty("App::PropertyBool", "ViewFullSection", "DrawSection", "Ver a seção no membro").ViewFullSection = False
@@ -100,7 +112,43 @@ class Section:
                 obj.MomentInertiaZ = Iz
                 obj.MomentInertiaY = Iy
                 obj.ProductInertiaYZ = Iyz
-                obj.MomentInertiaPolar = Iy + Iz                   
+                obj.MomentInertiaPolar = Iy + Iz
+                
+                # Ensure SectionModulus properties exist (missing in older saved documents)
+                if not hasattr(obj, 'SectionModulusY'):
+                    obj.addProperty("App::PropertyFloat", "SectionModulusY", "Section", "Section modulus about Y axis").SectionModulusY = 0.0
+                if not hasattr(obj, 'SectionModulusZ'):
+                    obj.addProperty("App::PropertyFloat", "SectionModulusZ", "Section", "Section modulus about Z axis").SectionModulusZ = 0.0
+
+                # Calculate Section Modulus (Generic approximation using BoundingBox)
+                # Assumes face is somewhat aligned or uses principal axes roughly
+                try:
+                    bbox = face.BoundBox
+                    # Calculate max distance from centroid to extremes
+                    # Note: These axes (X,Y,Z) depend on face orientation.
+                    # Usually for a sketch on XY plane:
+                    # Iz relates to X-axis (Ixx), distance is Y
+                    # Iy relates to Y-axis (Iyy), distance is X
+
+                    # Distance in X direction (from COM)
+                    dx_max = max(abs(bbox.XMax - cx), abs(bbox.XMin - cx))
+                    # Distance in Y direction (from COM)
+                    dy_max = max(abs(bbox.YMax - cy), abs(bbox.YMin - cy))
+
+                    # Avoid zero division
+                    if dy_max > 1e-6:
+                        obj.SectionModulusZ = Iz / dy_max # Sx (about X/Z) depends on Y dist
+                    else:
+                        obj.SectionModulusZ = 0.0
+
+                    if dx_max > 1e-6:
+                        obj.SectionModulusY = Iy / dx_max # Sy (about Y) depends on X dist
+                    else:
+                        obj.SectionModulusY = 0.0
+
+                except Exception:
+                    obj.SectionModulusY = 0.0
+                    obj.SectionModulusZ = 0.0
 
                 # Valida se possuem elementos atribuidos a seção e adiciona a seção no centro do elemento
                 listSections = []

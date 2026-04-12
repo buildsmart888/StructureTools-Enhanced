@@ -8,7 +8,7 @@ setup with solver options, load combinations, and result preferences.
 
 import FreeCAD as App
 import FreeCADGui as Gui
-from PySide2 import QtCore, QtGui, QtWidgets
+from ..qt_compat import QtWidgets, QtCore, QtGui
 from typing import Optional, Dict, List
 
 # Import Global Units System

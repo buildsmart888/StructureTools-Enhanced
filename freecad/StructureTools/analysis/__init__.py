@@ -65,15 +65,52 @@ except ImportError:
         def run_analysis(self):
             return BucklingAnalysisResults()
 
+# Import new modules
+try:
+    from .Solver6DOF import Solver6DOF, DOFMapping, BoundaryCondition
+except ImportError:
+    class Solver6DOF:
+        pass
+    class DOFMapping:
+        pass
+    class BoundaryCondition:
+        pass
+
+try:
+    from .CoordinateTransformation import (
+        CoordinateTransformer, DrillingDOFHandler, 
+        ElementOrientation, PlatePlaneDefinition
+    )
+except ImportError:
+    class CoordinateTransformer:
+        pass
+
+try:
+    from .LoadDistribution import (
+        LoadPattern, LoadDistributor, ThermalLoadCalculator,
+        LoadCombination, ThaiLoadCombination
+    )
+except ImportError:
+    class LoadDistributor:
+        pass
+
+try:
+    from .PostProcessing import (
+        StressResult, StressCalculator, ElementResultsProcessor,
+        StructuralAnalysisResults
+    )
+except ImportError:
+    class StressCalculator:
+        pass
+
 # Export all available classes
-__all__ = ['BucklingAnalysisResults', 'ModalAnalysisResults', 'NonlinearAnalysisResults', 
-           'ModalAnalysis', 'BucklingAnalysis']
-
 __all__ = [
-    'ModalAnalysis',
-    'ModalAnalysisResults'
+    'BucklingAnalysisResults', 'ModalAnalysisResults', 'NonlinearAnalysisResults', 
+    'ModalAnalysis', 'BucklingAnalysis',
+    'Solver6DOF', 'DOFMapping', 'BoundaryCondition',
+    'CoordinateTransformer', 'DrillingDOFHandler', 'ElementOrientation',
+    'LoadPattern', 'LoadDistributor', 'ThermalLoadCalculator',
+    'LoadCombination', 'ThaiLoadCombination',
+    'StressResult', 'StressCalculator', 'ElementResultsProcessor',
+    'StructuralAnalysisResults'
 ]
-
-# Future imports will be added as modules are implemented
-# from .BucklingAnalysis import BucklingAnalysis, BucklingResults
-# from .NonlinearAnalysis import NonlinearAnalysis, NonlinearResults

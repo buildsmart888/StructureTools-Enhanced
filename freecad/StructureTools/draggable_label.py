@@ -4,7 +4,7 @@ import logging
 
 # Prefer PySide2 when available
 try:
-    from PySide2 import QtCore
+    from .qt_compat import QtCore
 except ImportError:
     try:
         from PySide import QtCore

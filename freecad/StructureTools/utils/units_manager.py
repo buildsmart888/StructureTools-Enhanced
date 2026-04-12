@@ -621,7 +621,7 @@ class UnitsManager:
     def create_units_selector_widget(self):
         """Create comprehensive units selector widget for UI"""
         try:
-            from PySide2 import QtWidgets, QtCore
+            from ..qt_compat import QtWidgets, QtCore
             
             widget = QtWidgets.QWidget()
             layout = QtWidgets.QVBoxLayout(widget)

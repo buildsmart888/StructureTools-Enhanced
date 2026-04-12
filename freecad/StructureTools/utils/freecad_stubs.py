@@ -12,10 +12,42 @@ import types
 import sys
 from typing import Any, Dict, List, Optional, Union
 
+class MockQuantity:
+    def __init__(self, value, unit=None):
+        self.value = value
+        self.unit = unit
+        
+    def getValueAs(self, unit):
+        return self
+        
+    def __float__(self):
+        if hasattr(self.value, '__float__'):
+            return float(self.value)
+        return 0.0
+    
+    def __mul__(self, other):
+        # Handle multiplication with numbers
+        if isinstance(other, (int, float)):
+            return MockQuantity(self.value * other, self.unit)
+        return NotImplemented
+    
+    def __rmul__(self, other):
+        # Handle reverse multiplication (10 * quantity)
+        return self.__mul__(other)
+
+class MockUnits:
+    def __init__(self):
+        self.Quantity = MockQuantity
 
 class MockFreeCADApp:
     """Mock FreeCAD App module"""
     
+    def __init__(self):
+        self.Console = self.Console()
+        self.Units = MockUnits()
+        self.Vector = MockVector
+        self.ActiveDocument = MockDocument()
+
     class Console:
         @staticmethod
         def PrintMessage(msg: str) -> None:
@@ -62,6 +94,14 @@ class MockDocument:
         pass
 
 
+class MockViewProvider:
+    """Mock View Provider"""
+    
+    def __init__(self):
+        self.Visibility = True
+        self.DisplayMode = "Flat Lines"
+
+
 class MockDocumentObject:
     """Mock FreeCAD Document Object"""
     
@@ -104,14 +144,6 @@ class MockDocumentObject:
         pass
 
 
-class MockViewProvider:
-    """Mock View Provider"""
-    
-    def __init__(self):
-        self.Visibility = True
-        self.DisplayMode = "Flat Lines"
-
-
 class MockVector:
     """Mock FreeCAD Vector"""
     
@@ -145,6 +177,8 @@ class MockShape:
         self.Volume = 1000.0
         self.Area = 100.0
         self.BoundBox = MockBoundBox()
+        self.Vertexes = []
+        self.Edges = []
 
 
 class MockBoundBox:
@@ -158,10 +192,17 @@ class MockBoundBox:
         self.ZMin = 0.0
         self.ZMax = 10.0
 
+class MockSelection:
+    @staticmethod
+    def getSelection():
+        return []
 
 class MockGui:
     """Mock FreeCADGui module"""
     
+    def __init__(self):
+        self.Selection = MockSelection()
+        
     @staticmethod
     def addCommand(name: str, command):
         """Mock addCommand"""
@@ -216,6 +257,15 @@ class MockPySide:
             
             def text(self):
                 return self.text
+        
+        class QMessageBox:
+            Critical = 1
+            Ok = 1
+            def setIcon(self, icon): pass
+            def setWindowTitle(self, title): pass
+            def setText(self, text): pass
+            def setStandardButtons(self, buttons): pass
+            def exec_(self): pass
 
 
 def setup_freecad_stubs():
@@ -224,10 +274,12 @@ def setup_freecad_stubs():
     # Only setup if FreeCAD modules are not already available
     if 'FreeCAD' not in sys.modules:
         # Main FreeCAD modules
-        sys.modules['FreeCAD'] = MockFreeCADApp()
-        sys.modules['App'] = sys.modules['FreeCAD']
-        sys.modules['FreeCADGui'] = MockGui()
-        sys.modules['Gui'] = sys.modules['FreeCADGui']
+        app = MockFreeCADApp()
+        sys.modules['FreeCAD'] = app
+        sys.modules['App'] = app
+        gui = MockGui()
+        sys.modules['FreeCADGui'] = gui
+        sys.modules['Gui'] = gui
         sys.modules['Part'] = MockPart()
         
         # PySide modules
@@ -250,7 +302,9 @@ def is_freecad_available() -> bool:
 
 
 # Auto-setup stubs when module is imported
-_stubs_setup = setup_freecad_stubs()
+# This is dangerous if imported inside FreeCAD, so we should check carefully
+if not is_freecad_available():
+    _stubs_setup = setup_freecad_stubs()
 
 # Export main functions
 __all__ = [
@@ -262,7 +316,9 @@ __all__ = [
     'MockVector',
     'MockPart',
     'MockGui',
-    'MockPySide'
+    'MockPySide',
+    'MockQuantity',
+    'MockUnits'
 ]
 
 if __name__ == "__main__":

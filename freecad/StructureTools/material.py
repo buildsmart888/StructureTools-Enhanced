@@ -20,7 +20,7 @@ try:
     from PySide import QtWidgets
 except ImportError:
     try:
-        from PySide2 import QtWidgets
+        from .qt_compat import QtWidgets
     except ImportError:
         # Mock QtWidgets for standalone operation
         class QtWidgets:
@@ -111,20 +111,19 @@ class Material:
         obj.addProperty("App::PropertyString", "GradeDesignation", "Standard", "Grade designation")
         obj.GradeDesignation = "Gr. 50"
 
-    def execute(self, obj): 
-        # Update Name to match Label
-        if hasattr(obj, 'Label'):
-            obj.Name = obj.Label
-        else:
+        # Concrete properties
+        obj.addProperty("App::PropertyPressure", "CompressiveStrength", "Strength", "Compressive strength (Concrete)")
+        obj.CompressiveStrength = "28 MPa"
+
+    def execute(self, obj):
+        # obj.Name is read-only in FreeCAD; Label is the user-visible name
+        if not hasattr(obj, 'Label') or not obj.Label:
             obj.Label = 'Material'
-            obj.Name = 'Material'
-    
+
     def onChanged(self, obj, prop):
         """Handle property changes with validation."""
         if prop == 'Label':
-            # Update Name to match Label for calc compatibility
-            if hasattr(obj, 'Name'):
-                obj.Name = obj.Label
+            pass  # Label is managed by FreeCAD; Name is read-only
         elif prop == 'MaterialStandard':
             # Update properties based on selected standard
             self._update_standard_properties(obj)
@@ -159,6 +158,8 @@ class Material:
                 'G': float(G), 
                 'nu': float(nu),
                 'density': float(density_kn_m3),
+                'Fy': float(obj.YieldStrength.getValueAs(f'{unit_force}/{unit_length}^2')) if hasattr(obj, 'YieldStrength') else 250000.0, # Yield Strength (Steel)
+                'Fc': float(obj.CompressiveStrength.getValueAs(f'{unit_force}/{unit_length}^2')) if hasattr(obj, 'CompressiveStrength') else 28000.0, # Compressive Strength (Concrete), default ~28MPa
                 'unit_system': f'{unit_force}-{unit_length}'
             }
             
@@ -627,7 +628,7 @@ class CommandMaterial():
     def show_material_selection_dialog(self):
         """Show dialog to select material standard from database."""
         try:
-            from PySide2 import QtWidgets, QtCore
+            from .qt_compat import QtWidgets, QtCore
         except ImportError:
             from PySide import QtWidgets, QtCore
         

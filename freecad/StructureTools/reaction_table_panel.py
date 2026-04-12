@@ -6,7 +6,7 @@ import json
 
 # Prefer PySide2 when available
 try:
-    from PySide2 import QtWidgets, QtCore, QtGui
+    from .qt_compat import QtWidgets, QtCore, QtGui
 except ImportError:
     try:
         from PySide import QtWidgets, QtCore, QtGui
@@ -21,6 +21,10 @@ class ReactionTablePanel:
     
     def __init__(self, reaction_obj):
         self.reaction_obj = reaction_obj
+        # Initialize interface with the base calc object
+        from .analysis.unified_result_interface import UnifiedResultInterface
+        self.interface = UnifiedResultInterface(reaction_obj.ObjectBaseCalc)
+        
         self.form = self.create_ui()
         self.setup_connections()
         self.populate_reaction_table()
@@ -122,165 +126,73 @@ class ReactionTablePanel:
     
     def populate_load_combinations(self):
         """Populate the load combination dropdown."""
-        self.load_combo_dropdown.clear()
-        
-        if not self.reaction_obj or not self.reaction_obj.ObjectBaseCalc:
-            return
-        
+        # Block signals to prevent recursion
+        self.load_combo_dropdown.blockSignals(True)
         try:
-            # Get available load combinations from calc object
-            calc_obj = self.reaction_obj.ObjectBaseCalc
-            model = None
+            self.load_combo_dropdown.clear()
             
-            # Try different ways to get the FE model
-            if hasattr(calc_obj, 'FEModel') and calc_obj.FEModel:
-                model = calc_obj.FEModel
-            elif hasattr(calc_obj, 'model') and calc_obj.model:
-                model = calc_obj.model
-            elif hasattr(calc_obj, 'Proxy') and hasattr(calc_obj.Proxy, 'model') and calc_obj.Proxy.model:
-                model = calc_obj.Proxy.model
-            
-            # First try to get combinations from the model
-            if model and hasattr(model, 'LoadCombos') and model.LoadCombos:
-                combo_names = list(model.LoadCombos.keys())
-                self.load_combo_dropdown.addItems(combo_names)
+            if not self.reaction_obj or not self.reaction_obj.ObjectBaseCalc:
+                return
                 
-                # Set current selection to match object property
-                if hasattr(self.reaction_obj, 'ActiveLoadCombination'):
-                    current_combo = self.reaction_obj.ActiveLoadCombination
-                    index = self.load_combo_dropdown.findText(current_combo)
-                    if index >= 0:
-                        self.load_combo_dropdown.setCurrentIndex(index)
-                    elif combo_names:
-                        # Set to first available combination
+            try:
+                combos = self.interface.get_load_combinations()
+                
+                if combos:
+                    self.load_combo_dropdown.addItems(combos)
+                    
+                    # Set current selection
+                    if hasattr(self.reaction_obj, 'ActiveLoadCombination') and self.reaction_obj.ActiveLoadCombination:
+                        current = self.reaction_obj.ActiveLoadCombination
+                        idx = self.load_combo_dropdown.findText(current)
+                        if idx >= 0:
+                            self.load_combo_dropdown.setCurrentIndex(idx)
+                        else:
+                            self.load_combo_dropdown.setCurrentIndex(0)
+                            self.reaction_obj.ActiveLoadCombination = combos[0]
+                    else:
                         self.load_combo_dropdown.setCurrentIndex(0)
-                        # Update object property
-                        self.reaction_obj.ActiveLoadCombination = combo_names[0]
-                return
-            
-            # Try to get combinations directly from calc object
-            if hasattr(calc_obj, 'LoadCombination'):
-                available_combos = calc_obj.LoadCombination
-                
-                if isinstance(available_combos, list):
-                    self.load_combo_dropdown.addItems(available_combos)
+                        if not self.reaction_obj.ActiveLoadCombination and combos:
+                            self.reaction_obj.ActiveLoadCombination = combos[0]
                 else:
-                    self.load_combo_dropdown.addItem(str(available_combos))
-                
-                # Set current selection to match object property
-                if hasattr(self.reaction_obj, 'ActiveLoadCombination'):
-                    current_combo = self.reaction_obj.ActiveLoadCombination
-                    index = self.load_combo_dropdown.findText(current_combo)
-                    if index >= 0:
-                        self.load_combo_dropdown.setCurrentIndex(index)
-                return
-            
-            # If no combinations found, add default
-            self.load_combo_dropdown.addItem("100_DL")
-            if hasattr(self.reaction_obj, 'ActiveLoadCombination') and not self.reaction_obj.ActiveLoadCombination:
-                self.reaction_obj.ActiveLoadCombination = "100_DL"                  
-                
-        except Exception as e:
-            FreeCAD.Console.PrintWarning(f"Warning: Could not populate load combinations: {str(e)}\n")
-            # Add default combination
-            self.load_combo_dropdown.addItem("100_DL")
+                    self.load_combo_dropdown.addItem("default")
+                    
+            except Exception as e:
+                FreeCAD.Console.PrintWarning(f"Warning: Could not populate load combinations: {str(e)}\n")
+                self.load_combo_dropdown.addItem("default")
+        finally:
+             self.load_combo_dropdown.blockSignals(False)
     
     def populate_reaction_table(self):
         """Populate the reaction table with data."""
         try:
-            # Clear existing table
             self.table_widget.clear()
             
             if not self.reaction_obj or not self.reaction_obj.ObjectBaseCalc:
                 self.status_label.setText("No calculation object linked")
-                self.status_label.setStyleSheet("color: #e74c3c;")
                 return
-            
-            # Populate load combinations
+
             self.populate_load_combinations()
-            
-            # Get current load combination
             load_combo = self.load_combo_dropdown.currentText()
-            if not load_combo:
-                self.status_label.setText("No load combinations available")
-                self.status_label.setStyleSheet("color: #e74c3c;")
+            if not load_combo or load_combo == "default":
+                # Maybe pass None if literal default?
+                pass
+            
+            # Update active combo on object
+            self.reaction_obj.ActiveLoadCombination = load_combo
+            
+            # Get nodes with reactions
+            reaction_nodes = self.interface.get_reaction_node_names(load_combo)
+            
+            if not reaction_nodes:
+                self.status_label.setText("No reaction data found or no supported nodes with reactions")
                 return
-            
-            calc_obj = self.reaction_obj.ObjectBaseCalc
-            model = None
-            
-            # Try different ways to get the FE model
-            if hasattr(calc_obj, 'FEModel') and calc_obj.FEModel:
-                model = calc_obj.FEModel
-                FreeCAD.Console.PrintMessage("Using FEModel attribute\n")
-            elif hasattr(calc_obj, 'model') and calc_obj.model:
-                model = calc_obj.model
-                FreeCAD.Console.PrintMessage("Using model attribute\n")
-            elif hasattr(calc_obj, 'Proxy') and hasattr(calc_obj.Proxy, 'model') and calc_obj.Proxy.model:
-                model = calc_obj.Proxy.model
-                FreeCAD.Console.PrintMessage("Using Proxy.model attribute\n")
                 
-            if not model or not hasattr(model, 'nodes') or not model.nodes:
-                self.status_label.setText("Analysis not completed or no nodes available - please run calculation")
-                self.status_label.setStyleSheet("color: #e74c3c;")
-                return
-            
-            # Prepare detailed reaction info text
+            # Prepare detail text
             detail_text = f"Collecting reactions for load combination: {load_combo}\n"
+            detail_text += f"  Found {len(reaction_nodes)} nodes with reactions\n"
             
-            # Count supported nodes
-            supported_nodes = []
-            for node_name, node in model.nodes.items():
-                if self.is_node_supported(node):
-                    supported_nodes.append((node_name, node))
-            
-            detail_text += f"  Found {len(supported_nodes)} supported nodes\n"
-            
-            # Initialize sums for total reactions
-            sum_fx = sum_fy = sum_fz = 0.0
-            
-            # Process each supported node for detailed text
-            for node_name, node in supported_nodes:
-                # Get reaction values
-                rx = node.RxnFX.get(load_combo, 0.0) if hasattr(node, 'RxnFX') else 0.0
-                ry = node.RxnFY.get(load_combo, 0.0) if hasattr(node, 'RxnFY') else 0.0
-                rz = node.RxnFZ.get(load_combo, 0.0) if hasattr(node, 'RxnFZ') else 0.0
-                mx = node.RxnMX.get(load_combo, 0.0) if hasattr(node, 'RxnMX') else 0.0
-                my = node.RxnMY.get(load_combo, 0.0) if hasattr(node, 'RxnMY') else 0.0
-                mz = node.RxnMZ.get(load_combo, 0.0) if hasattr(node, 'RxnMZ') else 0.0
-                
-                # Add to totals
-                sum_fx += rx
-                sum_fy += ry
-                sum_fz += rz
-                
-                # Add to detail text
-                detail_text += f" Node {node_name} reactions: FX={rx:.3f}, FY={ry:.3f}, FZ={rz:.3f}, MX={mx:.3f}, MY={my:.3f}, MZ={mz:.3f}\n"
-                
-                # Add support conditions
-                support_conditions = []
-                if node.support_DX: support_conditions.append("DX")
-                if node.support_DY: support_conditions.append("DY")
-                if node.support_DZ: support_conditions.append("DZ")
-                if node.support_RX: support_conditions.append("RX")
-                if node.support_RY: support_conditions.append("RY")
-                if node.support_RZ: support_conditions.append("RZ")
-                detail_text += f"    Support conditions: {', '.join(support_conditions)}\n"
-                
-                # Add node coordinates
-                detail_text += f"   Node coordinates: ({node.X:.3f}, {node.Y:.3f}, {node.Z:.3f})\n"
-            
-            # Add total reactions to detail text
-            detail_text += f"  Total reactions - Sum FX: {sum_fx:.3f}, Sum FY: {sum_fy:.3f}, Sum FZ: {sum_fz:.3f}\n"
-            detail_text += f"  Storing {len(supported_nodes)} reaction nodes with their values\n"
-            detail_text += "  Unit system set to: SI (Metric Engineering)\n"
-            
-            # Update the detail text area
-            self.detail_text.setPlainText(detail_text)
-            
-            # Prepare table data
             table_data = []
-            headers = ["Node ID", "X (m)", "Y (m)", "Z (m)", "FX (kN)", "FY (kN)", "FZ (kN)", "MX (kN·m)", "MY (kN·m)", "MZ (kN·m)"]
+            sum_fx = sum_fy = sum_fz = 0.0
             
             # Import units manager for formatting
             try:
@@ -288,141 +200,64 @@ class ReactionTablePanel:
                 units_available = True
             except ImportError:
                 units_available = False
-                format_force = lambda x: f"{x:.3f}"
-                format_moment = lambda x: f"{x:.3f}"
             
-            # Prefer using stored reaction properties if they exist
-            if (hasattr(calc_obj, 'ReactionNodes') and calc_obj.ReactionNodes and
-                hasattr(calc_obj, 'ReactionX') and calc_obj.ReactionX and
-                hasattr(calc_obj, 'ReactionY') and calc_obj.ReactionY and
-                hasattr(calc_obj, 'ReactionZ') and calc_obj.ReactionZ and
-                hasattr(calc_obj, 'ReactionMX') and calc_obj.ReactionMX and
-                hasattr(calc_obj, 'ReactionMY') and calc_obj.ReactionMY and
-                hasattr(calc_obj, 'ReactionMZ') and calc_obj.ReactionMZ):
+            headers = ["Node ID", "X (m)", "Y (m)", "Z (m)", "FX (kN)", "FY (kN)", "FZ (kN)", "MX (kN·m)", "MY (kN·m)", "MZ (kN·m)"]
+            
+            for node_name in reaction_nodes:
+                # Get coords
+                x, y, z = self.interface.get_node_coordinates(node_name)
                 
-                FreeCAD.Console.PrintMessage("Using stored reaction properties\n")
+                # Get reactions
+                rxn = self.interface.get_reactions_for_node(node_name, load_combo)
+                fx = rxn.get('FX', 0.0)
+                fy = rxn.get('FY', 0.0)
+                fz = rxn.get('FZ', 0.0)
+                mx = rxn.get('MX', 0.0)
+                my = rxn.get('MY', 0.0)
+                mz = rxn.get('MZ', 0.0)
                 
-                # Collect reaction data for each supported node from properties
-                for i, node_name in enumerate(calc_obj.ReactionNodes):
-                    # Get node coordinates from model if possible
-                    x_pos = y_pos = z_pos = 0.0
-                    
-                    if model and node_name in model.nodes:
-                        x_pos = model.nodes[node_name].X
-                        y_pos = model.nodes[node_name].Y
-                        z_pos = model.nodes[node_name].Z
-                    
-                    # Get reaction values from stored properties
-                    rx = calc_obj.ReactionX[i] if i < len(calc_obj.ReactionX) else 0.0
-                    ry = calc_obj.ReactionY[i] if i < len(calc_obj.ReactionY) else 0.0
-                    rz = calc_obj.ReactionZ[i] if i < len(calc_obj.ReactionZ) else 0.0
-                    mx = calc_obj.ReactionMX[i] if i < len(calc_obj.ReactionMX) else 0.0
-                    my = calc_obj.ReactionMY[i] if i < len(calc_obj.ReactionMY) else 0.0
-                    mz = calc_obj.ReactionMZ[i] if i < len(calc_obj.ReactionMZ) else 0.0
-                    
-                    # Format values
-                    fx_formatted = float(rx) if not units_available else rx
-                    fy_formatted = float(ry) if not units_available else ry
-                    fz_formatted = float(rz) if not units_available else rz
-                    mx_formatted = float(mx) if not units_available else mx
-                    my_formatted = float(my) if not units_available else my
-                    mz_formatted = float(mz) if not units_available else mz
-                    
-                    # Add row data
-                    row_data = [
-                        node_name,
-                        f"{x_pos:.3f}",
-                        f"{y_pos:.3f}",
-                        f"{z_pos:.3f}",
-                        f"{fx_formatted:.3f}",
-                        f"{fy_formatted:.3f}",
-                        f"{fz_formatted:.3f}",
-                        f"{mx_formatted:.3f}",
-                        f"{my_formatted:.3f}",
-                        f"{mz_formatted:.3f}"
-                    ]
-                    
-                    table_data.append(row_data)
-                    
-            # Fallback: Collect reaction data directly from model nodes
-            elif model and hasattr(model, 'nodes') and model.nodes:
-                # Collect reaction data for each supported node from model
-                for node_name, node in model.nodes.items():
-                    if self.is_node_supported(node):
-                        # Get reaction values for current load combination - with safety checks
-                        rx = node.RxnFX.get(load_combo, 0.0) if hasattr(node, 'RxnFX') else 0.0
-                        ry = node.RxnFY.get(load_combo, 0.0) if hasattr(node, 'RxnFY') else 0.0
-                        rz = node.RxnFZ.get(load_combo, 0.0) if hasattr(node, 'RxnFZ') else 0.0
-                        mx = node.RxnMX.get(load_combo, 0.0) if hasattr(node, 'RxnMX') else 0.0
-                        my = node.RxnMY.get(load_combo, 0.0) if hasattr(node, 'RxnMY') else 0.0
-                        mz = node.RxnMZ.get(load_combo, 0.0) if hasattr(node, 'RxnMZ') else 0.0
-                        
-                        # Node coordinates
-                        x_pos = node.X
-                        y_pos = node.Y
-                        z_pos = node.Z
-                        
-                        # Format values
-                        fx_formatted = float(rx) if not units_available else rx
-                        fy_formatted = float(ry) if not units_available else ry
-                        fz_formatted = float(rz) if not units_available else rz
-                        mx_formatted = float(mx) if not units_available else mx
-                        my_formatted = float(my) if not units_available else my
-                        mz_formatted = float(mz) if not units_available else mz
-                        
-                        # Add row data
-                        row_data = [
-                            node_name,
-                            f"{x_pos:.3f}",
-                            f"{y_pos:.3f}",
-                            f"{z_pos:.3f}",
-                            f"{fx_formatted:.3f}",
-                            f"{fy_formatted:.3f}",
-                            f"{fz_formatted:.3f}",
-                            f"{mx_formatted:.3f}",
-                            f"{my_formatted:.3f}",
-                            f"{mz_formatted:.3f}"
-                        ]
-                        
-                        table_data.append(row_data)
+                sum_fx += fx; sum_fy += fy; sum_fz += fz
+                
+                detail_text += f" Node {node_name} reactions: FX={fx:.3f}, FY={fy:.3f}, FZ={fz:.3f}\n"
+                
+                # Format
+                fx_s = f"{fx:.3f}"
+                fy_s = f"{fy:.3f}"
+                fz_s = f"{fz:.3f}"
+                mx_s = f"{mx:.3f}"
+                my_s = f"{my:.3f}"
+                mz_s = f"{mz:.3f}"
+                
+                row_data = [
+                    node_name, f"{x:.3f}", f"{y:.3f}", f"{z:.3f}",
+                    fx_s, fy_s, fz_s, mx_s, my_s, mz_s
+                ]
+                table_data.append(row_data)
+                
+            detail_text += f"  Total sums: FX={sum_fx:.3f}, FY={sum_fy:.3f}, FZ={sum_fz:.3f}\n"
+            self.detail_text.setPlainText(detail_text)
             
-            # No valid reaction data found
-            else:
-                self.status_label.setText("No reaction data found - please run calculation first")
-                self.status_label.setStyleSheet("color: #e74c3c;")
-                return
-            
-            # Sort table data by node ID
+            # Sort by Node ID
             table_data.sort(key=lambda x: x[0])
             
-            # Set up table
             self.table_widget.setRowCount(len(table_data))
             self.table_widget.setColumnCount(len(headers))
             self.table_widget.setHorizontalHeaderLabels(headers)
             
-            # Populate table with data
-            for row_idx, row_data in enumerate(table_data):
-                for col_idx, cell_data in enumerate(row_data):
-                    item = QtWidgets.QTableWidgetItem(str(cell_data))
-                    item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
-                    self.table_widget.setItem(row_idx, col_idx, item)
-            
-            # Resize columns to fit content
+            for r, row in enumerate(table_data):
+                for c, val in enumerate(row):
+                     self.table_widget.setItem(r, c, QtWidgets.QTableWidgetItem(val))
+                     
             self.table_widget.resizeColumnsToContents()
-            
-            # Update status
-            self.status_label.setText(f"Displaying {len(table_data)} supported nodes")
-            self.status_label.setStyleSheet("color: #27ae60;")
+            self.status_label.setText(f"Displaying {len(table_data)} nodes")
             
         except Exception as e:
-            FreeCAD.Console.PrintError(f"Error populating reaction table: {str(e)}\n")
-            self.status_label.setText(f"Error: {str(e)}")
-            self.status_label.setStyleSheet("color: #e74c3c;")
+            FreeCAD.Console.PrintError(f"Error populating table: {e}\n")
+            self.status_label.setText(f"Error: {e}")
     
     def is_node_supported(self, node) -> bool:
-        """Check if a node has any support conditions."""
-        return (node.support_DX or node.support_DY or node.support_DZ or 
-                node.support_RX or node.support_RY or node.support_RZ)
+        """Deprecated: Logic moved to UnifiedResultInterface."""
+        return False
     
     def on_load_combination_changed(self, combo_name):
         """Handle load combination selection change."""

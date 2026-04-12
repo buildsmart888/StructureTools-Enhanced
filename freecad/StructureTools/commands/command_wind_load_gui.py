@@ -44,17 +44,39 @@ ICONPATH = os.path.join(os.path.dirname(__file__), "..", "resources", "icons")
 
 # Import GUI framework with fallbacks
 try:
-    from PySide2 import QtWidgets, QtCore, QtGui
-    from PySide2.QtWidgets import *
-    from PySide2.QtCore import *
-    from PySide2.QtGui import *
+    from ..qt_compat import QtWidgets, QtCore, QtGui, Qt
+    from ..qt_compat import QtWidgets as _QtW
+    QApplication = QtWidgets.QApplication
+    QCheckBox = QtWidgets.QCheckBox
+    QComboBox = QtWidgets.QComboBox
+    QDialog = QtWidgets.QDialog
+    QFormLayout = QtWidgets.QFormLayout
+    QGridLayout = QtWidgets.QGridLayout
+    QGroupBox = QtWidgets.QGroupBox
+    QHBoxLayout = QtWidgets.QHBoxLayout
+    QLabel = QtWidgets.QLabel
+    QLineEdit = QtWidgets.QLineEdit
+    QPushButton = QtWidgets.QPushButton
+    QSplitter = QtWidgets.QSplitter
+    QTabWidget = QtWidgets.QTabWidget
+    QTableWidget = QtWidgets.QTableWidget
+    QTableWidgetItem = QtWidgets.QTableWidgetItem
+    QTextEdit = QtWidgets.QTextEdit
+    QVBoxLayout = QtWidgets.QVBoxLayout
+    QWidget = QtWidgets.QWidget
+    QIcon = QtGui.QIcon
     QT_AVAILABLE = True
 except ImportError:
     try:
         from PySide import QtWidgets, QtCore, QtGui
-        from PySide.QtWidgets import *
-        from PySide.QtCore import *
-        from PySide.QtGui import *
+        from PySide.QtCore import Qt
+        from PySide.QtWidgets import (
+            QApplication, QCheckBox, QComboBox, QDialog, QFormLayout,
+            QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+            QPushButton, QSplitter, QTabWidget, QTableWidget,
+            QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
+        )
+        from PySide.QtGui import QIcon
         QT_AVAILABLE = True
     except ImportError:
         # Mock classes for standalone testing

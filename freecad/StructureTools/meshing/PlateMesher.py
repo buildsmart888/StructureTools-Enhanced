@@ -20,7 +20,7 @@ try:
     GMSH_AVAILABLE = True
 except ImportError:
     GMSH_AVAILABLE = False
-    FreeCAD.Console.PrintWarning("gmsh not available. Using basic meshing.\n")
+    App.Console.PrintWarning("gmsh not available. Using basic meshing.\n")
 
 
 class PlateMesher:

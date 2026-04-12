@@ -20,7 +20,7 @@ try:
     from PySide import QtWidgets
 except ImportError:
     try:
-        from PySide2 import QtWidgets
+        from .qt_compat import QtWidgets
     except ImportError:
         # Mock QtWidgets for standalone operation
         class QtWidgets:
@@ -155,19 +155,18 @@ class LoadNodal:
             # Desenha carregamento pontual 
             shape = self.makeArrow(obj, obj.NodalLoading)
             
-            match obj.GlobalDirection:
-                case '+X':
-                    shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
-                case '-X':
-                    shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), 90)
-                case '+Y':
-                    shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 90)
-                case '-Y':
-                    shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), -90)
-                case '+Z':
-                    shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 180)
-                case '-Z':
-                    shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
+            if obj.GlobalDirection == '+X':
+                shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), -90)
+            elif obj.GlobalDirection == '-X':
+                shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(0,1,0), 90)
+            elif obj.GlobalDirection == '+Y':
+                shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 90)
+            elif obj.GlobalDirection == '-Y':
+                shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), -90)
+            elif obj.GlobalDirection == '+Z':
+                shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 180)
+            elif obj.GlobalDirection == '-Z':
+                shape.rotate(FreeCAD.Vector(0,0,0),FreeCAD.Vector(1,0,0), 0)
             
             
             shape.translate(subelement.Point)

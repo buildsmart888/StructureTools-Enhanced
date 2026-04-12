@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "skills": {
+    "aci-318-concrete-design": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "aaebe8dbe0814467eb17b969c4df3b0788f8af4ce5829efc1f767606c4379aa3"
+    },
+    "aisc-steel-design": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "b2d2f5a7ef94823a9cd9ef373291fdd8efd3b6a8b75790888a937fa5d0014554"
+    },
+    "basepl-connection-design": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "843ceb0e19147c2aac04243806a378acfc2b11c9dee416d8e3078de3f7fbdd4a"
+    },
+    "castellated-cellular-design": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "4cc46cd4d459524bd1b741573189c2d28002d55556293cda21a68c862e80fb1f"
+    },
+    "excalidraw-diagram-generator": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "20bad48f0ec420a42b445ee6562b5d954be42754e9c21f9db8c6b2a7f91cbed5"
+    },
+    "pdf": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "cfbc539377088ca7e44a813b30c306327385bbd973cd7a721e1743f60837dd62"
+    },
+    "pile-capacity-analyzer": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "f51938f01307f0670532c6e2593019671235af29f899c8b00d86b57bb3cc13e5"
+    },
+    "python-expert": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "7ddc44800aef275b3252ffa65369e214ef2a56603842e3f6721363816eb6b45f"
+    },
+    "refactor": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "87789a786b96f99ba0680e89345a975106e10e7db1071c7cdc2e76d507c449d6"
+    },
+    "settlement-calculator": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "c6543d0565239a3fa78d24e39547c1eeb907562307a289b5b9b43f833ff54fa4"
+    }
+  }
+}

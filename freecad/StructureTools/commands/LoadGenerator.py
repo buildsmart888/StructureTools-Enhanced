@@ -26,8 +26,8 @@ except ImportError:
 
 # Robust Qt imports with fallbacks
 try:
-    from PySide2 import QtCore, QtGui, QtWidgets
-    from PySide2.QtCore import Qt
+    from ..qt_compat import QtWidgets, QtCore, QtGui
+    from ..qt_compat import Qt
 except ImportError:
     try:
         from PySide import QtCore, QtGui

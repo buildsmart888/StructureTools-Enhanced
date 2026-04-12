@@ -3,7 +3,7 @@ import os
 
 # Prefer PySide2 when available
 try:
-    from PySide2 import QtWidgets
+    from .qt_compat import QtWidgets
 except ImportError:
     try:
         from PySide import QtWidgets

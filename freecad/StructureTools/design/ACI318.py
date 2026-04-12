@@ -1055,6 +1055,317 @@ class ConcreteDesignUtilities:
         return h_req
 
 
+class PMInteractionDiagram:
+    """ACI 318-19 P-M Interaction Diagram generator for rectangular columns.
+
+    Generates the nominal and design (φ-reduced) interaction curves using
+    strain compatibility and the Whitney rectangular stress block (22.2.2).
+
+    Supports tied rectangular columns with reinforcement placed symmetrically
+    about one axis. Units are US customary (psi, in, lb).
+
+    Reference sections:
+        - Whitney stress block: ACI 318-19 §22.2.2
+        - Strength reduction factors: ACI 318-19 Table 21.2.2
+        - Maximum axial strength: ACI 318-19 §22.4.2
+    """
+
+    # ACI 318-19 constants
+    EPSILON_CU = 0.003  # Ultimate concrete strain
+    EPSILON_TY_LIMIT = 0.005  # Tension-controlled strain limit
+    EPSILON_COMP_LIMIT = 0.002  # Compression-controlled strain limit
+
+    def __init__(
+        self,
+        b: float,
+        h: float,
+        fc: float,
+        fy: float,
+        bar_layers: List[Tuple[float, float]],
+        Es: float = 29_000_000.0,
+        tied: bool = True,
+    ) -> None:
+        """Initialize P-M interaction diagram.
+
+        Args:
+            b: Column width (in).
+            h: Column total depth (in).
+            fc: Concrete compressive strength f'c (psi).
+            fy: Steel yield strength (psi).
+            bar_layers: List of (area_si, dist_from_top) tuples for each
+                        reinforcement layer, where area_si is the total
+                        steel area in that layer (in²) and dist_from_top
+                        is measured from the extreme compression fiber (in).
+            Es: Steel modulus of elasticity (psi). Default 29,000 ksi.
+            tied: True for tied columns, False for spiral columns.
+        """
+        self.b = b
+        self.h = h
+        self.fc = fc
+        self.fy = fy
+        self.bar_layers = sorted(bar_layers, key=lambda x: x[1])
+        self.Es = Es
+        self.tied = tied
+
+        # Derived
+        self.beta1 = self._calc_beta1(fc)
+        self.Ag = b * h
+        self.Ast = sum(a for a, _ in self.bar_layers)
+
+    @staticmethod
+    def _calc_beta1(fc: float) -> float:
+        """ACI 318-19 §22.2.2.4.3."""
+        if fc <= 4000:
+            return 0.85
+        elif fc <= 8000:
+            return max(0.65, 0.85 - 0.05 * (fc - 4000) / 1000)
+        else:
+            return 0.65
+
+    def _phi(self, epsilon_t: float) -> float:
+        """Strength reduction factor per ACI 318-19 Table 21.2.2.
+
+        Args:
+            epsilon_t: Net tensile strain in extreme tension steel.
+
+        Returns:
+            Strength reduction factor φ.
+        """
+        ety = self.fy / self.Es  # yield strain
+        if epsilon_t >= self.EPSILON_TY_LIMIT:
+            return 0.90  # Tension-controlled
+        elif epsilon_t <= ety:
+            return 0.75 if self.tied else 0.75
+        else:
+            # Transition zone: linear interpolation
+            phi_min = 0.75 if self.tied else 0.75
+            return phi_min + 0.15 * (epsilon_t - ety) / (self.EPSILON_TY_LIMIT - ety)
+
+    def _compute_point(self, c: float) -> Tuple[float, float, float, float]:
+        """Compute (Pn, Mn, phi, epsilon_t) for a given neutral axis depth c.
+
+        Args:
+            c: Depth of neutral axis from compression fiber (in).
+
+        Returns:
+            (Pn, Mn, phi, epsilon_t) — nominal axial (lb, compression +),
+            nominal moment (lb·in), phi factor, and extreme tension strain.
+        """
+        a = self.beta1 * c
+        a = min(a, self.h)  # stress block can't exceed section depth
+
+        # Concrete compression resultant
+        Cc = 0.85 * self.fc * a * self.b
+        h_mid = self.h / 2.0
+
+        # Moment from concrete about section centroid
+        Mc = Cc * (h_mid - a / 2.0)
+
+        # Steel forces
+        Fs_total = 0.0
+        Ms_total = 0.0
+        epsilon_t = 0.0
+        max_di = max(d for _, d in self.bar_layers)
+
+        for As_i, di in self.bar_layers:
+            if c > 1e-6:
+                eps_i = self.EPSILON_CU * (c - di) / c
+            else:
+                eps_i = -self.EPSILON_CU * 1e6  # Very large tension
+
+            # Steel stress (limited to ±fy)
+            fs_i = self.Es * eps_i
+            fs_i = max(-self.fy, min(self.fy, fs_i))
+
+            Fs_i = As_i * fs_i
+            Fs_total += Fs_i
+            Ms_total += Fs_i * (h_mid - di)
+
+            # Track extreme tension strain (layer farthest from compression)
+            if di == max_di:
+                epsilon_t = -eps_i  # Positive = tension
+
+        Pn = Cc + Fs_total  # Compression positive
+        Mn = Mc + Ms_total
+
+        # Ensure Mn is positive (take absolute if needed due to sign convention)
+        Mn = abs(Mn)
+
+        phi = self._phi(epsilon_t)
+        return Pn, Mn, phi, epsilon_t
+
+    def generate_curve(self, n_points: int = 50) -> List[Dict[str, float]]:
+        """Generate the full P-M interaction curve.
+
+        Sweeps the neutral axis from pure compression (c → ∞) to pure
+        tension (c → 0), generating both nominal and design points.
+
+        Args:
+            n_points: Number of points along the curve.
+
+        Returns:
+            List of dicts with keys: c, Pn, Mn, phi, phiPn, phiMn, epsilon_t.
+        """
+        results = []
+
+        # Define c sweep: from very large (pure compression) to very small (pure tension)
+        c_values = []
+
+        # Pure compression zone: c from 10*h down to h
+        for i in range(5):
+            c_values.append(self.h * (10 - i * 1.8))
+
+        # Main sweep: c from h down to near-zero
+        for i in range(n_points):
+            c = self.h * (1.0 - i / n_points) + 0.01
+            c_values.append(c)
+
+        # Past centroid (tension dominant)
+        for i in range(1, 10):
+            c = 0.01 * (10 - i)
+            if c > 0:
+                c_values.append(c)
+
+        # Sort descending (large c first = compression)
+        c_values = sorted(set(c_values), reverse=True)
+
+        for c in c_values:
+            if c <= 0:
+                continue
+            Pn, Mn, phi, eps_t = self._compute_point(c)
+            results.append({
+                'c': c,
+                'Pn': Pn,
+                'Mn': Mn,
+                'phi': phi,
+                'phiPn': phi * Pn,
+                'phiMn': phi * Mn,
+                'epsilon_t': eps_t,
+            })
+
+        # Apply maximum axial load limit (ACI 318-19 §22.4.2)
+        alpha = 0.80 if self.tied else 0.85
+        Pn_max = alpha * (0.85 * self.fc * (self.Ag - self.Ast) + self.fy * self.Ast)
+        phi_max = 0.65 if self.tied else 0.75
+
+        for pt in results:
+            if pt['Pn'] > Pn_max:
+                pt['Pn'] = Pn_max
+                pt['phiPn'] = phi_max * Pn_max
+
+        # Add pure tension point
+        Pn_tension = -self.fy * self.Ast
+        results.append({
+            'c': 0.0,
+            'Pn': Pn_tension,
+            'Mn': 0.0,
+            'phi': 0.90,
+            'phiPn': 0.90 * Pn_tension,
+            'phiMn': 0.0,
+            'epsilon_t': 1.0,
+        })
+
+        return results
+
+    def check_point(
+        self, Pu: float, Mu: float, n_points: int = 100
+    ) -> Dict[str, float]:
+        """Check if a (Pu, Mu) demand point lies inside the design curve.
+
+        Args:
+            Pu: Factored axial load (lb, compression positive).
+            Mu: Factored moment (lb·in).
+            n_points: Resolution of the interaction curve.
+
+        Returns:
+            Dict with 'utilization' ratio and 'is_adequate' boolean.
+            Utilization < 1.0 means the point is inside the curve (adequate).
+        """
+        curve = self.generate_curve(n_points)
+        design_pts = [(pt['phiMn'], pt['phiPn']) for pt in curve]
+
+        # Find utilization by radial scaling from origin
+        if abs(Mu) < 1e-6 and abs(Pu) < 1e-6:
+            return {'utilization': 0.0, 'is_adequate': True}
+
+        # Find capacity on same radial line
+        min_ratio = float('inf')
+        for Mn_d, Pn_d in design_pts:
+            if abs(Mn_d) < 1e-6 and abs(Pn_d) < 1e-6:
+                continue
+            # Project demand onto this capacity direction
+            # Use linear interpolation between consecutive points
+            pass
+
+        # Simple radial approach: find r such that (Mu/r, Pu/r) is on curve
+        # Approximate by finding minimum distance ratio
+        best_util = float('inf')
+        for i in range(len(design_pts) - 1):
+            M1, P1 = design_pts[i]
+            M2, P2 = design_pts[i + 1]
+
+            # Parametric line segment: (M,P) = (M1,P1) + t*((M2,P2)-(M1,P1))
+            dM = M2 - M1
+            dP = P2 - P1
+            denom = Mu * dP - Pu * dM
+            if abs(denom) < 1e-6:
+                continue
+
+            t_line = (Mu * P1 - Pu * M1) / (-denom) if denom != 0 else -1
+            if t_line < -0.01 or t_line > 1.01:
+                continue
+
+            Mc = M1 + t_line * dM
+            Pc = P1 + t_line * dP
+
+            if abs(Mc) > 1e-6:
+                r = abs(Mu) / abs(Mc)
+            elif abs(Pc) > 1e-6:
+                r = abs(Pu) / abs(Pc)
+            else:
+                continue
+
+            if r > 0:
+                best_util = min(best_util, 1.0 / r if r > 0 else float('inf'))
+
+        if best_util == float('inf'):
+            # Fallback: check if Pu exceeds max
+            curve_max_P = max(pt['phiPn'] for pt in curve)
+            if Pu > 0:
+                best_util = Pu / curve_max_P if curve_max_P > 0 else 2.0
+            else:
+                curve_min_P = min(pt['phiPn'] for pt in curve)
+                best_util = abs(Pu / curve_min_P) if curve_min_P < 0 else 2.0
+
+        return {
+            'utilization': best_util,
+            'is_adequate': best_util <= 1.0,
+        }
+
+    def get_curve_points(
+        self, n_points: int = 50, design: bool = True
+    ) -> Tuple[List[float], List[float]]:
+        """Get (M, P) coordinate lists for plotting.
+
+        Args:
+            n_points: Number of curve points.
+            design: If True, return φMn vs φPn; otherwise Mn vs Pn.
+
+        Returns:
+            (moments, axials) — lists of moment and axial values.
+        """
+        curve = self.generate_curve(n_points)
+        if design:
+            return (
+                [pt['phiMn'] for pt in curve],
+                [pt['phiPn'] for pt in curve],
+            )
+        return (
+            [pt['Mn'] for pt in curve],
+            [pt['Pn'] for pt in curve],
+        )
+
+
 if __name__ == "__main__":
     # Example usage
     design_code = ACI318DesignCode(ConcreteStrengthMethod.USD)

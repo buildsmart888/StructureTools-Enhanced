@@ -17,6 +17,19 @@ from .StructuralNode import StructuralNode, ViewProviderStructuralNode
 from .StructuralBeam import StructuralBeam, ViewProviderStructuralBeam
 from .StructuralPlate import StructuralPlate, ViewProviderStructuralPlate
 
+# Import shell elements
+try:
+    from .ShellElements import ShellElement, Quad4Shell, Tri3Shell, Tri6Shell
+except ImportError:
+    class ShellElement:
+        pass
+    class Quad4Shell:
+        pass
+    class Tri3Shell:
+        pass
+    class Tri6Shell:
+        pass
+
 __all__ = [
     "StructuralMaterial",
     "ViewProviderStructuralMaterial", 
@@ -25,5 +38,9 @@ __all__ = [
     "StructuralNode", 
     "ViewProviderStructuralNode",
     "StructuralPlate",
-    "ViewProviderStructuralPlate"
+    "ViewProviderStructuralPlate",
+    "ShellElement",
+    "Quad4Shell",
+    "Tri3Shell",
+    "Tri6Shell"
 ]

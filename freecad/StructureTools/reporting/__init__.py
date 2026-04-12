@@ -153,6 +153,22 @@ try:
 except ImportError as e:
     print(f"Warning: Some reporting components not available: {e}")
     REPORTING_AVAILABLE = False
+    
+    # Define mock classes for type hinting support when imports fail
+    class GeneratedLoads:
+        pass
+        
+    class UnifiedDesignResults:
+        pass
+        
+    class DesignCode:
+        pass
+        
+    class ModalAnalysisResults:
+        pass
+        
+    class BucklingAnalysisResults:
+        pass
 
 
 class StructureToolsReporting:

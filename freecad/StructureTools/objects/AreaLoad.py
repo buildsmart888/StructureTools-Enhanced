@@ -14,7 +14,7 @@ import math
 import numpy as np
 from typing import List, Dict, Tuple, Optional, Any
 try:
-    from PySide2 import QtCore, QtWidgets, QtGui
+    from ..qt_compat import QtWidgets, QtCore, QtGui
 except ImportError:
     try:
         from PySide import QtCore, QtGui
@@ -87,6 +87,35 @@ class AreaLoad:
         obj.addProperty("App::PropertyFloatList", "DistributionFactors", "Load",
                        "Distribution factors for non-uniform patterns")
         obj.DistributionFactors = [1.0, 1.0, 1.0, 1.0]  # Corner factors
+        
+        # Slab Distribution Type (One-Way / Two-Way)
+        obj.addProperty("App::PropertyEnumeration", "SlabDistributionType", "Slab Distribution",
+                       "How load is transferred to supporting beams")
+        obj.SlabDistributionType = [
+            "Plate (FEM)", "One-Way (Short Span)", "One-Way (Long Span)", 
+            "Two-Way (Yield Line)", "Two-Way (ACI Coefficients)"
+        ]
+        obj.SlabDistributionType = "Plate (FEM)"
+        
+        obj.addProperty("App::PropertyEnumeration", "SupportCondition", "Slab Distribution",
+                       "Support condition for tributary area calculation")
+        obj.SupportCondition = [
+            "4 Edges Supported", "3 Edges Supported", "2 Opposite Edges", 
+            "2 Adjacent Edges", "Cantilever"
+        ]
+        obj.SupportCondition = "4 Edges Supported"
+        
+        obj.addProperty("App::PropertyIntegerList", "SupportedEdges", "Slab Distribution",
+                       "Indices of supported edges (0=bottom, 1=right, 2=top, 3=left)")
+        obj.SupportedEdges = [0, 1, 2, 3]  # All edges supported by default
+        
+        obj.addProperty("App::PropertyFloat", "SpanRatio", "Slab Distribution",
+                       "Long span / Short span ratio (auto-calculated)")
+        obj.SpanRatio = 1.0
+        
+        obj.addProperty("App::PropertyBool", "ShowDistributionArrows", "Slab Distribution",
+                       "Show arrows indicating load transfer direction")
+        obj.ShowDistributionArrows = True
         
         # Load case properties
         obj.addProperty("App::PropertyString", "LoadCase", "Case",
@@ -217,6 +246,20 @@ class AreaLoad:
         obj.addProperty("App::PropertyInteger", "DisplayDensity", "Display",
                        "Density of load visualization")
         obj.DisplayDensity = 10
+        
+        obj.addProperty("App::PropertyBool", "ShowMagnitudeLabel", "Display",
+                       "Show magnitude text annotation")
+        obj.ShowMagnitudeLabel = True
+        
+        obj.addProperty("App::PropertyEnumeration", "ArrowStyle", "Display",
+                       "Style of load arrows")
+        obj.ArrowStyle = ["Simple", "3D Arrow", "Gradient"]
+        obj.ArrowStyle = "3D Arrow"
+        
+        obj.addProperty("App::PropertyBool", "ShowBoundary", "Display",
+                       "Show dashed boundary of loaded area")
+        obj.ShowBoundary = True
+
         
         # Analysis properties
         obj.addProperty("App::PropertyBool", "IncludeInAnalysis", "Analysis",
@@ -441,11 +484,81 @@ class AreaLoad:
             self.createLoadVectors(obj)
             
             # Show load distribution if requested
-            if obj.ShowLoadDistribution:
+            if hasattr(obj, 'ShowLoadDistribution') and obj.ShowLoadDistribution:
                 self.createLoadDistribution(obj)
                 
         except Exception as e:
-            FreeCAD.Console.PrintError(f"Error updating load visualization: {e}\n")
+            App.Console.PrintError(f"Error updating load visualization: {e}\n")
+    
+    def createLoadDistribution(self, obj):
+        """Create load distribution visualization based on SlabDistributionType."""
+        try:
+            # Import visualizer
+            from ..visualization.LoadDistributionVisualizer import LoadDistributionVisualizer
+            
+            doc = App.ActiveDocument
+            if not doc or not hasattr(obj, 'TargetFaces') or not obj.TargetFaces:
+                return
+            
+            # Get corners from target faces
+            corners = self._extract_corners_from_faces(obj)
+            if len(corners) < 4:
+                return
+            
+            # Get load intensity
+            intensity = self.parseLoadIntensity(obj.LoadIntensity) if hasattr(obj, 'LoadIntensity') else 10.0
+            
+            # Get distribution type
+            dist_type = getattr(obj, 'SlabDistributionType', 'Plate (FEM)')
+            
+            viz = LoadDistributionVisualizer(doc)
+            viz.clear_visualization()  # Clear previous
+            
+            if 'Two-Way' in dist_type:
+                viz.visualize_two_way_yield_line(corners, load_intensity=intensity, 
+                                                  name_prefix=f"{obj.Name}_TwoWay")
+            elif 'One-Way' in dist_type:
+                span_dir = "short" if "Short" in dist_type else "long"
+                viz.visualize_one_way_distribution(corners, span_direction=span_dir,
+                                                    load_intensity=intensity,
+                                                    name_prefix=f"{obj.Name}_OneWay")
+            
+            # Store visualizer reference
+            self._visualizer = viz
+            
+        except ImportError:
+            App.Console.PrintWarning("LoadDistributionVisualizer not available\n")
+        except Exception as e:
+            App.Console.PrintWarning(f"Error creating load distribution: {e}\n")
+    
+    def _extract_corners_from_faces(self, obj) -> list:
+        """Extract corner vertices from target faces."""
+        corners = []
+        try:
+            for face_obj in obj.TargetFaces:
+                if hasattr(face_obj, 'Shape'):
+                    shape = face_obj.Shape
+                    if hasattr(shape, 'Vertexes'):
+                        for v in shape.Vertexes:
+                            corners.append(v.Point)
+                    elif hasattr(shape, 'Faces') and len(shape.Faces) > 0:
+                        for v in shape.Faces[0].Vertexes:
+                            corners.append(v.Point)
+        except Exception as e:
+            App.Console.PrintWarning(f"Error extracting corners: {e}\n")
+        
+        # Return first 4 unique corners
+        unique = []
+        for c in corners:
+            is_dup = False
+            for u in unique:
+                if (c - u).Length < 1.0:
+                    is_dup = True
+                    break
+            if not is_dup:
+                unique.append(c)
+        return unique[:4]
+    
     
     def createLoadVectors(self, obj):
         """Create load vector visualization."""
@@ -719,6 +832,8 @@ class AreaLoad:
     
     def _update_loaded_area(self, obj) -> None:
         """Calculate total loaded area from target faces."""
+        if not hasattr(obj, 'LoadedArea'):
+            return
         if not hasattr(obj, 'TargetFaces') or not obj.TargetFaces:
             obj.LoadedArea = "0 mm^2"
             return
@@ -734,7 +849,7 @@ class AreaLoad:
                     total_area += shape.Area
         
         obj.LoadedArea = f"{total_area} mm^2"
-        FreeCAD.Console.PrintMessage(f"Updated loaded area: {total_area:.2f} mm²\n")
+        App.Console.PrintMessage(f"Updated loaded area: {total_area:.2f} mm²\n")
     
     def _update_load_category(self, obj) -> None:
         """Update load category based on load type."""
@@ -755,7 +870,8 @@ class AreaLoad:
         }
         
         if load_type in category_map:
-            obj.LoadCategory = category_map[load_type]
+            if hasattr(obj, 'LoadCategory'):
+                obj.LoadCategory = category_map[load_type]
     
     def _calculate_total_load(self, obj) -> None:
         """Calculate total applied load."""
@@ -873,6 +989,8 @@ class AreaLoad:
     
     def _update_load_center(self, obj) -> None:
         """Calculate center of load application."""
+        if not hasattr(obj, 'LoadCenter'):
+            return
         if not hasattr(obj, 'TargetFaces') or not obj.TargetFaces:
             obj.LoadCenter = App.Vector(0, 0, 0)
             return
@@ -1046,7 +1164,7 @@ class AreaLoad:
         self._calculate_total_load(obj)
         
         # Update visualization
-        if obj.ShowLoadArrows:
+        if hasattr(obj, 'ShowLoadArrows') and obj.ShowLoadArrows:
             self._update_visualization(obj)
         
         # Validate load definition

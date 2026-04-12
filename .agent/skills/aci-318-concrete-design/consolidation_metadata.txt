@@ -1,0 +1,8 @@
+ACI 318-25 Consolidation Metadata
+==================================================
+
+source_directory: /home/hankm/Code_Work/ACI318_Engineer/markdown
+total_pages: 702
+parts_consolidated: 9
+appendices_consolidated: 4
+output_directory: /home/hankm/Code_Work/ACI318_Engineer/.claude/skills/aci-318-concrete-design

@@ -708,25 +708,49 @@ class AISC360DesignCode:
         )
     
     def _classify_section_flexure(self, section: SectionProperties, material: MaterialProperties) -> str:
-        """Classify section as compact, non-compact, or slender for flexure."""
-        # Simplified classification - would need more detailed implementation
-        # For W-shapes, typically compact unless very slender
-        
-        # Web slenderness
-        h_tw = (section.d - 2 * section.tf) / section.tw
-        lambda_pw = 3.76 * math.sqrt(material.E / material.Fy)
-        
-        # Flange slenderness  
-        b_tf = (section.bf / 2) / section.tf
-        lambda_pf = 0.38 * math.sqrt(material.E / material.Fy)
-        lambda_rf = 1.0 * math.sqrt(material.E / material.Fy)
-        
-        if h_tw <= lambda_pw and b_tf <= lambda_pf:
-            return "compact"
-        elif b_tf <= lambda_rf:
-            return "noncompact"
+        """Classify section per AISC 360-22 Table B4.1b for flexure.
+
+        Returns the governing classification: 'compact', 'noncompact', or 'slender'.
+        Also stores detailed results in self._last_classification for reporting.
+        """
+        E = material.E
+        Fy = material.Fy
+
+        # --- Flange: unstiffened element (Table B4.1b Case 10) ---
+        lambda_f = (section.bf / 2) / section.tf
+        lambda_pf = 0.38 * math.sqrt(E / Fy)
+        lambda_rf = 1.0 * math.sqrt(E / Fy)
+
+        if lambda_f <= lambda_pf:
+            flange_class = "compact"
+        elif lambda_f <= lambda_rf:
+            flange_class = "noncompact"
         else:
-            return "slender"
+            flange_class = "slender"
+
+        # --- Web: stiffened element (Table B4.1b Case 15) ---
+        h_clear = section.d - 2 * section.k  # Clear web height
+        lambda_w = h_clear / section.tw
+        lambda_pw = 3.76 * math.sqrt(E / Fy)
+        lambda_rw = 5.70 * math.sqrt(E / Fy)
+
+        if lambda_w <= lambda_pw:
+            web_class = "compact"
+        elif lambda_w <= lambda_rw:
+            web_class = "noncompact"
+        else:
+            web_class = "slender"
+
+        # Store for use by capacity methods
+        self._last_classification = {
+            'flange': flange_class, 'web': web_class,
+            'lambda_f': lambda_f, 'lambda_pf': lambda_pf, 'lambda_rf': lambda_rf,
+            'lambda_w': lambda_w, 'lambda_pw': lambda_pw, 'lambda_rw': lambda_rw,
+        }
+
+        # Governing is the worst of the two
+        rank = {'compact': 0, 'noncompact': 1, 'slender': 2}
+        return max(flange_class, web_class, key=lambda c: rank[c])
     
     def _calculate_ltb_strength(self, section: SectionProperties, material: MaterialProperties,
                                length_properties: Dict) -> float:
@@ -765,18 +789,36 @@ class AISC360DesignCode:
     def _calculate_noncompact_flexural_strength(self, section: SectionProperties, 
                                                material: MaterialProperties,
                                                length_properties: Dict) -> float:
-        """Calculate flexural strength for non-compact sections."""
-        # Simplified implementation - would need detailed flange local buckling check
-        Mp = material.Fy * section.Zx
-        My = material.Fy * section.Sx
-        return min(Mp, My)
+        """Flexural strength for noncompact W-shapes per AISC 360-22 F3."""
+        E = material.E
+        Fy = material.Fy
+        Mp = Fy * section.Zx
+        clf = getattr(self, '_last_classification', {})
+        lf = clf.get('lambda_f', (section.bf / 2) / section.tf)
+        lpf = clf.get('lambda_pf', 0.38 * math.sqrt(E / Fy))
+        lrf = clf.get('lambda_rf', 1.0 * math.sqrt(E / Fy))
+        if lf <= lpf:
+            Mn_flb = Mp
+        elif lf <= lrf:
+            Mn_flb = Mp - (Mp - 0.7 * Fy * section.Sx) * ((lf - lpf) / (lrf - lpf))
+        else:
+            Mn_flb = 0.7 * Fy * section.Sx
+        Mn_ltb = self._calculate_ltb_strength(section, material, length_properties)
+        return min(Mn_flb, Mn_ltb, Mp)
     
     def _calculate_slender_flexural_strength(self, section: SectionProperties,
                                             material: MaterialProperties, 
                                             length_properties: Dict) -> float:
-        """Calculate flexural strength for slender sections."""
-        # Simplified implementation - would need detailed local buckling analysis
-        return 0.7 * material.Fy * section.Sx
+        """Flexural strength for slender-element W-shapes per AISC 360-22 F5."""
+        E = material.E
+        Fy = material.Fy
+        h_clear = section.d - 2 * section.k
+        kc = max(0.35, min(0.76, 4.0 / math.sqrt(h_clear / section.tw)))
+        lambda_f = (section.bf / 2) / section.tf
+        Fcr = 0.9 * E * kc / (lambda_f ** 2)
+        Mn_flb = min(Fcr, Fy) * section.Sx
+        Mn_ltb = self._calculate_ltb_strength(section, material, length_properties)
+        return min(Mn_flb, Mn_ltb)
     
     def generate_design_report(self, member_results: List[DesignResult], 
                              project_info: Dict = None) -> str:

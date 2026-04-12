@@ -13,7 +13,7 @@ from typing import List, Dict, Optional
 
 # Import Qt modules
 try:
-    from PySide2 import QtWidgets, QtCore, QtGui
+    from ..qt_compat import QtWidgets, QtCore, QtGui
 except ImportError:
     try:
         from PySide import QtWidgets, QtCore

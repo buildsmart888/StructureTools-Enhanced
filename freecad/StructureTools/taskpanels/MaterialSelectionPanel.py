@@ -8,7 +8,7 @@ including ASTM, EN, ACI, JIS and other international standards.
 
 import FreeCAD as App
 import FreeCADGui as Gui
-from PySide2 import QtCore, QtWidgets, QtGui
+from ..qt_compat import QtWidgets, QtCore, QtGui
 import os
 
 try:

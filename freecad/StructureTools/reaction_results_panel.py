@@ -4,7 +4,7 @@ from typing import Optional
 
 # Prefer PySide2 when available
 try:
-    from PySide2 import QtWidgets, QtCore, QtGui
+    from .qt_compat import QtWidgets, QtCore, QtGui
 except ImportError:
     try:
         from PySide import QtWidgets, QtCore, QtGui

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Beam (horizontal bar) -->
+  <rect x="6" y="26" width="52" height="12" fill="#4a90a4" stroke="#2d5a6b" stroke-width="2"/>
+  
+  <!-- Force arrows -->
+  <!-- Downward arrow (shear) -->
+  <path d="M 20 14 L 20 26 M 16 20 L 20 26 L 24 20" stroke="#e74c3c" stroke-width="2.5" fill="none"/>
+  
+  <!-- Upward arrow (reaction) -->
+  <path d="M 44 38 L 44 50 M 40 44 L 44 38 L 48 44" stroke="#27ae60" stroke-width="2.5" fill="none"/>
+  
+  <!-- Max/Min text indicator -->
+  <text x="8" y="56" font-family="Arial" font-size="10" fill="#333" font-weight="bold">Max</text>
+  <text x="42" y="56" font-family="Arial" font-size="10" fill="#333" font-weight="bold">Min</text>
+  
+  <!-- Moment curve hint -->
+  <path d="M 26 32 Q 32 42 38 32" stroke="#9b59b6" stroke-width="2" fill="none"/>
+</svg>

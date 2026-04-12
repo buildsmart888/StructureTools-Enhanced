@@ -8,7 +8,7 @@ properties with section selection, material assignment, and connection details.
 
 import FreeCAD as App
 import FreeCADGui as Gui
-from PySide2 import QtCore, QtGui, QtWidgets
+from ..qt_compat import QtWidgets, QtCore, QtGui
 from typing import Optional
 
 # Import Global Units System

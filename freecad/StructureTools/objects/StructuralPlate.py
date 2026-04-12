@@ -506,21 +506,33 @@ class StructuralPlate:
         plate_type = obj.PlateType
         
         if plate_type == "Thin Plate":
-            obj.IncludeMembraneAction = False
-            obj.IncludeBendingAction = True
-            obj.IncludeShearDeformation = False
+            if hasattr(obj, 'IncludeMembraneAction'):
+                obj.IncludeMembraneAction = False
+            if hasattr(obj, 'IncludeBendingAction'):
+                obj.IncludeBendingAction = True
+            if hasattr(obj, 'IncludeShearDeformation'):
+                obj.IncludeShearDeformation = False
         elif plate_type == "Thick Plate":
-            obj.IncludeMembraneAction = True
-            obj.IncludeBendingAction = True
-            obj.IncludeShearDeformation = True
+            if hasattr(obj, 'IncludeMembraneAction'):
+                obj.IncludeMembraneAction = True
+            if hasattr(obj, 'IncludeBendingAction'):
+                obj.IncludeBendingAction = True
+            if hasattr(obj, 'IncludeShearDeformation'):
+                obj.IncludeShearDeformation = True
         elif plate_type == "Shell":
-            obj.IncludeMembraneAction = True
-            obj.IncludeBendingAction = True
-            obj.IncludeShearDeformation = False
+            if hasattr(obj, 'IncludeMembraneAction'):
+                obj.IncludeMembraneAction = True
+            if hasattr(obj, 'IncludeBendingAction'):
+                obj.IncludeBendingAction = True
+            if hasattr(obj, 'IncludeShearDeformation'):
+                obj.IncludeShearDeformation = False
         elif plate_type == "Membrane":
-            obj.IncludeMembraneAction = True
-            obj.IncludeBendingAction = False
-            obj.IncludeShearDeformation = False
+            if hasattr(obj, 'IncludeMembraneAction'):
+                obj.IncludeMembraneAction = True
+            if hasattr(obj, 'IncludeBendingAction'):
+                obj.IncludeBendingAction = False
+            if hasattr(obj, 'IncludeShearDeformation'):
+                obj.IncludeShearDeformation = False
     
     def _update_boundary_conditions(self, obj) -> None:
         """Update boundary condition properties."""
@@ -557,7 +569,7 @@ class StructuralPlate:
         
         # Validate material assignment
         if not hasattr(obj, 'Material') or not obj.Material:
-            FreeCAD.Console.PrintWarning(f"Plate {obj.Label}: No material assigned\n")
+            App.Console.PrintWarning(f"Plate {obj.Label}: No material assigned\n")
         
         # Validate load consistency
         self._validate_load_consistency(obj)

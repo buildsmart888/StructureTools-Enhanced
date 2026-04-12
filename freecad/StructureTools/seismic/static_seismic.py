@@ -17,17 +17,28 @@ from enum import Enum
 
 # Import GUI framework with fallbacks
 try:
-    from PySide2 import QtWidgets, QtCore, QtGui
-    from PySide2.QtWidgets import *
-    from PySide2.QtCore import *
-    from PySide2.QtGui import *
+    from ..qt_compat import QtWidgets, QtCore, QtGui, Qt
+    QCheckBox = QtWidgets.QCheckBox
+    QComboBox = QtWidgets.QComboBox
+    QGridLayout = QtWidgets.QGridLayout
+    QGroupBox = QtWidgets.QGroupBox
+    QHBoxLayout = QtWidgets.QHBoxLayout
+    QLabel = QtWidgets.QLabel
+    QLineEdit = QtWidgets.QLineEdit
+    QTableWidget = QtWidgets.QTableWidget
+    QTableWidgetItem = QtWidgets.QTableWidgetItem
+    QVBoxLayout = QtWidgets.QVBoxLayout
+    QWidget = QtWidgets.QWidget
     QT_AVAILABLE = True
 except ImportError:
     try:
         from PySide import QtWidgets, QtCore, QtGui
-        from PySide.QtWidgets import *
-        from PySide.QtCore import *
-        from PySide.QtGui import *
+        from PySide.QtCore import Qt
+        from PySide.QtWidgets import (
+            QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
+            QLabel, QLineEdit, QTableWidget, QTableWidgetItem,
+            QVBoxLayout, QWidget,
+        )
         QT_AVAILABLE = True
     except ImportError:
         QT_AVAILABLE = False

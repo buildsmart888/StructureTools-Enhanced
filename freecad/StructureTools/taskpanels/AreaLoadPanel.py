@@ -1,6 +1,6 @@
 import FreeCAD as App
 import FreeCADGui as Gui
-from PySide2 import QtCore, QtWidgets, QtGui
+from ..qt_compat import QtWidgets, QtCore, QtGui
 import math
 import os
 import sys
@@ -143,6 +143,14 @@ class AreaLoadApplicationPanel:
         # Load definition tab
         self.load_tab = self.createLoadDefinitionTab()
         _safe_call_method(self.tab_widget, "addTab", self.load_tab, "Load Definition")
+        
+        # Slab Distribution tab (NEW)
+        self.slab_tab = self.createSlabDistributionTab()
+        _safe_call_method(self.tab_widget, "addTab", self.slab_tab, "Slab Distribution")
+        
+        # Templates tab (NEW)
+        self.templates_tab = self.createTemplatesTab()
+        _safe_call_method(self.tab_widget, "addTab", self.templates_tab, "Templates")
         
         # Distribution tab
         self.distribution_tab = self.createDistributionTab()
@@ -353,6 +361,174 @@ class AreaLoadApplicationPanel:
         
         _safe_set_layout(case_group, case_layout)
         _safe_add_widget(layout, case_group)
+        
+        _safe_set_layout(tab, layout)
+        return tab
+    
+    def createSlabDistributionTab(self):
+        """Create slab distribution tab for one-way/two-way load transfer."""
+        tab = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+        
+        # Distribution Type
+        type_group = QtWidgets.QGroupBox("Slab Distribution Type")
+        type_layout = QtWidgets.QFormLayout()
+        
+        self.slab_dist_combo = QtWidgets.QComboBox()
+        slab_types = [
+            "Plate (FEM)", "One-Way (Short Span)", "One-Way (Long Span)", 
+            "Two-Way (Yield Line)", "Two-Way (ACI Coefficients)"
+        ]
+        _safe_call_method(self.slab_dist_combo, "addItems", slab_types)
+        _safe_connect(getattr(self.slab_dist_combo, "currentTextChanged", None), self.onSlabDistributionChanged)
+        type_layout.addRow("Distribution Type:", self.slab_dist_combo)
+        
+        # Info label
+        self.slab_info_label = QtWidgets.QLabel("Plate (FEM): Load transferred via finite element mesh")
+        _safe_call_method(self.slab_info_label, "setStyleSheet", "color: gray; font-style: italic;")
+        _safe_call_method(self.slab_info_label, "setWordWrap", True)
+        type_layout.addRow(self.slab_info_label)
+        
+        _safe_set_layout(type_group, type_layout)
+        _safe_add_widget(layout, type_group)
+        
+        # Support Condition
+        support_group = QtWidgets.QGroupBox("Support Conditions")
+        support_layout = QtWidgets.QFormLayout()
+        
+        self.support_condition_combo = QtWidgets.QComboBox()
+        support_types = [
+            "4 Edges Supported", "3 Edges Supported", "2 Opposite Edges", 
+            "2 Adjacent Edges", "Cantilever"
+        ]
+        _safe_call_method(self.support_condition_combo, "addItems", support_types)
+        support_layout.addRow("Support Type:", self.support_condition_combo)
+        
+        # Visual edge selector
+        edge_label = QtWidgets.QLabel("Supported Edges (click to toggle):")
+        support_layout.addRow(edge_label)
+        
+        # Edge toggle buttons in a grid
+        edge_grid = QtWidgets.QGridLayout()
+        self.edge_buttons = {}
+        edge_names = [("Top", 2), ("Bottom", 0), ("Left", 3), ("Right", 1)]
+        positions = [(0, 1), (2, 1), (1, 0), (1, 2)]
+        
+        for (name, idx), pos in zip(edge_names, positions):
+            btn = QtWidgets.QPushButton(name)
+            _safe_call_method(btn, "setCheckable", True)
+            _safe_call_method(btn, "setChecked", True)
+            _safe_call_method(btn, "setStyleSheet", "background-color: lightgreen; font-weight: bold;")
+            _safe_connect(getattr(btn, "toggled", None), lambda checked, i=idx: self.onEdgeToggled(i, checked))
+            edge_grid.addWidget(btn, pos[0], pos[1])
+            self.edge_buttons[idx] = btn
+        
+        # Center label
+        center_label = QtWidgets.QLabel("SLAB")
+        _safe_call_method(center_label, "setAlignment", QtCore.Qt.AlignCenter)
+        _safe_call_method(center_label, "setStyleSheet", "background-color: lightgray; padding: 10px;")
+        edge_grid.addWidget(center_label, 1, 1)
+        
+        support_layout.addRow(edge_grid)
+        
+        _safe_set_layout(support_group, support_layout)
+        _safe_add_widget(layout, support_group)
+        
+        # Span Ratio
+        span_group = QtWidgets.QGroupBox("Span Properties")
+        span_layout = QtWidgets.QFormLayout()
+        
+        self.span_ratio_label = QtWidgets.QLabel("1.00 (Square)")
+        span_layout.addRow("Span Ratio (L/S):", self.span_ratio_label)
+        
+        self.short_span_label = QtWidgets.QLabel("Auto-detected")
+        span_layout.addRow("Short Span:", self.short_span_label)
+        
+        self.long_span_label = QtWidgets.QLabel("Auto-detected")
+        span_layout.addRow("Long Span:", self.long_span_label)
+        
+        _safe_set_layout(span_group, span_layout)
+        _safe_add_widget(layout, span_group)
+        
+        # Visualization
+        vis_group = QtWidgets.QGroupBox("Visualization")
+        vis_layout = QtWidgets.QFormLayout()
+        
+        self.show_dist_arrows_check = QtWidgets.QCheckBox("Show Load Transfer Arrows")
+        _safe_call_method(self.show_dist_arrows_check, "setChecked", True)
+        vis_layout.addRow(self.show_dist_arrows_check)
+        
+        _safe_set_layout(vis_group, vis_layout)
+        _safe_add_widget(layout, vis_group)
+        
+        _safe_set_layout(tab, layout)
+        return tab
+    
+    def createTemplatesTab(self):
+        """Create load templates tab."""
+        tab = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+        
+        # Building Code Selection
+        code_group = QtWidgets.QGroupBox("Building Code")
+        code_layout = QtWidgets.QFormLayout()
+        
+        self.code_combo = QtWidgets.QComboBox()
+        codes = ["Thai B.E. 2566", "ASCE 7-16", "IBC 2018", "Eurocode 1"]
+        _safe_call_method(self.code_combo, "addItems", codes)
+        _safe_connect(getattr(self.code_combo, "currentTextChanged", None), self.onBuildingCodeChanged)
+        code_layout.addRow("Building Code:", self.code_combo)
+        
+        _safe_set_layout(code_group, code_layout)
+        _safe_add_widget(layout, code_group)
+        
+        # Load Type Filter
+        filter_group = QtWidgets.QGroupBox("Filter Templates")
+        filter_layout = QtWidgets.QFormLayout()
+        
+        self.template_type_combo = QtWidgets.QComboBox()
+        _safe_call_method(self.template_type_combo, "addItems", ["All Types", "Dead Loads (DL)", "Live Loads (LL)", "Roof Loads"])
+        _safe_connect(getattr(self.template_type_combo, "currentTextChanged", None), self.onTemplateFilterChanged)
+        filter_layout.addRow("Load Type:", self.template_type_combo)
+        
+        _safe_set_layout(filter_group, filter_layout)
+        _safe_add_widget(layout, filter_group)
+        
+        # Template List
+        templates_group = QtWidgets.QGroupBox("Available Templates")
+        templates_layout = QtWidgets.QVBoxLayout()
+        
+        self.template_list = QtWidgets.QListWidget()
+        _safe_call_method(self.template_list, "setMaximumHeight", 200)
+        _safe_connect(getattr(self.template_list, "itemDoubleClicked", None), self.onTemplateSelected)
+        templates_layout.addWidget(self.template_list)
+        
+        # Apply button
+        apply_btn = QtWidgets.QPushButton("Apply Selected Template")
+        _safe_connect(getattr(apply_btn, "clicked", None), self.applySelectedTemplate)
+        templates_layout.addWidget(apply_btn)
+        
+        _safe_set_layout(templates_group, templates_layout)
+        _safe_add_widget(layout, templates_group)
+        
+        # Template Info
+        info_group = QtWidgets.QGroupBox("Template Details")
+        info_layout = QtWidgets.QFormLayout()
+        
+        self.template_name_label = QtWidgets.QLabel("-")
+        self.template_magnitude_label = QtWidgets.QLabel("-")
+        self.template_description_label = QtWidgets.QLabel("-")
+        _safe_call_method(self.template_description_label, "setWordWrap", True)
+        
+        info_layout.addRow("Name:", self.template_name_label)
+        info_layout.addRow("Magnitude:", self.template_magnitude_label)
+        info_layout.addRow("Description:", self.template_description_label)
+        
+        _safe_set_layout(info_group, info_layout)
+        _safe_add_widget(layout, info_group)
+        
+        # Populate initial templates
+        self.populateTemplates()
         
         _safe_set_layout(tab, layout)
         return tab
@@ -783,6 +959,126 @@ class AreaLoadApplicationPanel:
         """Handle load case name change."""
         if self.load_settings['auto_update']:
             self.updatePreview()
+    
+    def onSlabDistributionChanged(self, dist_type):
+        """Handle slab distribution type change."""
+        info_texts = {
+            "Plate (FEM)": "Load transferred via finite element mesh to supporting elements",
+            "One-Way (Short Span)": "Load distributed to beams along short span only (perpendicular)",
+            "One-Way (Long Span)": "Load distributed to beams along long span only",
+            "Two-Way (Yield Line)": "Load distributed using yield line theory (triangular/trapezoidal)",
+            "Two-Way (ACI Coefficients)": "Load distributed using ACI moment coefficients"
+        }
+        if hasattr(self, 'slab_info_label'):
+            self.slab_info_label.setText(info_texts.get(dist_type, ""))
+        self.updateStatus(f"Slab distribution: {dist_type}")
+    
+    def onEdgeToggled(self, edge_idx, checked):
+        """Handle edge support toggle."""
+        if hasattr(self, 'edge_buttons') and edge_idx in self.edge_buttons:
+            btn = self.edge_buttons[edge_idx]
+            if checked:
+                _safe_call_method(btn, "setStyleSheet", "background-color: lightgreen; font-weight: bold;")
+            else:
+                _safe_call_method(btn, "setStyleSheet", "background-color: lightcoral; font-weight: normal;")
+    
+    def onBuildingCodeChanged(self, code):
+        """Handle building code change and repopulate templates."""
+        self.populateTemplates()
+    
+    def onTemplateFilterChanged(self, filter_type):
+        """Handle template filter change."""
+        self.populateTemplates()
+    
+    def populateTemplates(self):
+        """Populate template list based on selected code and filter."""
+        if not hasattr(self, 'template_list'):
+            return
+            
+        self.template_list.clear()
+        
+        # Try to import templates
+        try:
+            from ..data.LoadTemplates import LOAD_TEMPLATES
+        except ImportError:
+            # Fallback templates
+            templates = [
+                ("Office Floor", "2.0 kN/m²", "LL"),
+                ("Residential Floor", "1.5 kN/m²", "LL"),
+                ("Parking Garage", "5.0 kN/m²", "LL"),
+                ("Concrete Slab 15cm", "3.6 kN/m²", "DL"),
+                ("Tile Finish", "1.0 kN/m²", "DL"),
+            ]
+            for name, mag, lt in templates:
+                self.template_list.addItem(f"{name} ({mag})")
+            return
+        
+        # Get selected code
+        code_map = {
+            "Thai B.E. 2566": "Thai_BE2566",
+            "ASCE 7-16": "ASCE_7_16",
+        }
+        code = code_map.get(self.code_combo.currentText(), "Thai_BE2566")
+        
+        # Get filter
+        filter_type = self.template_type_combo.currentText()
+        type_filter = None
+        if "DL" in filter_type:
+            type_filter = "DL"
+        elif "LL" in filter_type and "Roof" not in filter_type:
+            type_filter = "LL"
+        elif "Roof" in filter_type:
+            type_filter = "LL_Roof"
+        
+        # Populate list
+        if code in LOAD_TEMPLATES:
+            for tid, template in LOAD_TEMPLATES[code]["loads"].items():
+                if type_filter and template.get("type") != type_filter:
+                    continue
+                name = template.get("name", tid)
+                mag = template.get("magnitude_kN_m2", 0)
+                item_text = f"{name} ({mag:.1f} kN/m²)"
+                item = QtWidgets.QListWidgetItem(item_text)
+                item.setData(QtCore.Qt.UserRole, {"code": code, "id": tid, **template})
+                self.template_list.addItem(item)
+    
+    def onTemplateSelected(self, item):
+        """Handle template selection to show details."""
+        data = item.data(QtCore.Qt.UserRole)
+        if data:
+            self.template_name_label.setText(data.get("name", "-"))
+            self.template_magnitude_label.setText(f"{data.get('magnitude_kN_m2', 0):.2f} kN/m²")
+            self.template_description_label.setText(data.get("description", "-"))
+    
+    def applySelectedTemplate(self):
+        """Apply selected template to load settings."""
+        if not hasattr(self, 'template_list'):
+            return
+        
+        item = self.template_list.currentItem()
+        if not item:
+            self.updateStatus("Please select a template first")
+            return
+        
+        data = item.data(QtCore.Qt.UserRole)
+        if data:
+            # Apply magnitude
+            mag = data.get("magnitude_kN_m2", 0)
+            self.magnitude_input.setValue(mag)
+            
+            # Apply load type
+            load_type = data.get("type", "DL")
+            type_map = {
+                "DL": "Dead Load (DL)",
+                "LL": "Live Load (LL)",
+                "LL_Roof": "Live Load Roof (LL_Roof)"
+            }
+            if load_type in type_map:
+                self.load_type_combo.setCurrentText(type_map[load_type])
+            
+            self.updateLoadSummary()
+            self.updateStatus(f"Applied template: {data.get('name', 'Unknown')}")
+
     
     # Actions
     def addFaces(self):

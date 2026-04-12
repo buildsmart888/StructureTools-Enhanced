@@ -67,15 +67,23 @@ class Diagram:
 
 
 	#  Mapeia os nós da estrutura
-	def mapNodes(self, elements):	
+	def mapNodes(self, elements):
 		# Varre todos os elementos de linha e adiciona seus vertices à tabela de nodes
 		listNodes = []
 		for element in elements:
-			for edge in element.Shape.Edges:
-				for vertex in edge.Vertexes:
-					node = [round(vertex.Point.x, 2), round(vertex.Point.y, 2), round(vertex.Point.z, 2)]
-					if not node in listNodes:
-						listNodes.append(node)
+			try:
+				edges = element.Shape.Edges
+			except Exception:
+				# Shape not yet available during recompute; skip this element
+				continue
+			for edge in edges:
+				try:
+					for vertex in edge.Vertexes:
+						node = [round(vertex.Point.x, 2), round(vertex.Point.y, 2), round(vertex.Point.z, 2)]
+						if not node in listNodes:
+							listNodes.append(node)
+				except Exception:
+					continue
 
 		return listNodes
 
@@ -84,24 +92,32 @@ class Diagram:
 	def mapMembers(self, elements, listNodes):
 		listMembers = {}
 		for element in elements:
-			for i, edge in enumerate(element.Shape.Edges):
-				listIndexVertex = []
-				for vertex in edge.Vertexes:
-					node = [round(vertex.Point.x, 2), round(vertex.Point.y, 2), round(vertex.Point.z, 2)]
-					index = listNodes.index(node)
-					listIndexVertex.append(index)
-				# valida se o primeiro nó é mais auto do que o segundo nó, se sim inverte os nós do membro (necessário para manter os diagramas voltados para a posição correta)
-				n1 = listIndexVertex[0]
-				n2 = listIndexVertex[1]
-				if listNodes[n1][2] > listNodes[n2][2]:
-					aux = n1
-					n1 = n2
-					n2 = aux
-				listMembers[element.Name + '_' + str(i)] = {
-					'nodes': [str(n1), str(n2)],
-					'RotationSection': element.RotationSection.getValueAs('rad')
-				}
-		
+			try:
+				edges = element.Shape.Edges
+			except Exception:
+				# Shape not yet available during recompute; skip this element
+				continue
+			for i, edge in enumerate(edges):
+				try:
+					listIndexVertex = []
+					for vertex in edge.Vertexes:
+						node = [round(vertex.Point.x, 2), round(vertex.Point.y, 2), round(vertex.Point.z, 2)]
+						index = listNodes.index(node)
+						listIndexVertex.append(index)
+					# valida se o primeiro nó é mais auto do que o segundo nó, se sim inverte os nós do membro (necessário para manter os diagramas voltados para a posição correta)
+					n1 = listIndexVertex[0]
+					n2 = listIndexVertex[1]
+					if listNodes[n1][2] > listNodes[n2][2]:
+						aux = n1
+						n1 = n2
+						n2 = aux
+					listMembers[element.Name + '_' + str(i)] = {
+						'nodes': [str(n1), str(n2)],
+						'RotationSection': element.RotationSection.getValueAs('rad')
+					}
+				except Exception:
+					continue
+
 		return listMembers
 	
 	# separa as ordenadas em grupos de valores positivos e negativos
@@ -243,18 +259,17 @@ class Diagram:
 
 	# Gera o diagrama da matriz passada como argumento
 	def makeDiagram(self, matrix,nodes, members, orderMembers, nPoints, rotacao, escale, fontHeight, precision, drawText, obj=None, color=None):
-		
+
 		# e = 1e-11
 		listDiagram = []
 		for i, nameMember in orderMembers:
 			# Check if member exists in the members dictionary
 			if nameMember not in members:
-				print(f"Warning: Member '{nameMember}' not found in members dictionary, skipping")
+				# Warning is suppressed here; caller (execute) reports this once
 				continue
-			
+
 			# Check if member has valid node information
 			if 'nodes' not in members[nameMember] or len(members[nameMember]['nodes']) < 2:
-				print(f"Warning: Member '{nameMember}' has invalid node data, skipping")
 				continue
 			
 			p1 = nodes[int(members[nameMember]['nodes'][0])]
@@ -394,6 +409,18 @@ class Diagram:
 		nodes = self.mapNodes(elements)
 		members = self.mapMembers(elements, nodes)
 		orderMembers = self.filterMembersSelected(obj)
+
+		# Check for members in NameMembers that are missing from the mapped geometry.
+		# This can happen transiently when FreeCAD recomputes shapes (geo element version change).
+		# Report once per execute() call and skip diagram generation if nothing is mappable.
+		missing = [name for _, name in orderMembers if name not in members]
+		if missing:
+			if not members:
+				# Shapes not yet available — silently skip this recompute pass
+				return
+			print(f"Warning: {len(missing)} member(s) not found in diagram geometry "
+			      f"(shapes may be recomputing): {', '.join(missing[:5])}"
+			      + (" ..." if len(missing) > 5 else ""))
 
 		# Create separate lists for each diagram type to apply different colors
 		moment_diagrams = []

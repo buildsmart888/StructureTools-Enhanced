@@ -8,7 +8,7 @@ application with load combinations, patterns, and real-time preview.
 
 import FreeCAD as App
 import FreeCADGui as Gui
-from PySide2 import QtCore, QtGui, QtWidgets
+from ..qt_compat import QtWidgets, QtCore, QtGui
 import os
 from typing import Optional, Dict, List, Any
 

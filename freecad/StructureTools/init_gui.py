@@ -78,6 +78,7 @@ class StructureTools(Gui.Workbench):
 		from freecad.StructureTools import reaction_results
 		from freecad.StructureTools import reaction_table_panel
 		from freecad.StructureTools import command_reaction_table
+		from freecad.StructureTools import command_member_force_table
 		# New Phase 1 components
 		from freecad.StructureTools import command_plate
 		from freecad.StructureTools import command_area_load
@@ -104,8 +105,16 @@ class StructureTools(Gui.Workbench):
 		# Phase 2 - Design Optimization
 		from freecad.StructureTools import command_design_optimizer
 		# Phase 2 - Comprehensive Reporting
+		# Phase 2 - Comprehensive Reporting
 		from freecad.StructureTools import command_report_generator
+		# Load Distribution Visualization
+		from freecad.StructureTools import command_load_distribution
 
+
+		# Phase 4 - Visualization
+		from freecad.StructureTools.commands import CommandShowDesign
+		from freecad.StructureTools.commands import CommandRunSteelDesign
+		from freecad.StructureTools.commands import CommandRunConcreteDesign
 		
 		import DraftTools, SketcherGui
 		# NOTE: Context for this commands must be "Workbench"
@@ -114,14 +123,15 @@ class StructureTools(Gui.Workbench):
 		self.appendToolbar('DraftSnap', ["Draft_Snap_Lock", "Draft_Snap_Endpoint", "Draft_Snap_Midpoint", "Draft_Snap_Center", "Draft_Snap_Angle", "Draft_Snap_Intersection", "Draft_Snap_Perpendicular", "Draft_Snap_Extension", "Draft_Snap_Parallel", "Draft_Snap_Special", "Draft_Snap_Near", "Draft_Snap_Ortho", "Draft_Snap_Grid", "Draft_Snap_WorkingPlane", "Draft_Snap_Dimensions", "Draft_ToggleGrid"])
 		self.appendToolbar('DraftTools', ["Draft_SelectPlane", "Draft_SetStyle"])
 
-		self.appendToolbar('StructureLoad', ["load_distributed","load_nodal", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui"])
+		self.appendToolbar('StructureLoad', ["load_distributed","load_nodal", "CreateAreaLoad", "VisualizeLoadDistribution", "ClearLoadDistribution", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui"])
 		self.appendToolbar('StructureTools', ["member", "suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate"])
-		self.appendToolbar('StructureResults', ["calc","diagram", "ReactionResults", "ReactionTablePanel", "ViewReactionTable", "GenerateStructuralReport"])
+		self.appendToolbar('StructureResults', ["calc","diagram", "ReactionResults", "ReactionTablePanel", "ViewReactionTable", "ViewMemberForceSummary", "GenerateStructuralReport"])
+
 		self.appendToolbar('AdvancedAnalysis', ["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
-		self.appendToolbar('DesignCodes', ["RunAISCDesign", "RunACIDesign"])
+		self.appendToolbar('DesignCodes', ["RunSteelDesign", "RunConcreteDesign", "RunAISCDesign", "RunACIDesign", "ShowDesignStatus"])
 		self.appendToolbar('BIMIntegration', ["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])
 		
-		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "CreateAreaLoad", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate", "calc", "diagram", "ReactionResults", "ViewReactionTable", "GenerateStructuralReport"])
+		self.appendMenu('StructureTools',["load_distributed", "load_nodal", "CreateAreaLoad", "VisualizeLoadDistribution", "ClearLoadDistribution", "RunLoadGenerator", "wind_load_gui", "seismic_load_gui", "member" ,"suport", "section", "material", "CreateMaterial", "MaterialDatabaseManager", "CreateStructuralPlate", "calc", "diagram", "ReactionResults", "ViewReactionTable", "ViewMemberForceSummary", "GenerateStructuralReport"])
 		self.appendMenu('Advanced Analysis',["RunModalAnalysis", "ViewModalResults", "RunBucklingAnalysis", "RunDesignOptimizer"])
 		self.appendMenu('Design Codes',["RunAISCDesign", "RunACIDesign"])
 		self.appendMenu('BIM Integration',["BIM_Import", "BIM_Export", "BIM_Sync", "CreateStructuralDrawing", "ExportToFEM"])

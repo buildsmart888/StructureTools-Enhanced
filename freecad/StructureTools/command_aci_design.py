@@ -24,8 +24,8 @@ except ImportError:
 try:
     import FreeCAD as App
     import FreeCADGui as Gui
-    from PySide2 import QtCore, QtGui, QtWidgets
-    from PySide2.QtCore import Qt
+    from .qt_compat import QtWidgets, QtCore, QtGui
+    from .qt_compat import Qt
 except ImportError:
     # For testing without FreeCAD
     class MockApp:

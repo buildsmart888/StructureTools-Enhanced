@@ -1,6 +1,6 @@
 import FreeCAD as App
 import FreeCADGui as Gui
-from PySide2 import QtCore, QtWidgets, QtGui
+from ..qt_compat import QtWidgets, QtCore, QtGui
 import os
 
 # Import Global Units System

@@ -34,6 +34,18 @@ except ImportError:
     class ComplianceVerifier:
         def __init__(self):
             pass
+    
+    class GeneratedLoads:
+        pass
+        
+    class UnifiedDesignResults:
+        pass
+        
+    class ModalAnalysisResults:
+        pass
+        
+    class BucklingAnalysisResults:
+        pass
 
 
 @dataclass
